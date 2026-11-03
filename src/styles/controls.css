@@ -1,0 +1,94 @@
+/* Shared form controls: buttons, switches, selects. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+.btn:hover:not(:disabled) {
+  background: var(--hover);
+}
+.btn:disabled {
+  opacity: 0.5;
+}
+.btn.primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+.btn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.btn.small {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.btn.ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.switch {
+  appearance: none;
+  position: relative;
+  width: 36px;
+  height: 22px;
+  margin: 0;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: var(--track);
+  transition: background var(--fast) var(--ease);
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: transform var(--fast) var(--ease);
+}
+.switch:checked {
+  background: var(--accent);
+}
+.switch:checked::after {
+  transform: translateX(14px);
+}
+
+.select {
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--radius-m);
+  border: 1px solid var(--hairline);
+  background: var(--field);
+  color: var(--text);
+}
+.select option {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent-text);
+}
+.link-button:hover {
+  text-decoration: underline;
+}

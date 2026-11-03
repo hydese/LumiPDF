@@ -6,12 +6,14 @@
 
   interface Props {
     doc: PDFDocumentProxy | null;
+    /** Page to open the document at. */
+    startPage?: number;
     onState: (state: ViewerState) => void;
     onExternalLink: (url: string) => void;
     controller?: ViewerController | null;
   }
 
-  let { doc, onState, onExternalLink, controller = $bindable(null) }: Props = $props();
+  let { doc, startPage = 1, onState, onExternalLink, controller = $bindable(null) }: Props = $props();
   let container: HTMLDivElement;
 
   onMount(() => {
@@ -21,7 +23,7 @@
   onDestroy(() => controller?.destroy());
 
   $effect(() => {
-    controller?.setDocument(doc);
+    controller?.setDocument(doc, startPage);
   });
 </script>
 

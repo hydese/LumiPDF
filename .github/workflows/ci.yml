@@ -4,6 +4,12 @@ on:
   push:
     branches: [main, v2]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      macos:
+        description: Also build the macOS app
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -81,9 +87,11 @@ jobs:
           path: LumiPDF-portable.exe
           retention-days: 14
 
+  # Only when asked: run the workflow by hand with "macos" ticked, or put [mac] in the commit message.
   macos:
     name: macOS build
     needs: checks
+    if: inputs.macos || contains(github.event.head_commit.message, '[mac]')
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4

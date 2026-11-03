@@ -19,6 +19,18 @@ describe("settings", () => {
     expect(s.reading.theme).toBe("night-paper");
     expect(s.reading.auto).toEqual({ mode: "schedule", darkFrom: "20:30", darkUntil: "06:15" });
   });
+
+  it("keeps timer lengths whole and within limits", () => {
+    const s = parseSettings({ timer: { focus: 37.4, shortBreak: 0, longBreak: 999, sessionsBeforeLong: "4" } });
+    expect(s.timer).toEqual({ ...DEFAULT_SETTINGS.timer, focus: 37, shortBreak: 1, longBreak: 180 });
+  });
+
+  it("validates app preferences", () => {
+    const s = parseSettings({ app: { appearance: "dark", locale: "../../x", lastSeenVersion: "2.0.0" } });
+    expect(s.app.appearance).toBe("dark");
+    expect(s.app.locale).toBe("en");
+    expect(s.app.lastSeenVersion).toBe("2.0.0");
+  });
 });
 
 describe("auto theme", () => {

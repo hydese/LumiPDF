@@ -1,0 +1,16 @@
+{
+  "$comment": "What's new after an update. Add an entry for every version you release, newest first. The app shows the entry for its own version once, on the first launch after updating; the GitHub release notes are generated from it. A test fails if the version in package.json has no entry. Tags: new, better, fixed.",
+  "releases": [
+    {
+      "version": "2.0.0",
+      "date": "",
+      "items": [
+        { "tag": "new", "title": "LumiPDF 2.0", "text": "LuminaPDF, rewritten from scratch and renamed: lighter, faster and sharper." },
+        { "tag": "new", "title": "A library on the home screen", "text": "Pick up where you left off, add your folders, iCloud Drive and GoodNotes backups, and search by title." },
+        { "tag": "better", "title": "Crisp dark mode", "text": "Pages are recoloured while they are drawn, so text stays as sharp as the original in all five reading themes." },
+        { "tag": "new", "title": "Study timer", "text": "Focus and break lengths you choose, with your study time and streak." },
+        { "tag": "fixed", "title": "PDFs that wouldn't open", "text": "Protected and damaged PDFs that 1.x refused now open normally." }
+      ]
+    }
+  ]
+}

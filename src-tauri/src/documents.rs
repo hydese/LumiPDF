@@ -112,7 +112,7 @@ pub fn paths_from_args<I: IntoIterator<Item = String>>(args: I) -> Vec<PathBuf> 
 }
 
 /// On Windows `canonicalize` returns `\\?\C:\...`; the asset protocol and users expect `C:\...`.
-fn display_path(path: &Path) -> String {
+pub fn display_path(path: &Path) -> String {
     let s = path.to_string_lossy();
     s.strip_prefix(r"\\?\").unwrap_or(&s).to_string()
 }

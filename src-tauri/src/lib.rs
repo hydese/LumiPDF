@@ -7,7 +7,9 @@
 mod commands;
 mod documents;
 mod error;
+mod library;
 mod settings;
+mod store;
 
 pub use error::AppError;
 
@@ -29,6 +31,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(documents::PendingDocuments::default())
         .setup(|app| {
+            library::init(app.handle());
             let paths = documents::paths_from_args(std::env::args());
             let docs = documents::grant_all(app.handle(), &paths);
             documents::queue_pending(app.handle(), docs);
@@ -46,6 +49,13 @@ pub fn run() {
             documents::take_pending_documents,
             settings::load_settings,
             settings::save_settings,
+            library::library_load,
+            library::library_add_folder,
+            library::library_remove_folder,
+            library::library_open,
+            library::library_update,
+            library::library_add_study_time,
+            library::library_forget,
         ])
         .build(tauri::generate_context!())
         .expect("LumiPDF failed to start")

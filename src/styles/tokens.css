@@ -1,37 +1,185 @@
 /*
- * Design tokens. Temporary values for the 2.0 groundwork; the full design system
- * arrives with the UI redesign (phase 4).
+ * LumiPDF design tokens.
+ *
+ * Neutral warm greys, hairline borders, soft shadows and one accent colour. The app chooses
+ * light or dark by setting data-theme on <html> (from the "App appearance" setting); any element
+ * can set its own data-theme too, e.g. the reader chrome turns dark while pages are read dark.
  */
 :root {
-  color-scheme: light dark;
   --font-ui: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+
   --space-1: 4px;
   --space-2: 8px;
-  --space-3: 16px;
-  --bg: #fbfbfa;
-  --text: #1f1f1e;
-  --text-muted: #6b6b68;
-  --border: #e6e6e3;
-  --canvas-bg: #ececea;
-  --danger: #b3261e;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius-s: 6px;
+  --radius-m: 8px;
+  --radius-l: 12px;
+  --radius-xl: 16px;
+
+  --bar-height: 52px;
+  --accent: #3d6bf0;
+  --accent-hover: #3260e3;
+  --on-accent: #ffffff;
+  --timer: #f08a4b;
+  --timer-on: #1c1206;
+
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --fast: 120ms;
+  --medium: 200ms;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #161617;
-    --text: #ececeb;
-    --text-muted: #9a9a97;
-    --border: #2a2a2b;
-    --canvas-bg: #0e0e0f;
-    --danger: #f2b8b5;
-  }
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f6f4;
+  --bar: rgba(250, 250, 248, 0.94);
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --inset: #f6f6f4;
+  --hairline: rgba(0, 0, 0, 0.08);
+  --hairline-soft: rgba(0, 0, 0, 0.06);
+  --text: #1d1d1f;
+  --text-soft: #45454a;
+  --text-muted: #6e6e73;
+  --text-faint: #8e8e93;
+  --field: rgba(0, 0, 0, 0.05);
+  --hover: rgba(0, 0, 0, 0.05);
+  --pressed: rgba(0, 0, 0, 0.08);
+  --segment: rgba(0, 0, 0, 0.05);
+  --segment-on: #ffffff;
+  --segment-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  --thumb-bg: #ececea;
+  --track: rgba(0, 0, 0, 0.08);
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.04);
+  --pop-shadow: 0 18px 50px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --scrim: rgba(28, 28, 30, 0.38);
+  --accent-soft: rgba(61, 107, 240, 0.11);
+  --accent-text: #2f5bd8;
+  --warm-soft: rgba(230, 150, 30, 0.13);
+  --warm-text: #a8620a;
+  --green-soft: rgba(52, 168, 83, 0.13);
+  --green-text: #1e7a3c;
+  --orange-soft: rgba(240, 138, 75, 0.15);
+  --orange-text: #b35a1f;
+  --ok: #1f8a4c;
+  --danger: #c4372b;
+  --canvas-bg: #e9e9e6;
+  --close-hover: #c42b1c;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #161618;
+  --bar: #1c1c1f;
+  --surface: #1f1f22;
+  --surface-raised: #26262a;
+  --inset: rgba(255, 255, 255, 0.05);
+  --hairline: rgba(255, 255, 255, 0.08);
+  --hairline-soft: rgba(255, 255, 255, 0.06);
+  --text: #ececea;
+  --text-soft: #c4c4c1;
+  --text-muted: #97979a;
+  --text-faint: #75757a;
+  --field: rgba(255, 255, 255, 0.07);
+  --hover: rgba(255, 255, 255, 0.07);
+  --pressed: rgba(255, 255, 255, 0.11);
+  --segment: rgba(255, 255, 255, 0.06);
+  --segment-on: rgba(255, 255, 255, 0.12);
+  --segment-shadow: none;
+  --thumb-bg: #2a2a2e;
+  --track: rgba(255, 255, 255, 0.1);
+  --card-shadow: none;
+  --pop-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --scrim: rgba(8, 8, 10, 0.62);
+  --accent-soft: rgba(61, 107, 240, 0.22);
+  --accent-text: #9db8ff;
+  --warm-soft: rgba(240, 170, 60, 0.16);
+  --warm-text: #f0c06b;
+  --green-soft: rgba(52, 168, 83, 0.2);
+  --green-text: #7fd99a;
+  --orange-soft: rgba(240, 138, 75, 0.2);
+  --orange-text: #f3ac7c;
+  --ok: #6fcf8e;
+  --danger: #ff8a7e;
+  --canvas-bg: #0d0d0f;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 html,
 body {
   margin: 0;
+  height: 100%;
+  overflow: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.4;
   -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#app {
+  height: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: default;
+}
+
+input,
+textarea,
+[contenteditable] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(61, 107, 240, 0.28);
+}
+
+/* Thin, quiet scrollbars like macOS overlay bars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 128, 128, 0.4) transparent;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --fast: 0ms;
+    --medium: 0ms;
+  }
 }

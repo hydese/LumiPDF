@@ -1,17 +1,15 @@
 <script lang="ts">
   import { t } from "../i18n";
+  import Dialog from "./Dialog.svelte";
+  import Icon from "./Icon.svelte";
 
   interface Props {
     name: string;
     retry: boolean;
     onSubmit: (password: string | null) => void;
   }
-
   let { name, retry, onSubmit }: Props = $props();
   let password = $state("");
-  let input: HTMLInputElement;
-
-  $effect(() => input.focus());
 
   function submit(event: SubmitEvent) {
     event.preventDefault();
@@ -19,48 +17,62 @@
   }
 </script>
 
-<div class="backdrop" role="presentation">
-  <form class="dialog" onsubmit={submit} aria-labelledby="password-title">
+<Dialog labelledBy="password-title" width={380} onClose={() => onSubmit(null)}>
+  <form onsubmit={submit}>
+    <span class="lock"><Icon name="file" size={22} stroke={1.7} /></span>
     <h2 id="password-title">{t("password.title")}</h2>
-    <p>{retry ? t("password.retry") : t("password.prompt", { name })}</p>
-    <input type="password" bind:value={password} bind:this={input} autocomplete="off" />
+    <p class:error={retry}>{retry ? t("password.retry") : t("password.prompt", { name })}</p>
+    <input type="password" bind:value={password} autocomplete="off" aria-label={t("password.title")} />
     <div class="actions">
-      <button type="button" onclick={() => onSubmit(null)}>{t("password.cancel")}</button>
-      <button type="submit">{t("password.open")}</button>
+      <button type="button" class="btn" onclick={() => onSubmit(null)}>{t("password.cancel")}</button>
+      <button type="submit" class="btn primary">{t("password.open")}</button>
     </div>
   </form>
-</div>
+</Dialog>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .lock {
+    width: 44px;
+    height: 44px;
+    border-radius: 11px;
+    background: var(--accent-soft);
+    color: var(--accent-text);
     display: grid;
     place-items: center;
-    background: rgb(0 0 0 / 0.35);
-    z-index: 10;
-  }
-  .dialog {
-    width: 340px;
-    padding: var(--space-3);
-    border-radius: 10px;
-    background: var(--bg);
-    box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
-    display: grid;
-    gap: var(--space-2);
   }
   h2 {
     margin: 0;
-    font-size: 15px;
+    font-size: 16px;
+    font-weight: 600;
   }
   p {
     margin: 0;
-    font-size: 13px;
     color: var(--text-muted);
+    overflow-wrap: anywhere;
+  }
+  p.error {
+    color: var(--danger);
+  }
+  input {
+    height: 34px;
+    padding: 0 10px;
+    border-radius: var(--radius-m);
+    border: 1px solid var(--hairline);
+    background: var(--field);
+    outline: none;
+  }
+  input:focus {
+    border-color: var(--accent);
   }
   .actions {
     display: flex;
     justify-content: flex-end;
-    gap: var(--space-2);
+    gap: 8px;
+    margin-top: 4px;
   }
 </style>

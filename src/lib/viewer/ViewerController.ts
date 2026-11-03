@@ -19,6 +19,15 @@ export interface ViewerState {
   findMatches: { current: number; total: number } | null;
 }
 
+export interface OutlineItem {
+  title: string;
+  depth: number;
+  /** 1-based page number, or null if the entry points nowhere useful. */
+  page: number | null;
+  dest: string | unknown[] | null;
+  children: OutlineItem[];
+}
+
 export interface ViewerOptions {
   container: HTMLDivElement;
   onState: (state: ViewerState) => void;
@@ -36,6 +45,13 @@ export class ViewerController {
   private readonly options: ViewerOptions;
   private doc: PDFDocumentProxy | null = null;
   private findQuery = "";
+  /** Page to show once the new document's pages are laid out. */
+  private pendingPage = 1;
+  /** While set, the zoom follows the window size (fit width / fit page). */
+  private fit: "page-width" | "page-fit" | null = "page-width";
+  private fitFrame = 0;
+  /** pdf.js has laid out the current document's pages (zoom can be applied). */
+  private pagesReady = false;
   private readonly cleanups: Array<() => void> = [];
   private state: ViewerState = { page: 1, pages: 0, scale: 1, findMatches: null };
 
@@ -54,7 +70,10 @@ export class ViewerController {
     this.linkService.setViewer(this.viewer);
 
     this.eventBus.on("pagesinit", () => {
-      this.viewer.currentScaleValue = "page-width";
+      this.pagesReady = true;
+      this.fit = "page-width";
+      this.applyFit();
+      if (this.pendingPage > 1) this.viewer.currentPageNumber = Math.min(this.pendingPage, this.doc?.numPages ?? 1);
     });
     this.eventBus.on("pagechanging", ({ pageNumber }: { pageNumber: number }) => this.update({ page: pageNumber }));
     this.eventBus.on("scalechanging", ({ scale }: { scale: number }) => this.update({ scale }));
@@ -64,17 +83,28 @@ export class ViewerController {
 
     this.listen(options.container, "click", (e) => this.interceptExternalLink(e as MouseEvent), true);
     this.listen(options.container, "wheel", (e) => this.zoomWithWheel(e as WheelEvent), { passive: false });
+    const resize = new ResizeObserver(() => {
+      if (!this.fit) return;
+      cancelAnimationFrame(this.fitFrame);
+      this.fitFrame = requestAnimationFrame(() => this.applyFit());
+    });
+    resize.observe(options.container);
+    this.cleanups.push(() => resize.disconnect());
     this.watchDevicePixelRatio();
     this.cleanups.push(onDarkModeChange(() => this.applyDarkMode()));
     this.applyDarkMode(false);
   }
 
-  setDocument(doc: PDFDocumentProxy | null): void {
+  /** Shows `doc`, starting at `page` (where the reader left off). */
+  setDocument(doc: PDFDocumentProxy | null, page = 1): void {
+    if (doc === this.doc) return;
     this.doc = doc;
+    this.pagesReady = false;
+    this.pendingPage = page;
     this.findQuery = "";
     this.viewer.setDocument(doc as PDFDocumentProxy);
     this.linkService.setDocument(doc);
-    this.update({ page: 1, pages: doc?.numPages ?? 0, findMatches: null });
+    this.update({ page: Math.min(page, doc?.numPages ?? 1), pages: doc?.numPages ?? 0, findMatches: null });
   }
 
   get document(): PDFDocumentProxy | null {
@@ -87,16 +117,38 @@ export class ViewerController {
   }
 
   zoomIn(): void {
+    this.fit = null;
     this.viewer.increaseScale();
   }
 
   zoomOut(): void {
+    this.fit = null;
     this.viewer.decreaseScale();
   }
 
   setScale(preset: ScalePreset): void {
-    this.viewer.currentScaleValue = preset;
+    if (preset === "page-actual") {
+      this.fit = null;
+      this.viewer.currentScaleValue = preset;
+    } else {
+      this.fit = preset;
+      this.applyFit();
+    }
   }
+
+  /**
+   * Fit width/page, leaving a gutter on both sides so the page reads as a sheet on the desk
+   * (pdf.js's own presets fill the window edge to edge when page borders are off).
+   */
+  private applyFit(): void {
+    const width = this.options.container.clientWidth;
+    if (!this.fit || !this.doc || !this.pagesReady || width === 0) return;
+    this.viewer.currentScaleValue = this.fit;
+    const room = Math.max(0.5, (width - 2 * ViewerController.GUTTER) / width);
+    this.viewer.currentScale = this.viewer.currentScale * room;
+  }
+
+  private static readonly GUTTER = 32;
 
   /** Highlights all matches of `query` and moves to the next (or previous) one. */
   find(query: string, previous = false): void {
@@ -118,6 +170,11 @@ export class ViewerController {
     this.findQuery = "";
     this.eventBus.dispatch("findbarclose", { source: this });
     this.update({ findMatches: null });
+  }
+
+  /** Jumps to an outline entry. */
+  goToDestination(dest: OutlineItem["dest"]): void {
+    if (dest) void this.linkService.goToDestination(dest);
   }
 
   destroy(): void {
@@ -156,6 +213,7 @@ export class ViewerController {
   private zoomWithWheel(event: WheelEvent): void {
     if (!event.ctrlKey && !event.metaKey) return;
     event.preventDefault();
+    this.fit = null;
     const origin: [number, number] = [event.clientX, event.clientY];
     if (event.deltaY < 0) this.viewer.increaseScale({ origin, drawingDelay: 150 });
     else this.viewer.decreaseScale({ origin, drawingDelay: 150 });
@@ -176,4 +234,32 @@ export class ViewerController {
     watch();
     this.cleanups.push(() => query?.removeEventListener("change", onChange));
   }
+}
+
+/** The document's table of contents with page numbers (empty if it has none). */
+export async function readOutline(doc: PDFDocumentProxy): Promise<OutlineItem[]> {
+  const raw = (await doc.getOutline()) ?? [];
+  const pageOf = async (dest: OutlineItem["dest"]): Promise<number | null> => {
+    if (!dest) return null;
+    try {
+      const explicit = typeof dest === "string" ? await doc.getDestination(dest) : dest;
+      const ref = explicit?.[0];
+      if (ref === undefined || ref === null) return null;
+      if (typeof ref === "number") return ref + 1;
+      return (await doc.getPageIndex(ref as Parameters<PDFDocumentProxy["getPageIndex"]>[0])) + 1;
+    } catch {
+      return null;
+    }
+  };
+  const convert = async (items: typeof raw, depth: number): Promise<OutlineItem[]> =>
+    Promise.all(
+      items.map(async (item) => ({
+        title: item.title,
+        depth,
+        page: await pageOf(item.dest),
+        dest: item.dest,
+        children: depth < 6 ? await convert(item.items ?? [], depth + 1) : [],
+      })),
+    );
+  return convert(raw, 0);
 }

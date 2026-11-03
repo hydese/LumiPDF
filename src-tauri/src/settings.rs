@@ -5,32 +5,21 @@
 //! the new file is written next to the old one and renamed over it, so a crash never leaves a
 //! half-written settings file.
 
-use std::fs;
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde_json::Value;
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Runtime};
 
+use crate::store::{config_file, read_json, write_json};
 use crate::AppError;
 
 const FILE_NAME: &str = "settings.json";
 /// Settings are small; anything bigger is not ours.
 const MAX_BYTES: usize = 256 * 1024;
 
-fn settings_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, AppError> {
-    let dir = app
-        .path()
-        .app_config_dir()
-        .map_err(|e| AppError::InvalidInput(e.to_string()))?;
-    Ok(dir.join(FILE_NAME))
-}
-
 /// Reads the settings document; a missing or unreadable file yields an empty object.
 pub fn read_settings(path: &Path) -> Value {
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|text| serde_json::from_str::<Value>(&text).ok())
+    read_json::<Value>(path)
         .filter(Value::is_object)
         .unwrap_or_else(|| Value::Object(Default::default()))
 }
@@ -42,38 +31,24 @@ pub fn write_settings(path: &Path, value: &Value) -> Result<(), AppError> {
             "Settings must be a JSON object".into(),
         ));
     }
-    let text =
-        serde_json::to_string_pretty(value).map_err(|e| AppError::InvalidInput(e.to_string()))?;
-    if text.len() > MAX_BYTES {
-        return Err(AppError::InvalidInput("Settings are too large".into()));
-    }
-    if let Some(dir) = path.parent() {
-        fs::create_dir_all(dir)?;
-    }
-    let tmp = path.with_extension("json.tmp");
-    {
-        let mut file = fs::File::create(&tmp)?;
-        file.write_all(text.as_bytes())?;
-        file.sync_all()?;
-    }
-    fs::rename(&tmp, path)?;
-    Ok(())
+    write_json(path, value, MAX_BYTES)
 }
 
 #[tauri::command]
 pub fn load_settings<R: Runtime>(app: AppHandle<R>) -> Result<Value, AppError> {
-    Ok(read_settings(&settings_path(&app)?))
+    Ok(read_settings(&config_file(&app, FILE_NAME)?))
 }
 
 #[tauri::command]
 pub fn save_settings<R: Runtime>(app: AppHandle<R>, settings: Value) -> Result<(), AppError> {
-    write_settings(&settings_path(&app)?, &settings)
+    write_settings(&config_file(&app, FILE_NAME)?, &settings)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::fs;
 
     #[test]
     fn round_trips_settings() {
