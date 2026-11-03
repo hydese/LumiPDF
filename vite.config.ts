@@ -18,5 +18,7 @@ export default defineConfig({
     target: ["es2022", "chrome120", "safari16"],
     outDir: "dist",
     emptyOutDir: true,
+    // pdf.js and its viewer are ~1 MB; the app loads from disk, so one chunk is fine.
+    chunkSizeWarningLimit: 1500,
   },
 });

@@ -11,6 +11,9 @@
   --bg: #fbfbfa;
   --text: #1f1f1e;
   --text-muted: #6b6b68;
+  --border: #e6e6e3;
+  --canvas-bg: #ececea;
+  --danger: #b3261e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -18,6 +21,9 @@
     --bg: #161617;
     --text: #ececeb;
     --text-muted: #9a9a97;
+    --border: #2a2a2b;
+    --canvas-bg: #0e0e0f;
+    --danger: #f2b8b5;
   }
 }
 

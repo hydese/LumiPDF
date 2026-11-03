@@ -2,5 +2,32 @@
   "app.name": "LumiPDF",
   "app.tagline": "A calm PDF reader for long study sessions.",
   "app.devBuild": "Version {version} — development build",
-  "app.loading": "Starting…"
+  "app.loading": "Starting…",
+
+  "open.button": "Open",
+  "open.title": "Open PDF ({shortcut})",
+  "open.empty": "Open a PDF to start reading",
+  "open.hint": "Press {shortcut}, or drop a PDF anywhere in this window.",
+  "open.loading": "Opening {name}…",
+  "open.error": "LumiPDF couldn't open {name}: {reason}",
+
+  "nav.page": "Page",
+  "nav.of": "of {pages}",
+  "nav.previous": "Previous page",
+  "nav.next": "Next page",
+
+  "zoom.in": "Zoom in",
+  "zoom.out": "Zoom out",
+  "zoom.fitWidth": "Fit width",
+  "zoom.fitPage": "Fit page",
+
+  "find.placeholder": "Find in document",
+  "find.count": "{current} of {total}",
+  "find.none": "No matches",
+
+  "password.title": "This PDF is protected",
+  "password.prompt": "Enter the password to open {name}.",
+  "password.retry": "Wrong password. Try again.",
+  "password.open": "Open",
+  "password.cancel": "Cancel"
 }
