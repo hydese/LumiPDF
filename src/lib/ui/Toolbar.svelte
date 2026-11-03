@@ -12,6 +12,10 @@
     onFitWidth: () => void;
     onFind: (query: string, previous: boolean) => void;
     onFindClear: () => void;
+    isDark: boolean;
+    darkShortcut: string;
+    onToggleDark: () => void;
+    onReadingSettings: () => void;
     findInput?: HTMLInputElement | null;
   }
 
@@ -25,6 +29,10 @@
     onFitWidth,
     onFind,
     onFindClear,
+    isDark,
+    darkShortcut,
+    onToggleDark,
+    onReadingSettings,
     findInput = $bindable(null),
   }: Props = $props();
 
@@ -74,6 +82,13 @@
       {/if}
     </div>
   {/if}
+
+  <div class="group" class:end={!view || view.pages === 0}>
+    <button onclick={onToggleDark} aria-pressed={isDark} title={t("dark.toggleTitle", { shortcut: darkShortcut })}>
+      {isDark ? "☾" : "☀"} {t("dark.toggle")}
+    </button>
+    <button onclick={onReadingSettings} aria-label={t("dark.settings")} title={t("dark.settings")}>⚙</button>
+  </div>
 </header>
 
 <style>
@@ -92,7 +107,8 @@
     align-items: center;
     gap: var(--space-1);
   }
-  .find {
+  .find,
+  .end {
     margin-left: auto;
   }
   .page {

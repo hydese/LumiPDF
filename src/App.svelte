@@ -15,9 +15,14 @@
   import PdfView from "./lib/viewer/PdfView.svelte";
   import Toolbar from "./lib/ui/Toolbar.svelte";
   import PasswordDialog from "./lib/ui/PasswordDialog.svelte";
+  import ReadingSettingsPanel from "./lib/ui/ReadingSettingsPanel.svelte";
+  import { settings } from "./lib/settings/store.svelte";
+  import { readingMode } from "./lib/dark/readingMode.svelte";
 
   const platform = detectPlatform(navigator.userAgent);
   const openShortcut = formatShortcut("mod+o", platform);
+  const darkShortcut = formatShortcut("mod+shift+d", platform);
+  let showReadingSettings = $state(false);
 
   let current = $state<{ ref: DocumentRef; pdf: LoadedPdf } | null>(null);
   let loadingName = $state<string | null>(null);
@@ -59,6 +64,11 @@
   function onKeydown(event: KeyboardEvent) {
     if (!isPrimaryModifier(event, platform)) return;
     const key = event.key.toLowerCase();
+    if (event.shiftKey && key === "d") {
+      event.preventDefault();
+      readingMode.toggle();
+      return;
+    }
     const actions: Record<string, () => void> = {
       o: () => void openFromDialog(),
       f: () => findInput?.focus(),
@@ -75,9 +85,17 @@
   }
 
   onMount(() => {
+    let stopReadingMode = () => {};
     const unlisten = onDocumentsOpened(([first]) => first && open(first));
-    void takePendingDocuments().then(([first]) => first && open(first));
-    return () => void unlisten.then((stop) => stop());
+    // Settings first, so the first page is already drawn in the right theme.
+    void settings.load().then(() => {
+      stopReadingMode = readingMode.start();
+      return takePendingDocuments().then(([first]) => first && open(first));
+    });
+    return () => {
+      stopReadingMode();
+      void unlisten.then((stop) => stop());
+    };
   });
 </script>
 
@@ -94,6 +112,10 @@
     onFitWidth={() => controller?.setScale("page-width")}
     onFind={(q, prev) => controller?.find(q, prev)}
     onFindClear={() => controller?.clearFind()}
+    isDark={readingMode.isDark}
+    {darkShortcut}
+    onToggleDark={() => readingMode.toggle()}
+    onReadingSettings={() => (showReadingSettings = !showReadingSettings)}
     bind:findInput
   />
 
@@ -104,6 +126,10 @@
       onExternalLink={(url) => void openExternal(url)}
       bind:controller
     />
+
+    {#if showReadingSettings}
+      <ReadingSettingsPanel onClose={() => (showReadingSettings = false)} />
+    {/if}
 
     {#if !current || loadingName || error}
       <div class="overlay">
