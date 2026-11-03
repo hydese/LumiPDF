@@ -42,7 +42,7 @@ jobs:
       - name: Rendering bench (Chromium)
         run: |
           npx playwright install --with-deps chromium
-          npm run bench -- --browser chromium
+          npm run bench -- --browser chromium --themes original,lumina-black
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -101,7 +101,7 @@ jobs:
       - name: Rendering bench (WebKit, the engine the macOS app uses)
         run: |
           npx playwright install webkit
-          npm run bench -- --browser webkit
+          npm run bench -- --browser webkit --themes original,lumina-black
       - uses: actions/upload-artifact@v4
         if: always()
         with:
