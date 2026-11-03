@@ -1,0 +1,18 @@
+\documentclass[11pt]{article}
+\usepackage{lmodern}\usepackage[T1]{fontenc}\usepackage{amsmath,amssymb}\usepackage{xcolor}\usepackage[margin=2.5cm]{geometry}
+\begin{document}
+\section{Linear Systems and Stability}
+Consider the continuous-time linear time-invariant system $\dot{x}(t) = A x(t) + B u(t)$, where $A \in \mathbb{R}^{n\times n}$.
+The system is asymptotically stable if and only if every eigenvalue $\lambda_i$ of $A$ satisfies $\operatorname{Re}(\lambda_i) < 0$.
+\begin{equation}
+  \int_{0}^{\infty} e^{A^{\top} t} Q\, e^{A t}\, dt = P, \qquad A^{\top}P + PA = -Q .
+\end{equation}
+The transfer function is $G(s) = C(sI - A)^{-1}B + D$, with poles at the roots of $\det(sI-A)=0$.
+{\color{gray} This sentence is set in 50\% gray, as used for captions and side notes in many textbooks.}
+{\color{blue!70!black} Hyperlink-blue text}, {\color{red!75!black} a red warning}, and {\color[HTML]{1B7F3A} green remark}.
+\begin{equation}
+  \frac{\partial^2 u}{\partial t^2} = c^2 \nabla^2 u, \quad \sum_{k=1}^{N} \frac{1}{k^2} \approx \frac{\pi^2}{6}.
+\end{equation}
+{\small Small text, footnote size: the Lyapunov function $V(x)=x^{\top}Px$ is positive definite and decreases along trajectories.}
+\par\noindent\colorbox{yellow!30}{Highlighted box with black text on a pale yellow fill, common in lecture slides.}
+\end{document}
