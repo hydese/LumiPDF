@@ -5,17 +5,19 @@
  */
 import { mount, unmount } from "svelte";
 import PdfView from "../../../src/lib/viewer/PdfView.svelte";
-import { loadDocument } from "../../../src/lib/viewer/pdfjs";
+import { documentOptions, loadDocument, pdfjs } from "../../../src/lib/viewer/pdfjs";
+import { setClipSnapping, setDarkMode } from "../../../src/lib/dark/engine";
+import { DEFAULT_TUNING, type ThemeId } from "../../../src/lib/dark/themes";
 
-function waitForPageCanvas(root: HTMLElement): Promise<HTMLCanvasElement> {
+function waitForPageCanvas(root: HTMLElement, pageNumber = 1): Promise<HTMLCanvasElement> {
   return new Promise((resolve, reject) => {
     const started = performance.now();
     const poll = () => {
-      const page = root.querySelector('.page[data-page-number="1"]');
+      const page = root.querySelector(`.page[data-page-number="${pageNumber}"]`);
       const canvas = page?.querySelector("canvas");
       const rendered = page?.getAttribute("data-loaded") === "true" && canvas && canvas.width > 1;
       if (rendered) return resolve(canvas);
-      if (performance.now() - started > 20000) return reject(new Error("page 1 did not render"));
+      if (performance.now() - started > 20000) return reject(new Error(`page ${pageNumber} did not render`));
       setTimeout(poll, 100);
     };
     poll();
@@ -36,6 +38,10 @@ function pixelDifference(a: HTMLCanvasElement, b: HTMLCanvasElement) {
 }
 
 async function check(url: string) {
+  // Plumbing check: with the engine off and clip snapping off, the viewer must draw exactly
+  // what pdf.js draws. (Snapping intentionally changes pixels at rectangle clip edges.)
+  setDarkMode(null);
+  setClipSnapping(false);
   const pdf = await loadDocument(url, async () => null);
   const target = document.getElementById("wrap")!;
   const view = mount(PdfView, { target, props: { doc: pdf.doc, onState: () => {}, onExternalLink: () => {} } });
@@ -46,7 +52,11 @@ async function check(url: string) {
     // Reproduce the viewer's render exactly (see PDFPageView in pdf_viewer.mjs): the viewport
     // scale is the viewer's --scale-factor (zoom × 96/72); the canvas gets an extra x/y transform
     // only when its pixel size differs from the floored CSS size (screen scaling above 100%).
-    const page = await pdf.doc.getPage(1);
+    // Reference: a completely separate, unhooked pdf.js document (no LumiPDF canvas factory,
+    // no page wrapping), so any change our hooks make to pixels shows up here.
+    const plainTask = pdfjs.getDocument(documentOptions(url));
+    const plainDoc = await plainTask.promise;
+    const page = await plainDoc.getPage(1);
     const viewerEl = target.querySelector<HTMLElement>(".pdfViewer")!;
     const scale = Number(getComputedStyle(viewerEl).getPropertyValue("--scale-factor"));
     const viewport = page.getViewport({ scale });
@@ -57,6 +67,7 @@ async function check(url: string) {
     reference.width = canvas.width;
     reference.height = canvas.height;
     await page.render({ canvas: reference, viewport, transform }).promise;
+    await plainTask.destroy();
 
     return {
       pages: pdf.doc.numPages,
@@ -68,7 +79,43 @@ async function check(url: string) {
   } finally {
     await unmount(view);
     await pdf.close();
+    setClipSnapping(true);
   }
 }
 
-(window as unknown as { viewerCheck: unknown }).viewerCheck = { check, ready: true };
+/** Renders `pageNumber` through the real viewer in a reading theme and returns it as PNG. */
+async function renderTheme(url: string, theme: ThemeId | "original", pageNumber: number) {
+  setDarkMode(theme === "original" ? null : { theme, tuning: DEFAULT_TUNING });
+  const pdf = await loadDocument(url, async () => null);
+  const target = document.getElementById("wrap")!;
+  let controller: import("../../../src/lib/viewer/ViewerController").ViewerController | null = null;
+  const view = mount(PdfView, {
+    target,
+    props: {
+      doc: pdf.doc,
+      onState: () => {},
+      onExternalLink: () => {},
+      get controller() {
+        return controller;
+      },
+      set controller(c) {
+        controller = c;
+      },
+    },
+  });
+  try {
+    if (pageNumber > 1) {
+      await waitForPageCanvas(target, 1);
+      controller!.goToPage(pageNumber);
+    }
+    const canvas = await waitForPageCanvas(target, pageNumber);
+    await new Promise((r) => setTimeout(r, 200));
+    return canvas.toDataURL("image/png");
+  } finally {
+    await unmount(view);
+    await pdf.close();
+    setDarkMode(null);
+  }
+}
+
+(window as unknown as { viewerCheck: unknown }).viewerCheck = { check, renderTheme, setClipSnapping, ready: true };

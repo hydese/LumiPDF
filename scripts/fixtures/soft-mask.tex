@@ -1,0 +1,16 @@
+\documentclass{article}
+\usepackage[margin=2cm]{geometry}
+\usepackage{tikz}
+\usetikzlibrary{fadings}
+\begin{document}
+Text under a bar that fades from solid blue to transparent (a luminosity soft mask).
+
+\bigskip
+\begin{tikzpicture}
+  \node[anchor=west, font=\Huge\bfseries] at (0.3,0.75) {BEHIND THE BAR};
+  \fill[blue!70!black, path fading=east] (0,0) rectangle (14,1.5);
+\end{tikzpicture}
+
+\bigskip
+The bar must fade from left to right in every reading theme, and the words behind it must show through on the right.
+\end{document}

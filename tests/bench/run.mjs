@@ -7,6 +7,7 @@
  * Exits with code 1 if any PDF fails to open, so CI catches loader regressions.
  *
  * Usage: npm run bench -- [--browser chromium|webkit|all] [--pages 1,2] [--scale 1.5] [--dpr 1]
+ *                         [--themes all|none|id,id] [--theme-pages 1,5]
  */
 import { createServer } from "vite";
 import { chromium, webkit } from "playwright";
@@ -25,6 +26,9 @@ const browsers = arg("browser", "chromium") === "all" ? ["chromium", "webkit"] :
 const pages = arg("pages", "1").split(",").map(Number);
 const scale = Number(arg("scale", "1.5"));
 const dpr = Number(arg("dpr", "1"));
+const allThemes = ["original", "lumina-black", "oled-black", "night-paper", "deep-slate", "soft-contrast"];
+const themes = arg("themes", "all") === "none" ? [] : arg("themes", "all") === "all" ? allThemes : arg("themes", "").split(",");
+const themePages = arg("theme-pages", "1").split(",").map(Number);
 
 function listPdfs(dir) {
   const abs = path.join(root, dir);
@@ -91,13 +95,39 @@ for (const name of browsers) {
       console.log(`FAIL  ${name.padEnd(8)} viewer ${label}: ${err.message}`);
     }
   }
+
+  // Reading themes: selected pages of every PDF through the real viewer and the dark engine.
+  if (themes.length > 0) {
+    fs.mkdirSync(path.join(outDir, name, "themes"), { recursive: true });
+    for (const pdf of pdfs) {
+      const label = path.basename(pdf, ".pdf");
+      for (const pageNumber of themePages) {
+        for (const theme of themes) {
+          try {
+            const png = await tab.evaluate(([u, t, p]) => window.viewerCheck.renderTheme(u, t, p), [`/${pdf}`, theme, pageNumber]);
+            const file = `${name}/themes/${label}-p${pageNumber}-${theme}.png`;
+            fs.writeFileSync(path.join(outDir, file), Buffer.from(png.split(",")[1], "base64"));
+            const entry = report.find((r) => r.browser === name && r.label === label);
+            entry?.themes?.push(file) ?? (entry && (entry.themes = [file]));
+          } catch (err) {
+            if (!String(err.message).includes("did not render")) {
+              failures++;
+              console.log(`FAIL  ${name.padEnd(8)} theme ${theme} ${label} p${pageNumber}: ${err.message}`);
+            }
+          }
+        }
+      }
+      console.log(`OK    ${name.padEnd(8)} themes ${label}`);
+    }
+  }
   await browser.close();
 }
 await server.close();
 
 const rows = report
   .map((r) => `<tr><td>${r.browser}</td><td>${r.label}</td><td>${r.error ? `<b style="color:#c33">${r.error}</b>` : `${r.numPages} pages`}${r.viewer ? `<br>viewer: ${r.viewer.differing} px differ, ${r.viewer.textSpans} text spans` : ""}</td>
-  <td>${r.images.map((i) => `<a href="${i.file}"><img src="${i.file}" height="160"></a>`).join(" ")}</td></tr>`)
+  <td>${r.images.map((i) => `<a href="${i.file}"><img src="${i.file}" height="160"></a>`).join(" ")}
+  ${(r.themes ?? []).map((f) => `<a href="${f}"><img src="${f}" height="160"></a>`).join(" ")}</td></tr>`)
   .join("\n");
 fs.writeFileSync(
   path.join(outDir, "report.html"),

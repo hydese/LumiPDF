@@ -68,10 +68,13 @@ def main() -> None:
                 outline.root.append(pikepdf.OutlineItem('<img src=x onerror="window.__xss=1">Chapter 1', 0))
             pdf.save(OUT / "html-in-outline.pdf")
 
-        # LaTeX page with Latin Modern fonts, maths, grey and coloured text.
-        tex = pathlib.Path(__file__).resolve().parent / "fixtures" / "latex-page.tex"
-        subprocess.run(["pdflatex", "-interaction=batchmode", "-output-directory", tmp, str(tex)], check=True)
-        shutil.copy(pathlib.Path(tmp) / "latex-page.pdf", OUT / "latex-page.pdf")
+        # LaTeX page with Latin Modern fonts, maths, grey and coloured text, and a
+        # luminosity soft mask (TikZ fading): dark mode must keep the fade, because the mask's
+        # lightness controls transparency and must never be recoloured.
+        for name in ("soft-mask", "latex-page"):
+            tex = pathlib.Path(__file__).resolve().parent / "fixtures" / f"{name}.tex"
+            subprocess.run(["pdflatex", "-interaction=batchmode", "-output-directory", tmp, str(tex)], check=True)
+            shutil.copy(pathlib.Path(tmp) / f"{name}.pdf", OUT / f"{name}.pdf")
 
     print(f"Fixtures written to {OUT}")
 
