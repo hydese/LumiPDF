@@ -30,7 +30,6 @@ async function render(url: string, pages: number[], scale: number, dpr: number):
       cMapUrl: "/node_modules/pdfjs-dist/cmaps/",
       standardFontDataUrl: "/node_modules/pdfjs-dist/standard_fonts/",
       wasmUrl: "/node_modules/pdfjs-dist/wasm/",
-      isEvalSupported: false,
     });
     const doc = await task.promise;
     const out: PageResult[] = [];

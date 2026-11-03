@@ -33,7 +33,13 @@ function listPdfs(dir) {
 }
 const pdfs = [...listPdfs("tests/fixtures"), ...listPdfs("tests/private")];
 
-const server = await createServer({ root, configFile: false, logLevel: "error", server: { port: 0 } });
+// Use the app's own Vite config (Svelte plugin) so the bench can mount real app components.
+const server = await createServer({
+  root,
+  configFile: path.join(root, "vite.config.ts"),
+  logLevel: "error",
+  server: { port: 0, strictPort: false },
+});
 await server.listen();
 const base = server.resolvedUrls.local[0].replace(/\/$/, "");
 
@@ -66,12 +72,31 @@ for (const name of browsers) {
     console.log(`OK    ${name.padEnd(8)} ${label} (${res.numPages} pages)`);
     report.push({ browser: name, label, numPages: res.numPages, images });
   }
+
+  // Viewer check: the real viewer component must draw exactly what pdf.js draws.
+  await tab.goto(`${base}/tests/bench/page/viewer.html`);
+  await tab.setViewportSize({ width: 1280, height: 800 });
+  await tab.waitForFunction(() => window.viewerCheck?.ready === true, null, { timeout: 30000 });
+  for (const pdf of pdfs) {
+    const label = path.basename(pdf, ".pdf");
+    try {
+      const v = await tab.evaluate((u) => window.viewerCheck.check(u), `/${pdf}`);
+      const same = v.differing === 0;
+      if (!same) failures++;
+      console.log(`${same ? "OK  " : "DIFF"}  ${name.padEnd(8)} viewer ${label}: ${v.width}x${v.height}, ${v.textSpans} text spans, ${v.differing} differing px (max delta ${v.maxDelta})`);
+      const entry = report.find((r) => r.browser === name && r.label === label);
+      if (entry) entry.viewer = v;
+    } catch (err) {
+      failures++;
+      console.log(`FAIL  ${name.padEnd(8)} viewer ${label}: ${err.message}`);
+    }
+  }
   await browser.close();
 }
 await server.close();
 
 const rows = report
-  .map((r) => `<tr><td>${r.browser}</td><td>${r.label}</td><td>${r.error ? `<b style="color:#c33">${r.error}</b>` : `${r.numPages} pages`}</td>
+  .map((r) => `<tr><td>${r.browser}</td><td>${r.label}</td><td>${r.error ? `<b style="color:#c33">${r.error}</b>` : `${r.numPages} pages`}${r.viewer ? `<br>viewer: ${r.viewer.differing} px differ, ${r.viewer.textSpans} text spans` : ""}</td>
   <td>${r.images.map((i) => `<a href="${i.file}"><img src="${i.file}" height="160"></a>`).join(" ")}</td></tr>`)
   .join("\n");
 fs.writeFileSync(
