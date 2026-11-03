@@ -7,7 +7,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/hydese/LuminaPDF.git"
+    "url": "https://github.com/hydese/LumiPDF.git"
   },
   "type": "module",
   "scripts": {
