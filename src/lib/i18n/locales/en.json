@@ -1,0 +1,6 @@
+{
+  "app.name": "LumiPDF",
+  "app.tagline": "A calm PDF reader for long study sessions.",
+  "app.devBuild": "Version {version} — development build",
+  "app.loading": "Starting…"
+}

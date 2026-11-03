@@ -1,30 +1,37 @@
 {
-  "name": "luminapdf",
+  "name": "lumipdf",
   "private": true,
-  "version": "1.0.5",
+  "version": "2.0.0-alpha.0",
+  "description": "A lightweight PDF reader for studying, with a dark mode that stays as crisp as the original.",
   "author": "hydese",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/hydese/LuminaPDF.git"
   },
-  "description": "Minimalist Windows PDF Reader with Intelligent Dark Mode",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
+    "build": "vite build",
+    "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+    "test": "vitest run",
+    "bench": "node tests/bench/run.mjs",
     "tauri": "tauri"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.2.0",
-    "@tauri-apps/plugin-dialog": "^2.2.0",
-    "@tauri-apps/plugin-fs": "^2.2.0",
-    "@tauri-apps/plugin-shell": "^2.2.0",
-    "pdfjs-dist": "^4.10.38"
+    "@tauri-apps/api": "2.12.4",
+    "@tauri-apps/plugin-dialog": "2.8.4",
+    "pdfjs-dist": "6.4.299",
+    "svelte": "5.57.3"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.2.0",
-    "typescript": "^5.7.2",
-    "vite": "^6.0.5"
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@tauri-apps/cli": "2.12.4",
+    "@tsconfig/svelte": "5.0.8",
+    "playwright": "1.63.0",
+    "svelte-check": "4.7.8",
+    "typescript": "6.0.3",
+    "vite": "8.3.5",
+    "vitest": "5.1.0"
   }
 }

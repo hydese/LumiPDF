@@ -1,18 +1,19 @@
-# Node / Frontend build artifacts
+# Dependencies and build output
 node_modules/
 dist/
-*.local
-
-# Rust / Tauri compilation artifacts
 src-tauri/target/
 src-tauri/gen/
 
-# OS & Editor temporary files
+# Local test files that must never be published (course PDFs, personal notes)
+tests/private/*
+!tests/private/README.md
+
+# Test bench output
+tests/bench/out/
+
+# OS and editor files
 .DS_Store
 Thumbs.db
-*.tmp
-*.bak
-
-# Keep release/latest.json tracked in git, ignore large local installer binaries in git tree
-release/*.exe
-release/*.msi
+.vscode/
+.idea/
+*.log

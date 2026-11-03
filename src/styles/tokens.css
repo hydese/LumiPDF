@@ -1,0 +1,31 @@
+/*
+ * Design tokens. Temporary values for the 2.0 groundwork; the full design system
+ * arrives with the UI redesign (phase 4).
+ */
+:root {
+  color-scheme: light dark;
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --bg: #fbfbfa;
+  --text: #1f1f1e;
+  --text-muted: #6b6b68;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161617;
+    --text: #ececeb;
+    --text-muted: #9a9a97;
+  }
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
