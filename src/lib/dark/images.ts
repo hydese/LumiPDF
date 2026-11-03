@@ -1,12 +1,13 @@
 /**
- * Image path of the dark engine. Images in a PDF are either "paper" (scans, handwritten notes,
- * screenshots of documents: mostly light, neutral background) or photos/figures. Paper images
- * are recoloured once at their own resolution, then drawn by pdf.js as usual, so they stay as
- * sharp as the original. Photos keep their colours, optionally a little dimmed.
+ * Image path of the dark engine. Images in a PDF are "paper" (scans, handwritten notes,
+ * screenshots of documents: mostly light background), "graphic" (raster charts and diagrams:
+ * a few flat colours) or photos. Paper and graphics are recoloured once at their own resolution,
+ * then drawn by pdf.js as usual, so they stay as sharp as the original. Photos keep their
+ * colours, optionally a little dimmed.
  */
 import type { ColorMapper } from "./mapper";
 
-export type ImageKind = "paper" | "photo";
+export type ImageKind = "paper" | "graphic" | "photo";
 
 interface Analysis {
   kind: ImageKind;
@@ -30,6 +31,13 @@ const SAMPLE_SIZE = 64;
 const MAX_RECOLOR_PIXELS = 40_000_000;
 /** Total memory for recoloured copies kept between renders. */
 const CACHE_BUDGET_BYTES = 192 * 1024 * 1024;
+/**
+ * Graphics (raster charts, diagrams, screenshots of slides) are made of a few flat colours;
+ * photos spread over many. An image whose most common colours cover this share of it is a
+ * graphic and gets recoloured even when it isn't mostly white.
+ */
+const GRAPHIC_TOP_COLORS = 8;
+const GRAPHIC_COVERAGE = 0.7;
 /** How much photos are darkened when dimming is on. */
 const PHOTO_DIM = 0.12;
 
@@ -62,14 +70,24 @@ function analyze(source: CanvasImageSource, width: number, height: number): Anal
   const data = ctx.getImageData(0, 0, w, h).data;
   let light = 0;
   let opaque = true;
+  let counted = 0;
+  const bins = new Map<number, number>(); // colours quantised to 4 bits per channel
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i]!, g = data[i + 1]!, b = data[i + 2]!, a = data[i + 3]!;
     if (a < 255) opaque = false;
+    if (a > 0) {
+      const bin = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+      bins.set(bin, (bins.get(bin) ?? 0) + 1);
+      counted++;
+    }
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
     if (a > 0 && min > LIGHT_MIN_CHANNEL && max - min < LIGHT_MAX_SPREAD) light++;
   }
-  return { kind: light / (w * h) >= PAPER_RATIO ? "paper" : "photo", opaque };
+  if (light / (w * h) >= PAPER_RATIO) return { kind: "paper", opaque };
+  const top = [...bins.values()].sort((x, y) => y - x).slice(0, GRAPHIC_TOP_COLORS);
+  const coverage = counted > 0 ? top.reduce((sum, n) => sum + n, 0) / counted : 0;
+  return { kind: coverage >= GRAPHIC_COVERAGE ? "graphic" : "photo", opaque };
 }
 
 function recolor(source: CanvasImageSource, width: number, height: number, mapper: ColorMapper): HTMLCanvasElement {
@@ -124,7 +142,7 @@ export function prepareImage(source: CanvasImageSource, mapper: ColorMapper, dim
   const { kind, opaque } = analyze(source, width, height);
   let prepared: Prepared = { source, opaque };
   if (width * height <= MAX_RECOLOR_PIXELS) {
-    if (kind === "paper") prepared = { source: recolor(source, width, height, mapper), opaque };
+    if (kind === "paper" || kind === "graphic") prepared = { source: recolor(source, width, height, mapper), opaque };
     else if (dimPhotos) prepared = { source: dim(source, width, height), opaque };
   }
   const bytes = prepared.source === source ? 0 : width * height * 4;

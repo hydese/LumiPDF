@@ -60,12 +60,19 @@ describe("colour mapper", () => {
     expect(L([255, 245, 200])).toBeLessThan(0.35);
   });
 
-  it("maps pixel buffers like single colours", () => {
-    const px = new Uint8ClampedArray([255, 255, 255, 255, 0, 0, 0, 128, 200, 40, 40, 255]);
+  it("maps paper and ink pixels like single colours, alpha untouched", () => {
+    const px = new Uint8ClampedArray([255, 255, 255, 255, 0, 0, 0, 128]);
     mapper.mapPixels(px);
-    const direct = [mapper.mapRgb([255, 255, 255]), mapper.mapRgb([0, 0, 0]), mapper.mapRgb([200, 40, 40])];
+    const direct = [mapper.mapRgb([255, 255, 255]), mapper.mapRgb([0, 0, 0])];
     direct.forEach((rgb, i) => rgb.forEach((v, c) => expect(Math.abs(px[i * 4 + c]! - v)).toBeLessThanOrEqual(3)));
-    expect(px[7]).toBe(128); // alpha untouched
+    expect(px[7]).toBe(128);
+  });
+
+  it("lifts grey image ink more than grey vector ink", () => {
+    const px = new Uint8ClampedArray([90, 90, 90, 255]);
+    mapper.mapPixels(px);
+    const imageL = srgbToOklab([px[0]!, px[1]!, px[2]!]).L;
+    expect(imageL).toBeGreaterThan(L([90, 90, 90]) + 0.03);
   });
 
   it("works for every theme", () => {

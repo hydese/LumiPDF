@@ -32,7 +32,10 @@ export interface DarkTuning {
   brightness: number;
   /** Mid-tone contrast, 0.7 .. 1.4 (1 = default). Higher makes grey text and lines stand out more. */
   contrast: number;
-  /** Extra text weight in screen pixels, 0 .. 0.6. Light text on dark looks thinner; this compensates. */
+  /**
+   * Extra text weight in screen pixels, 0 .. 0.6. Light text on dark can look thinner; this adds a
+   * hairline outline. Off by default: at 0 glyphs are exactly as sharp as the original.
+   */
   textWeight: number;
   /** Dim photos slightly so they don't glare against the dark page. */
   dimPhotos: boolean;
@@ -41,7 +44,7 @@ export interface DarkTuning {
 export const DEFAULT_TUNING: DarkTuning = {
   brightness: 1,
   contrast: 1,
-  textWeight: 0.25,
+  textWeight: 0,
   dimPhotos: true,
 };
 

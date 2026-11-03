@@ -18,6 +18,13 @@ const INK_MAX_LIGHTNESS = 0.75;
 const INK_MIN_LIGHTNESS = 0.7;
 /** Grid resolution of the lookup table used for image pixels (per channel). */
 const LUT_STEPS = 33;
+/** Mid-tone curve for vector colours; < 1 lifts greys away from the background. */
+const BASE_CURVE = 0.7;
+/**
+ * Scanned and handwritten ink is thin and greyish in the image itself (pen pressure, scanner
+ * blur), so image pixels get a stronger lift than vector colours.
+ */
+const IMAGE_CURVE_FACTOR = 0.72;
 
 export interface ColorMapper {
   readonly key: string;
@@ -25,7 +32,10 @@ export interface ColorMapper {
   mapRgb(rgb: Rgb): Rgb;
   /** Maps a CSS colour string; returns the input unchanged if it can't be parsed. */
   mapCss(css: string): string;
-  /** Maps an RGBA pixel buffer in place (alpha untouched), using a 3D lookup table. */
+  /**
+   * Maps an RGBA buffer of image pixels in place (alpha untouched), using a 3D lookup table.
+   * Image pixels get a stronger mid-tone lift than vector colours (thin scanned ink).
+   */
   mapPixels(data: Uint8ClampedArray): void;
 }
 
@@ -36,9 +46,10 @@ export function createColorMapper(theme: ReadingTheme, tuning: DarkTuning): Colo
   const fgBase = srgbToOklab(fgRgb);
   const fg: Lab = { ...fgBase, L: Math.min(0.99, fgBase.L * tuning.brightness) };
   // contrast > 1 lifts mid-tones (grey text, thin lines) further away from the background.
-  const curve = 0.78 / tuning.contrast;
+  const vectorCurve = BASE_CURVE / tuning.contrast;
+  const imageCurve = vectorCurve * IMAGE_CURVE_FACTOR;
 
-  function mapLab(c: Lab): Lab {
+  function mapLab(c: Lab, curve = vectorCurve): Lab {
     const t = Math.max(0, Math.min(1, 1 - c.L)) ** curve; // 0 = paper white, 1 = black ink
     let L = bg.L + t * (fg.L - bg.L);
     // Neutral colours slide between the theme's background and text tints.
@@ -54,6 +65,7 @@ export function createColorMapper(theme: ReadingTheme, tuning: DarkTuning): Colo
   }
 
   const mapRgb = (rgb: Rgb): Rgb => oklabToSrgb(mapLab(srgbToOklab(rgb)));
+  const mapImageRgb = (rgb: Rgb): Rgb => oklabToSrgb(mapLab(srgbToOklab(rgb), imageCurve));
 
   const cssCache = new Map<string, string>();
   function mapCss(css: string): string {
@@ -74,7 +86,7 @@ export function createColorMapper(theme: ReadingTheme, tuning: DarkTuning): Colo
     for (let r = 0; r < LUT_STEPS; r++)
       for (let g = 0; g < LUT_STEPS; g++)
         for (let b = 0; b < LUT_STEPS; b++) {
-          const out = mapRgb([Math.round(r * step), Math.round(g * step), Math.round(b * step)]);
+          const out = mapImageRgb([Math.round(r * step), Math.round(g * step), Math.round(b * step)]);
           table[i++] = out[0];
           table[i++] = out[1];
           table[i++] = out[2];
