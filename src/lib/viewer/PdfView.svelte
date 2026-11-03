@@ -30,6 +30,9 @@
 </div>
 
 <style>
+  .viewer-container :global(.pdfViewer .page) {
+    background-color: var(--page-bg, #ffffff);
+  }
   .viewer-container {
     position: absolute;
     inset: 0;

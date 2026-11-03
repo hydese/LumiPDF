@@ -7,6 +7,7 @@
 import { PDFJS_ASSETS } from "./pdfjs";
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import { darkBackground, onDarkModeChange } from "../dark/engine";
 
 export type ScalePreset = "page-width" | "page-fit" | "page-actual";
 
@@ -64,6 +65,8 @@ export class ViewerController {
     this.listen(options.container, "click", (e) => this.interceptExternalLink(e as MouseEvent), true);
     this.listen(options.container, "wheel", (e) => this.zoomWithWheel(e as WheelEvent), { passive: false });
     this.watchDevicePixelRatio();
+    this.cleanups.push(onDarkModeChange(() => this.applyDarkMode()));
+    this.applyDarkMode(false);
   }
 
   setDocument(doc: PDFDocumentProxy | null): void {
@@ -120,6 +123,14 @@ export class ViewerController {
   destroy(): void {
     for (const cleanup of this.cleanups) cleanup();
     this.setDocument(null);
+  }
+
+  /** Paints the page background in the reading theme and re-renders every page. */
+  private applyDarkMode(rerender = true): void {
+    const bg = darkBackground();
+    this.options.container.style.setProperty("--page-bg", bg ?? "#ffffff");
+    this.options.container.classList.toggle("reading-dark", bg !== null);
+    if (rerender && this.doc) this.viewer.refresh();
   }
 
   private update(patch: Partial<ViewerState>): void {
