@@ -98,6 +98,14 @@ jobs:
       - run: npm ci
       - name: Build app (unsigned)
         run: npx tauri build --bundles app
+      # Zipped with ditto so the .app bundle keeps its structure and permissions.
+      - name: Package app for download
+        run: ditto -c -k --keepParent src-tauri/target/release/bundle/macos/LumiPDF.app LumiPDF-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LumiPDF-macos-app
+          path: LumiPDF-macos.zip
+          retention-days: 14
       - name: Rendering bench (WebKit, the engine the macOS app uses)
         run: |
           npx playwright install webkit
