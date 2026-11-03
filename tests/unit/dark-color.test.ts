@@ -1,0 +1,77 @@
+import { describe, expect, it } from "vitest";
+import { formatCssColor, oklabToSrgb, parseCssColor, srgbToOklab } from "../../src/lib/dark/color";
+import { createColorMapper } from "../../src/lib/dark/mapper";
+import { DEFAULT_TUNING, READING_THEMES, getTheme } from "../../src/lib/dark/themes";
+
+describe("colour parsing", () => {
+  it("reads the formats pdf.js produces", () => {
+    expect(parseCssColor("#ff0000")).toEqual({ rgb: [255, 0, 0], alpha: 1 });
+    expect(parseCssColor("#f00")).toEqual({ rgb: [255, 0, 0], alpha: 1 });
+    expect(parseCssColor("#00000080")?.alpha).toBeCloseTo(0.502, 2);
+    expect(parseCssColor("rgb(10, 20, 30)")).toEqual({ rgb: [10, 20, 30], alpha: 1 });
+    expect(parseCssColor("rgba(10,20,30,0.5)")).toEqual({ rgb: [10, 20, 30], alpha: 0.5 });
+    expect(parseCssColor("white")).toEqual({ rgb: [255, 255, 255], alpha: 1 });
+    expect(parseCssColor("hsl(10 20% 30%)")).toBeNull();
+  });
+
+  it("formats colours back", () => {
+    expect(formatCssColor({ rgb: [255, 0, 16], alpha: 1 })).toBe("#ff0010");
+    expect(formatCssColor({ rgb: [1, 2, 3], alpha: 0.25 })).toBe("rgba(1, 2, 3, 0.25)");
+  });
+});
+
+describe("OKLab", () => {
+  it("round-trips sRGB colours", () => {
+    for (const rgb of [[0, 0, 0], [255, 255, 255], [200, 30, 40], [12, 90, 200]] as const) {
+      const back = oklabToSrgb(srgbToOklab([...rgb]));
+      back.forEach((v, i) => expect(Math.abs(v - rgb[i]!)).toBeLessThanOrEqual(1));
+    }
+  });
+
+  it("keeps hue when reducing chroma to fit the gamut", () => {
+    const out = oklabToSrgb({ L: 0.75, a: -0.05, b: -0.35 }); // very saturated blue, out of gamut
+    expect(out[2]).toBeGreaterThan(out[0]);
+    expect(out[2]).toBeGreaterThan(out[1]);
+  });
+});
+
+describe("colour mapper", () => {
+  const mapper = createColorMapper(getTheme("lumina-black"), DEFAULT_TUNING);
+  const L = (rgb: [number, number, number]) => srgbToOklab(mapper.mapRgb(rgb)).L;
+
+  it("turns paper into the background and ink into the text colour", () => {
+    expect(mapper.mapRgb([255, 255, 255])).toEqual(parseCssColor("#121214")!.rgb);
+    expect(mapper.mapRgb([0, 0, 0])).toEqual(parseCssColor("#e8e8e6")!.rgb);
+  });
+
+  it("keeps grey text clearly readable", () => {
+    expect(L([128, 128, 128]) - L([255, 255, 255])).toBeGreaterThan(0.3);
+  });
+
+  it("keeps the hue of coloured ink and lifts it", () => {
+    const red = mapper.mapRgb([180, 0, 0]);
+    expect(red[0]).toBeGreaterThan(red[1] + 40);
+    expect(L([180, 0, 0])).toBeGreaterThanOrEqual(0.69);
+    const navy = mapper.mapRgb([0, 0, 140]);
+    expect(navy[2]).toBeGreaterThan(navy[0] + 40);
+  });
+
+  it("turns light coloured fills into dark tints", () => {
+    expect(L([255, 245, 200])).toBeLessThan(0.35);
+  });
+
+  it("maps pixel buffers like single colours", () => {
+    const px = new Uint8ClampedArray([255, 255, 255, 255, 0, 0, 0, 128, 200, 40, 40, 255]);
+    mapper.mapPixels(px);
+    const direct = [mapper.mapRgb([255, 255, 255]), mapper.mapRgb([0, 0, 0]), mapper.mapRgb([200, 40, 40])];
+    direct.forEach((rgb, i) => rgb.forEach((v, c) => expect(Math.abs(px[i * 4 + c]! - v)).toBeLessThanOrEqual(3)));
+    expect(px[7]).toBe(128); // alpha untouched
+  });
+
+  it("works for every theme", () => {
+    for (const theme of READING_THEMES) {
+      const m = createColorMapper(theme, DEFAULT_TUNING);
+      expect(m.mapCss("#ffffff")).toBe(formatCssColor({ rgb: m.background, alpha: 1 }));
+    }
+  });
+});
