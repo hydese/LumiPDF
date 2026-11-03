@@ -118,4 +118,35 @@ async function renderTheme(url: string, theme: ThemeId | "original", pageNumber:
   }
 }
 
-(window as unknown as { viewerCheck: unknown }).viewerCheck = { check, renderTheme, setClipSnapping, ready: true };
+/** Opens a PDF at a zoom level and reports how page 1's canvases relate to screen pixels. */
+async function zoomProbe(url: string, zoom: number, textWeight = -1) {
+  setDarkMode(textWeight < 0 ? null : { theme: "lumina-black", tuning: { ...DEFAULT_TUNING, textWeight } });
+  const pdf = await loadDocument(url, async () => null);
+  const target = document.getElementById("wrap")!;
+  let controller: import("../../../src/lib/viewer/ViewerController").ViewerController | null = null;
+  mount(PdfView, {
+    target,
+    props: {
+      doc: pdf.doc,
+      onState: () => {},
+      onExternalLink: () => {},
+      get controller() {
+        return controller;
+      },
+      set controller(c) {
+        controller = c;
+      },
+    },
+  });
+  await waitForPageCanvas(target, 1);
+  (controller as unknown as { viewer: { currentScale: number } }).viewer.currentScale = zoom;
+  await new Promise((r) => setTimeout(r, 2500));
+  const canvases = [...target.querySelectorAll<HTMLCanvasElement>('.page[data-page-number="1"] canvas')].map((c) => {
+    const r = c.getBoundingClientRect();
+    return { cls: c.className, w: c.width, h: c.height, cssW: r.width, cssH: r.height, left: r.left, top: r.top, ratio: c.width / r.width };
+  });
+  const png = target.querySelector<HTMLCanvasElement>('.page[data-page-number="1"] canvas')!.toDataURL("image/png");
+  return { dpr: devicePixelRatio, canvases, png };
+}
+
+(window as unknown as { viewerCheck: unknown }).viewerCheck = { check, renderTheme, setClipSnapping, zoomProbe, ready: true };

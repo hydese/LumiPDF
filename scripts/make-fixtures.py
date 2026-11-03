@@ -11,8 +11,13 @@ import shutil
 import subprocess
 import tempfile
 
+import math
+import random
+
 import pikepdf
+from PIL import Image, ImageDraw, ImageFilter
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
 OUT = pathlib.Path(__file__).resolve().parent.parent / "tests" / "fixtures"
@@ -25,6 +30,48 @@ def base_a4(path: pathlib.Path) -> None:
         for line in range(50):
             c.drawString(60, 800 - line * 15, f"Page {page + 1}, line {line + 1}: the quick brown fox jumps over the lazy dog.")
         c.showPage()
+    c.save()
+
+
+def raster_figures(path: pathlib.Path, tmp: pathlib.Path) -> None:
+    """Raster charts (must be recoloured in dark mode) and a photo-like image (must be kept)."""
+    # Bar chart that is mostly coloured bars, saved as JPEG like many exported slides.
+    bars = Image.new("RGB", (900, 500), "white")
+    d = ImageDraw.Draw(bars)
+    for i, (h, color) in enumerate(zip([420, 360, 300, 400], ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"])):
+        d.rectangle([40 + i * 215, 480 - h, 230 + i * 215, 480], fill=color)
+    d.line([30, 480, 880, 480], fill="black", width=3)
+    d.line([30, 20, 30, 480], fill="black", width=3)
+    bars.save(tmp / "bars.jpg", quality=85)
+    # Line plot on white, saved as PNG.
+    plot = Image.new("RGB", (900, 400), "white")
+    d = ImageDraw.Draw(plot)
+    d.line([40, 360, 880, 360], fill="black", width=2)
+    d.line([40, 20, 40, 360], fill="black", width=2)
+    for k, color in enumerate(["#1f77b4", "#d62728"]):
+        pts = [(40 + x, 190 - 120 * math.sin(x / 90 + k)) for x in range(0, 840, 4)]
+        d.line(pts, fill=color, width=4)
+    plot.save(tmp / "plot.png")
+    # Photo-like image: smooth colour regions plus grain, thousands of distinct colours.
+    random.seed(7)
+    photo = Image.new("RGB", (900, 500))
+    px = photo.load()
+    for y in range(500):
+        for x in range(900):
+            px[x, y] = (int(120 + 90 * math.sin(x / 140)), int(110 + 70 * math.cos(y / 90 + x / 300)), int(90 + 60 * math.sin((x + y) / 200)))
+    photo = photo.filter(ImageFilter.GaussianBlur(2))
+    grain = Image.effect_noise((900, 500), 24).convert("RGB")
+    photo = Image.blend(photo, grain, 0.15)
+    photo.save(tmp / "photo.jpg", quality=88)
+
+    c = canvas.Canvas(str(path), pagesize=A4)
+    c.setFont("Helvetica", 12)
+    c.drawString(60, 800, "Raster bar chart (JPEG): must be recoloured in dark mode.")
+    c.drawImage(ImageReader(str(tmp / "bars.jpg")), 60, 560, width=475, height=230)
+    c.drawString(60, 535, "Raster line plot (PNG): must be recoloured.")
+    c.drawImage(ImageReader(str(tmp / "plot.png")), 60, 330, width=475, height=195)
+    c.drawString(60, 305, "Photo-like image: must keep its colours.")
+    c.drawImage(ImageReader(str(tmp / "photo.jpg")), 60, 60, width=475, height=235)
     c.save()
 
 
@@ -47,6 +94,8 @@ def main() -> None:
             for page in pdf.pages:
                 page.obj.CropBox = pikepdf.Array([50, 100, 545, 742])
             pdf.save(OUT / "cropbox.pdf")
+
+        raster_figures(OUT / "raster-figures.pdf", pathlib.Path(tmp))
 
         # Owner password only: every reader opens it without asking for a password.
         with pikepdf.open(base) as pdf:
