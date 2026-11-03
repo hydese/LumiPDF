@@ -1,12 +1,13 @@
 //! LumiPDF desktop backend.
 //!
 //! The frontend renders PDFs with pdf.js; this crate owns everything that touches the disk:
-//! which files the webview may read, and later the library index, annotation sidecars,
+//! which files the webview may read, user settings, and later the library index, annotation sidecars,
 //! study stats, export and compression. Each area lives in its own module.
 
 mod commands;
 mod documents;
 mod error;
+mod settings;
 
 pub use error::AppError;
 
@@ -43,6 +44,8 @@ pub fn run() {
             commands::app_info,
             documents::open_pdf_dialog,
             documents::take_pending_documents,
+            settings::load_settings,
+            settings::save_settings,
         ])
         .build(tauri::generate_context!())
         .expect("LumiPDF failed to start")
