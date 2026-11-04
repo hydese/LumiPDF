@@ -1,5 +1,5 @@
 {
-  "$comment": "What's new after an update. Add an entry for every version you release, newest first. The app shows the entry for its own version once, on the first launch after updating; the GitHub release notes are generated from it. A test fails if the version in package.json has no entry. Tags: new, better, fixed. Optional \"welcome\": [\"language\" | \"appearance\" | \"reading\" | \"library\" | \"timer\"] shows those welcome steps again after updating, when a change needs the user to choose something.",
+  "$comment": "What's new after an update. Add an entry for every version you release, newest first. The app shows the entry for its own version once, on the first launch after updating; the GitHub release notes are generated from it. A test fails if the version in package.json has no entry. Tags: new, better, fixed. Optional \"welcome\": [\"language\" | \"usage\" | \"appearance\" | \"reading\" | \"library\"] shows those welcome steps again after updating, when a change needs the user to choose something.",
   "releases": [
     {
       "version": "2.0.0",
@@ -43,7 +43,7 @@
         {
           "tag": "new",
           "title": "Study timer and stats",
-          "text": "Timer, Pomodoro, alarm and stopwatch. See today against your daily goal, your streak, the last 7 or 30 days, and what you studied most."
+          "text": "Timer, Pomodoro, alarm and stopwatch. See today against your daily goal, your streak, the last 7 or 30 days, and what you studied most. Only reading? Turn study tools off in Settings → General for a plain PDF reader."
         },
         {
           "tag": "fixed",

@@ -86,6 +86,13 @@ export interface ReaderLayout {
 export interface StudySettings {
   /** Daily study goal in minutes (0 = no goal). */
   goal: number;
+  /** Study tools on (timers, stats, formula sheets); off gives a plain PDF reader. */
+  tools: boolean;
+  timer: boolean;
+  stats: boolean;
+  sheets: boolean;
+  /** The "Studying? Turn on study tools" line in the Library was closed. */
+  hintDismissed: boolean;
 }
 
 export type SheetPaper = "a4" | "letter";
@@ -151,7 +158,7 @@ export const DEFAULT_SETTINGS: Settings = {
   app: { appearance: "system", startScreen: "library", locale: "en", checkForUpdates: true, lastSeenVersion: "" },
   timer: { mode: "timer", countdown: 25, alarm: "07:30", clock24: systemUses24h(), askOnClose: true, focus: 50, shortBreak: 10, longBreak: 20, sessionsBeforeLong: 4, sound: true },
   reader: { sidebarOpen: true, sidebarTab: "outline", openTabs: [], activeTab: "", linkPreviews: true },
-  study: { goal: 120 },
+  study: { goal: 120, tools: true, timer: true, stats: true, sheets: true, hintDismissed: false },
   sheets: { last: "", paper: systemPaper() },
   annotate: { inkColor: "#2f5bd8", inkWidth: 1.8, markerColor: "#ffe14d", markerWidth: 13, markColor: "#ffe14d", markKind: "highlight", noteColor: "#ffd84d", recentColors: [] },
   library: { goodnotes: false, notebooks: { title: "", sort: "recent", count: 5, view: "list", hidden: [] } },
@@ -229,7 +236,14 @@ export function parseSettings(raw: unknown): Settings {
       activeTab: typeof reader.activeTab === "string" ? reader.activeTab : "",
       linkPreviews: bool(reader.linkPreviews, DEFAULT_SETTINGS.reader.linkPreviews),
     },
-    study: { goal: int(obj(root.study).goal, STUDY_GOAL_LIMITS.min, STUDY_GOAL_LIMITS.max, DEFAULT_SETTINGS.study.goal) },
+    study: {
+      goal: int(obj(root.study).goal, STUDY_GOAL_LIMITS.min, STUDY_GOAL_LIMITS.max, DEFAULT_SETTINGS.study.goal),
+      tools: bool(obj(root.study).tools, true),
+      timer: bool(obj(root.study).timer, true),
+      stats: bool(obj(root.study).stats, true),
+      sheets: bool(obj(root.study).sheets, true),
+      hintDismissed: bool(obj(root.study).hintDismissed, false),
+    },
     sheets: {
       last: typeof obj(root.sheets).last === "string" && /^[a-z0-9-]{0,40}$/.test(obj(root.sheets).last as string) ? (obj(root.sheets).last as string) : "",
       paper: oneOf(obj(root.sheets).paper, ["a4", "letter"], DEFAULT_SETTINGS.sheets.paper),

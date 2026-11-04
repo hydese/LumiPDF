@@ -32,7 +32,7 @@ describe("what's new", () => {
   });
 
   it("shows the welcome on a fresh install, notes once after an update", () => {
-    expect(whatsNewOnLaunch("2.0.0", "")).toEqual({ welcome: ["language", "appearance", "reading", "library"], show: null, remember: false });
+    expect(whatsNewOnLaunch("2.0.0", "")).toEqual({ welcome: ["language", "usage", "appearance", "reading", "library"], show: null, remember: false });
     expect(whatsNewOnLaunch("2.0.0", "2.0.0").show).toBeNull();
     expect(whatsNewOnLaunch("2.0.0", "1.0.5").show?.version).toBe("2.0.0");
     expect(whatsNewOnLaunch("2.0.0", "1.0.5").welcome).toEqual([]);

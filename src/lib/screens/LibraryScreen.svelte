@@ -22,6 +22,8 @@
   import { navigation } from "../app/navigation.svelte";
   import TodayCard from "../stats/ui/TodayCard.svelte";
   import SheetsCard from "../sheets/ui/SheetsCard.svelte";
+  import { studyTools } from "../app/studyTools.svelte";
+  import { setStudyTools } from "../app/setStudyTools";
 
   interface Props {
     searchInput?: HTMLInputElement | null;
@@ -37,7 +39,7 @@
   const summary = $derived(
     [
       `${tn("library.summary.docs", library.documentCount)}${library.folders.length ? " " + tn("library.summary.folders", library.folders.length) : ""}`,
-      week >= 60 ? t("library.summary.week", { time: formatDuration(week) }) : "",
+      week >= 60 && studyTools.stats ? t("library.summary.week", { time: formatDuration(week) }) : "",
     ]
       .filter(Boolean)
       .join(" · "),
@@ -158,7 +160,7 @@
 
       {#if view}
         <div class="sources">
-          <TodayCard />
+          {#if studyTools.stats}<TodayCard />{/if}
           {#each library.clouds as cloud (cloud.path)}
             <SourceCard icon="cloud" tone={CLOUD_TONE[cloud.kind as CloudKind]} title={t(`cloud.${cloud.kind}` as MessageKey)} subtitle={tn("cloud.count", cloud.files.length)}>
               {#snippet action()}
@@ -192,11 +194,22 @@
             </SourceCard>
           {/each}
 
-          <SheetsCard />
+          {#if studyTools.sheets}<SheetsCard />{/if}
           {#if settings.value.library.goodnotes}
             <NotebooksCard folder={library.goodnotes} />
           {/if}
         </div>
+      {/if}
+
+      {#if !studyTools.on && !settings.value.study.hintDismissed && !isEmpty}
+        <aside class="study-hint">
+          <span class="hint-icon"><Icon name="timer" size={15} stroke={2} /></span>
+          <span class="hint-text"><strong>{t("study.hintTitle")}</strong> {t("study.hintText")}</span>
+          <button class="btn small primary" onclick={() => setStudyTools({ tools: true })}>{t("study.hintTurnOn")}</button>
+          <button class="hint-close" aria-label={t("study.hintDismiss")} title={t("study.hintDismiss")} onclick={() => settings.update((s) => (s.study.hintDismissed = true))}>
+            <Icon name="close" size={12} stroke={2.2} />
+          </button>
+        </aside>
       {/if}
 
       {#if library.folders.length}
@@ -376,6 +389,47 @@
     color: var(--danger);
   }
 
+  .study-hint {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px 12px 16px;
+    border-radius: var(--radius-l);
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+  .hint-icon {
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .hint-text {
+    flex: 1;
+    min-width: 0;
+    color: var(--text-soft);
+  }
+  .hint-text strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .hint-close {
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border: none;
+    border-radius: 13px;
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .hint-close:hover {
+    background: var(--hover);
+  }
   .sources {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));

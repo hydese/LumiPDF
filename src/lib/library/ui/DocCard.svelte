@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { studyTools } from "../../app/studyTools.svelte";
   /** A "Continue reading" card: page, title, where you are, progress. */
   import { formatDuration, t } from "../../i18n";
   import type { DocView } from "../../ipc/library";
@@ -15,7 +16,7 @@
 
   const progress = $derived(doc.pages > 0 ? Math.round((doc.page / doc.pages) * 100) : 0);
   const meta = $derived(
-    [doc.pages > 0 ? t("library.pageOf", { page: doc.page, pages: doc.pages }) : t("library.notStarted"), doc.studySeconds >= 60 ? t("library.studied", { time: formatDuration(doc.studySeconds) }) : ""]
+    [doc.pages > 0 ? t("library.pageOf", { page: doc.page, pages: doc.pages }) : t("library.notStarted"), doc.studySeconds >= 60 && studyTools.stats ? t("library.studied", { time: formatDuration(doc.studySeconds) }) : ""]
       .filter(Boolean)
       .join(" · "),
   );

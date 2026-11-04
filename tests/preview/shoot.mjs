@@ -67,6 +67,11 @@ const shotsAll = [
   { name: "sheet-light", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], sheetFlow: true },
   { name: "library-sheets", settings: { app: { appearance: "light", ...seen }, sheets: { last: "" } }, seedSheets: true },
   { name: "hex-picker", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], hexFlow: true },
+  { name: "welcome-usage", settings: { app: { appearance: "light" } }, welcome: 1 },
+  { name: "welcome-usage-dark", settings: { app: { appearance: "dark" }, study: { tools: false } }, welcome: 1 },
+  { name: "settings-study-tools", settings: { app: { appearance: "light", ...seen } }, keys: "Control+Comma" },
+  { name: "library-reading-only", settings: { app: { appearance: "light", ...seen }, study: { tools: false } } },
+  { name: "reader-reading-only", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false }, study: { tools: false } }, open: ["Analisi 2 — Trasformate"], annotate: "snip" },
   { name: "whatsnew-light", settings: { app: { appearance: "light", lastSeenVersion: "1.0.5" } } },
 ];
 const shots = only ? shotsAll.filter((s) => only.includes(s.name)) : shotsAll;

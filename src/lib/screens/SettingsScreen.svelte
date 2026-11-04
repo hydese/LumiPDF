@@ -12,6 +12,8 @@
   import { timers } from "../timer/timers.svelte";
   import { openExternal } from "../ipc/system";
   import { whatsNew } from "../whatsnew/whatsnewState.svelte";
+  import { studyTools } from "../app/studyTools.svelte";
+  import { setStudyTools } from "../app/setStudyTools";
   import TitleBar from "../ui/TitleBar.svelte";
   import BackButton from "../ui/BackButton.svelte";
   import Icon, { type IconName } from "../ui/Icon.svelte";
@@ -157,6 +159,19 @@
           </label>
         </section>
 
+        <section class="card list study-tools">
+          <label class="row main">
+            <span class="label"><span>{t("settings.study.tools")}</span><span class="hint">{t("settings.study.toolsHint")}</span></span>
+            <input type="checkbox" class="switch" checked={s.study.tools} onchange={(e) => setStudyTools({ tools: e.currentTarget.checked })} />
+          </label>
+          {#each [["timer", "settings.study.timer", "settings.study.timerHint"], ["stats", "settings.study.stats", "settings.study.statsHint"], ["sheets", "settings.study.sheets", "settings.study.sheetsHint"]] as const as [key, label, hint] (key)}
+            <label class="row sub" class:disabled={!s.study.tools}>
+              <span class="label"><span>{t(label)}</span><span class="hint">{t(hint)}</span></span>
+              <input type="checkbox" class="switch" checked={s.study[key]} disabled={!s.study.tools} onchange={(e) => setStudyTools({ [key]: e.currentTarget.checked })} />
+            </label>
+          {/each}
+        </section>
+
         <section class="card list">
           <h3 class="group">{t("settings.group.startup")}</h3>
           <label class="row">
@@ -176,6 +191,7 @@
           </label>
         </section>
 
+        {#if studyTools.timer}
         <section class="card list">
           <h3 class="group">{t("settings.group.timer")}</h3>
           <label class="row">
@@ -187,7 +203,8 @@
             <input type="checkbox" class="switch" checked={s.timer.askOnClose} onchange={(e) => setTimer("askOnClose", e.currentTarget.checked)} />
           </label>
           <p class="hint pad top">{t("timer.studyNote")}</p>
-</section>
+        </section>
+        {/if}
       {:else if section === "appearance"}
         <section class="card">
           <div class="label"><span>{t("settings.appearance.app")}</span><span class="hint">{t("settings.appearance.hint")}</span></div>
@@ -337,6 +354,15 @@
 </div>
 
 <style>
+  .study-tools .main .label > span:first-child {
+    font-weight: 600;
+  }
+  .study-tools .sub {
+    padding-left: 34px;
+  }
+  .study-tools .sub.disabled {
+    opacity: 0.5;
+  }
   .screen {
     height: 100%;
     display: flex;

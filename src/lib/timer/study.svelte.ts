@@ -15,6 +15,7 @@ import { libraryAddStudyTime, libraryUpdate } from "../ipc/library";
 import { library } from "../library/library.svelte";
 import { session } from "../reader/session.svelte";
 import { timers } from "./timers.svelte";
+import { studyTools } from "../app/studyTools.svelte";
 
 const TICK_S = 15;
 const FLUSH_EVERY_TICKS = 4;
@@ -70,6 +71,10 @@ class StudyClock {
   }
 
   #tick(): void {
+    if (!studyTools.stats) {
+      this.#run = this.#pending = 0;
+      return;
+    }
     const present = document.visibilityState === "visible" && document.hasFocus() && Date.now() - this.#lastInput < IDLE_AFTER_MS;
     const doc = navigation.screen === "reader" ? (session.current?.ref.path ?? null) : null;
     const reading = present && doc !== null;

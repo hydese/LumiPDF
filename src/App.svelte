@@ -21,6 +21,7 @@
   import Dialog from "./lib/ui/Dialog.svelte";
   import { studyClock } from "./lib/timer/study.svelte";
   import { sheets } from "./lib/sheets/sheets.svelte";
+  import { studyTools } from "./lib/app/studyTools.svelte";
   import { updates } from "./lib/updates/updates.svelte";
   import { whatsNew } from "./lib/whatsnew/whatsnewState.svelte";
   import LibraryScreen from "./lib/screens/LibraryScreen.svelte";
@@ -103,7 +104,7 @@
     }
     if (event.shiftKey) {
       if (key === "d") run(() => readingMode.toggle());
-      else if (key === "t") run(() => timers.toggleCurrent());
+      else if (key === "t" && studyTools.timer) run(() => timers.toggleCurrent());
       return;
     }
     switch (key) {
@@ -172,7 +173,7 @@
       if (pending) {
         await session.open(pending);
       } else if (settings.value.app.startScreen === "last-document") {
-        const titles = Object.fromEntries(sheets.list.map((x) => [x.id, x.title]));
+        const titles = studyTools.sheets ? Object.fromEntries(sheets.list.map((x) => [x.id, x.title])) : {};
         await session.restore(settings.value.reader.openTabs, settings.value.reader.activeTab, titles);
       }
     })();
@@ -208,7 +209,7 @@
       {/if}
       {#if navigation.screen === "library"}
         <div class="layer"><LibraryScreen bind:searchInput bind:barActions /></div>
-      {:else if navigation.screen === "stats"}
+      {:else if navigation.screen === "stats" && studyTools.stats}
         <div class="layer"><StatsScreen bind:barActions /></div>
       {:else if navigation.screen === "settings"}
         <div class="layer"><SettingsScreen /></div>

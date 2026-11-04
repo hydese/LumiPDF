@@ -13,6 +13,7 @@
   import AppMark from "../ui/AppMark.svelte";
   import AppearancePicker from "../ui/AppearancePicker.svelte";
   import Icon from "../ui/Icon.svelte";
+  import { setStudyTools } from "../app/setStudyTools";
 
   interface Props {
     steps: WelcomeStep[];
@@ -54,6 +55,22 @@
                 {/each}
               </select>
             </label>
+          {:else if step === "usage"}
+            <h1 id="welcome-title">{t("welcome.usage.title")}</h1>
+            <p>{t("welcome.usage.text")}</p>
+            <div class="usage" role="radiogroup" aria-label={t("welcome.usage.title")}>
+              <button role="radio" aria-checked={s.study.tools} onclick={() => setStudyTools({ tools: true })}>
+                <span class="usage-icon study"><Icon name="timer" size={22} stroke={1.8} /></span>
+                <strong>{t("welcome.usage.study")}</strong>
+                <span>{t("welcome.usage.studyText")}</span>
+              </button>
+              <button role="radio" aria-checked={!s.study.tools} onclick={() => setStudyTools({ tools: false })}>
+                <span class="usage-icon read"><Icon name="file" size={22} stroke={1.8} /></span>
+                <strong>{t("welcome.usage.read")}</strong>
+                <span>{t("welcome.usage.readText")}</span>
+              </button>
+            </div>
+            <p class="later">{t("welcome.usage.later")}</p>
           {:else if step === "appearance"}
             <h1 id="welcome-title">{t("welcome.appearance.title")}</h1>
             <p>{t("welcome.appearance.text")}</p>
@@ -162,6 +179,60 @@
     background: var(--surface);
     border: 1px solid var(--hairline);
     box-shadow: var(--card-shadow), 0 30px 80px rgba(0, 0, 0, 0.08);
+  }
+  .usage {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 6px;
+  }
+  .usage button {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 18px;
+    border-radius: 14px;
+    border: 1.5px solid var(--hairline);
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+  }
+  .usage button:hover {
+    background: var(--hover);
+  }
+  .usage button[aria-checked="true"] {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .usage strong {
+    font-size: 15px;
+    margin-top: 4px;
+  }
+  .usage button > span:last-child {
+    color: var(--text-muted);
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+  .usage-icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+  }
+  .usage-icon.study {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .usage-icon.read {
+    background: var(--segment);
+    color: var(--text);
+  }
+  .later {
+    font-size: 12.5px;
+    color: var(--text-muted);
   }
   .dots {
     display: flex;

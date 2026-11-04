@@ -11,6 +11,7 @@
   import { readingMode } from "../dark/readingMode.svelte";
   import { updates } from "../updates/updates.svelte";
   import { timers } from "../timer/timers.svelte";
+  import { studyTools } from "../app/studyTools.svelte";
   import TimerPanel from "../timer/ui/TimerPanel.svelte";
   import ReadingSettingsPanel from "./ReadingSettingsPanel.svelte";
   import IconButton from "./IconButton.svelte";
@@ -52,7 +53,9 @@
   {/if}
 {/if}
 
-{#if pill}
+{#if !studyTools.timer && !timers.busy}
+  <!-- Timer turned off in Settings → General → Study tools. -->
+{:else if pill}
   <button
     class="timer-pill"
     class:on={open === "timer"}

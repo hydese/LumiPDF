@@ -4,6 +4,7 @@
   import Icon from "../../ui/Icon.svelte";
   import { sheets } from "../../sheets/sheets.svelte";
   import { settings } from "../../settings/store.svelte";
+  import { studyTools } from "../../app/studyTools.svelte";
 
   interface Props {
     at: DOMRect;
@@ -72,6 +73,7 @@
       >
     {/if}
   {:else}
+    {#if studyTools.sheets}
     <span class="split">
       <button role="menuitem" class="primary" disabled={busy} onclick={() => add()} title={last ? t("sheets.addTo", { title: last.title }) : t("sheets.addToNew")}>
         <Icon name="sheet" size={14} />{last ? t("sheets.addTo", { title: last.title }) : t("sheets.addToNew")}
@@ -80,8 +82,9 @@
         <Icon name="down" size={13} stroke={2.2} />
       </button>
     </span>
+    {/if}
     <button role="menuitem" disabled={busy} onclick={() => run(onCopy, t("snip.copied"))}><Icon name="copy" size={14} />{t("snip.copy")}</button>
-    <button role="menuitem" disabled={busy} onclick={() => run(onSave, t("snip.saved"))}><Icon name="save" size={14} />{t("snip.save")}</button>
+    <button role="menuitem" class:primary={!studyTools.sheets} disabled={busy} onclick={() => run(onSave, t("snip.saved"))}><Icon name="save" size={14} />{t("snip.save")}</button>
     <button role="menuitem" class="icon" aria-label={t("snip.close")} title={t("snip.close")} onclick={onClose}><Icon name="close" size={13} stroke={2.2} /></button>
   {/if}
   {#if choosing}

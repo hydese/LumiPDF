@@ -24,6 +24,12 @@ LumiPDF 2.0 is a full rewrite of LuminaPDF 1.x under a new name.
 - Link previews: hovering an internal link (equation, figure, footnote, section) shows the target
   spot cropped to the text column, in the reading theme; click to go there. Off on contents and
   index pages; can be turned off in Settings → Reading.
+- Study tools switch: the welcome asks what LumiPDF is for (Studying, the default, or Just
+  reading). Just reading hides the timer, study stats (and stops counting study time) and
+  formula sheets; Settings → General has the main switch and one per tool, and the Library shows
+  a dismissible "Studying? Turn on study tools" line while they're off.
+- Any annotation colour: a hex/system colour picker next to the preset colours, with recent
+  custom colours.
 - Study stats: a Today card in the Library (time against the daily goal, streak, the week) and a
   Stats screen with totals, current and best streak, a 7/30-day chart and the most studied
   documents and folders. Study time is now also kept per document per day.
