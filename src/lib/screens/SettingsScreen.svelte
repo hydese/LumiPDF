@@ -126,7 +126,10 @@
         if (updates.install === "ready") return s.app.updateMode === "auto" ? t("settings.update.readyAuto") : t("settings.update.ready");
         if (updates.install === "installing") return t("settings.update.installing");
         if (updates.install === "failed") return t("settings.update.failed", { reason: updates.installError ?? "" });
-        return updates.signed ? t("settings.update.availableSigned", { current }) : t("settings.update.availableDetail", { current });
+        if (updates.signed) return t("settings.update.availableSigned", { current });
+        if (updates.signedError !== null)
+          return updates.signedError ? t("settings.update.notReadyError", { reason: updates.signedError }) : t("settings.update.notReady");
+        return t("settings.update.availableDetail", { current });
       case "up-to-date":
         return t("settings.update.upToDateDetail", { current });
       case "error":
@@ -188,6 +191,12 @@
                 {:else}
                   <button class="btn primary" onclick={() => updates.installNow()}><Icon name="update" size={14} stroke={2.2} />{t("settings.update.install")}</button>
                 {/if}
+              {:else if updates.installable}
+                <!-- Installed copies never fall back to the website: try the signed update again. -->
+                <button class="btn primary" onclick={() => updates.check()}>
+                  <Icon name="update" size={14} stroke={2.2} />
+                  {t("settings.update.retry")}
+                </button>
               {:else}
                 <button class="btn primary" onclick={() => openExternal(updates.available!.url)}>
                   <Icon name="update" size={14} stroke={2.2} />

@@ -8,7 +8,8 @@
  * Installed copies then use the signed updater (Rust, updater.rs):
  *  - "auto": downloads quietly and installs when LumiPDF closes (or on "Restart to update");
  *  - "ask": shows the update and downloads and installs it when you click.
- * The portable exe opens the release page instead.
+ * The portable exe opens the release page instead. An installed copy never does: if the signed
+ * check fails it says why and offers to try again.
  * The beta switch includes pre-releases.
  */
 import { compareVersions, parseVersion } from "../app/semver";
@@ -69,6 +70,8 @@ class Updates {
   installable = $state(false);
   /** The signed updater has this update for this channel. */
   signed = $state(false);
+  /** Installed copies: why the signed updater couldn't offer the update found on GitHub. */
+  signedError = $state<string | null>(null);
   install = $state<InstallStatus>("none");
   /** Download progress, 0…1 (null when the size isn't known). */
   progress = $state<number | null>(null);
@@ -99,15 +102,23 @@ class Updates {
 
   async #checkSigned(beta: boolean): Promise<void> {
     this.installable = await updateInstallable().catch(() => false);
+    this.signedError = null;
     if (!this.installable || !this.available) {
       this.signed = false;
       return;
     }
-    const meta = await updateCheck(beta).catch((err) => {
+    // A beta found on GitHub is on the beta channel, whatever the switch says.
+    const channel = beta || (parseVersion(this.available.version)?.pre.length ?? 0) > 0;
+    let error: string | null = null;
+    const meta = await updateCheck(channel).catch((err) => {
       console.warn("LumiPDF: signed update check failed", err);
+      error = err instanceof Error ? err.message : String((err as { message?: string })?.message ?? err);
       return null;
     });
     this.signed = meta !== null;
+    // Null without an error: the release is out but its update file isn't yet (it follows
+    // within a minute or two of publishing).
+    if (!this.signed) this.signedError = error ?? "";
     if (this.signed && settings.value.app.updateMode === "auto" && this.install === "none") void this.download();
   }
 
