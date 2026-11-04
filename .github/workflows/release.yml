@@ -7,14 +7,17 @@
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
 name: Release
 
+# Three ways to start it:
+#  - push a commit to v2 (or main) whose message contains [release]: the version comes from
+#    package.json and the tag (vX.Y.Z) is created here;
+#  - push a version tag;
+#  - run it by hand (the workflow must be on the default branch for that).
 on:
   push:
+    branches: [v2, main]
     tags: ["v*"]
   workflow_dispatch:
     inputs:
-      tag:
-        description: Tag to build (must already exist, e.g. v2.0.0)
-        required: true
       macos:
         description: Also build the macOS app
         type: boolean
@@ -24,23 +27,43 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-${{ inputs.tag || github.ref_name }}
+  group: release-${{ github.sha }}
   cancel-in-progress: false
 
-env:
-  TAG: ${{ inputs.tag || github.ref_name }}
-
 jobs:
+  meta:
+    name: Version
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release]')
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      macos: ${{ steps.v.outputs.macos }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: v
+        env:
+          MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          tag="v$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "$tag" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} doesn't match package.json ($tag)"; exit 1
+          fi
+          mac=false
+          case "$MESSAGE" in *"[mac]"*) mac=true;; esac
+          [ "${{ inputs.macos }}" = "true" ] && mac=true
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "macos=$mac" >> "$GITHUB_OUTPUT"
+          echo "Releasing $tag (macOS: $mac)"
+
   windows:
     name: Windows (signed for the updater)
+    needs: meta
     runs-on: windows-latest
     env:
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ env.TAG }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -73,15 +96,14 @@ jobs:
 
   macos:
     name: macOS (Apple Silicon, unsigned by Apple)
-    if: inputs.macos
+    needs: meta
+    if: needs.meta.outputs.macos == 'true'
     runs-on: macos-latest
     env:
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ env.TAG }}
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -107,15 +129,22 @@ jobs:
 
   draft:
     name: Draft release
-    needs: [windows, macos]
+    needs: [meta, windows, macos]
     if: always() && needs.windows.result == 'success' && needs.macos.result != 'failure'
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ env.TAG }}
+      - name: Create the tag (when started from a [release] commit)
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG exists"
+          else
+            git tag "$TAG" "$GITHUB_SHA"
+            git push origin "refs/tags/$TAG"
+          fi
       - uses: actions/download-artifact@v8
         with:
           path: built

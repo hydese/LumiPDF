@@ -54,7 +54,7 @@ plain pdf.js. PDFs placed in `tests/private/` are included in the bench but neve
 
 1. Update `version` in `package.json` and add its entry to `src/lib/whatsnew/releases.json`
    (shown in the app after updating, and used as the release notes).
-2. Push a tag `vX.Y.Z` (or `vX.Y.Z-beta.N` for a beta). The **Release** workflow builds the signed
+2. Push a commit with `[release]` in its message (or a tag `vX.Y.Z`; betas: `X.Y.Z-beta.N`). The **Release** workflow tags it and builds the signed
    installer and saves a **draft** release (installer only; test builds, including the portable
    exe, come from the CI workflow's artifacts).
 3. Check the draft and publish it. The **Update channels** workflow then points the in-app updater
