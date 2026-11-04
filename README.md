@@ -24,7 +24,8 @@ Releases are on the [Releases page](https://github.com/hydese/LumiPDF/releases):
 
 - `LumiPDF_x.y.z_x64-setup.exe`: the installer. LumiPDF then updates itself.
 
-Windows may warn about an unknown publisher until code signing is in place (see [Code signing](#code-signing)).
+The installer isn't code-signed yet, so Windows may say "Windows protected your PC": choose
+**More info → Run anyway** (see [Code signing](#code-signing)).
 
 ## Building from source
 
@@ -65,9 +66,9 @@ The workflow needs the updater key as repository secrets `TAURI_SIGNING_PRIVATE_
 
 ## Code signing
 
-Free code signing provided by [SignPath.io](https://signpath.io), certificate by
-[SignPath Foundation](https://signpath.org) (application in progress). Until then builds are
-unsigned. See [CODE_SIGNING.md](CODE_SIGNING.md) for the signing policy.
+Releases are not code-signed yet; we plan to apply again to the free
+[SignPath Foundation](https://signpath.org) programme for open-source projects. In-app updates are
+always verified with the project's updater key. See [CODE_SIGNING.md](CODE_SIGNING.md).
 
 ## Project layout
 
@@ -84,4 +85,7 @@ unsigned. See [CODE_SIGNING.md](CODE_SIGNING.md) for the signing policy.
 
 ## License
 
-[MIT](LICENSE) © hydese
+[GNU General Public License v3.0 or later](LICENSE) © hydese
+
+LumiPDF 2.0 and later are GPL. Earlier releases (1.x and the 2.0 betas before 2.0.0-beta.2) were
+published under the MIT License.

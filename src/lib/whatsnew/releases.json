@@ -59,7 +59,7 @@
     },
     {
       "version": "2.0.0-beta.2",
-      "date": "",
+      "date": "2026-11-04",
       "welcome": [
         "language",
         "usage",
@@ -81,8 +81,18 @@
         },
         {
           "tag": "better",
+          "title": "Hand tool first",
+          "text": "Documents open with the hand tool, so you can drag pages around right away. Esc, or clicking the active tool again, brings it back."
+        },
+        {
+          "tag": "better",
           "title": "Beta options",
           "text": "Testers find the beta switch by clicking the version in Settings → About; each click now shows how many are left."
+        },
+        {
+          "tag": "better",
+          "title": "Now open source under the GPL",
+          "text": "LumiPDF is now licensed under the GNU GPL v3: anyone can use and change it, and changed versions must stay open too."
         }
       ]
     }

@@ -4,7 +4,7 @@
   "app.devBuild": "Version {version} — development build",
   "app.loading": "Starting…",
   "app.madeBy": "Made by",
-  "app.license": "MIT License",
+  "app.license": "GNU GPL v3 or later",
   "window.minimize": "Minimize",
   "window.maximize": "Maximize",
   "window.restore": "Restore",

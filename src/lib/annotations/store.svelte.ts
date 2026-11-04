@@ -27,8 +27,11 @@ export function documentKey(doc: PDFDocumentProxy): string | null {
   return id && /^[0-9a-f]{16,128}$/i.test(id) ? id.toLowerCase() : null;
 }
 
+/** The tool the app opens with, and the one Esc or clicking the active tool goes back to. */
+export const DEFAULT_TOOL: Tool = "hand";
+
 class AnnotationStore {
-  tool = $state<Tool>("select");
+  tool = $state<Tool>(DEFAULT_TOOL);
   /** Annotations of the active document. Raw: replaced as a whole on every change. */
   list = $state.raw<Annotation[]>([]);
   canUndo = $state(false);

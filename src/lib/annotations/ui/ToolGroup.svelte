@@ -2,7 +2,7 @@
   /** The annotation tools in the reader's top bar. */
   import { t, type MessageKey } from "../../i18n";
   import Icon, { type IconName } from "../../ui/Icon.svelte";
-  import { annotations, type Tool } from "../store.svelte";
+  import { annotations, DEFAULT_TOOL, type Tool } from "../store.svelte";
 
   const TOOLS: Array<{ id: Tool; icon: IconName; key: string }> = [
     { id: "hand", icon: "hand", key: "G" },
@@ -23,7 +23,7 @@
       aria-label={name}
       title={t("tools.withKey", { name, key: tool.key })}
       aria-pressed={annotations.tool === tool.id}
-      onclick={() => (annotations.tool = annotations.tool === tool.id && tool.id !== "select" ? "select" : tool.id)}
+      onclick={() => (annotations.tool = annotations.tool === tool.id ? DEFAULT_TOOL : tool.id)}
     >
       <Icon name={tool.icon} size={15} />
     </button>

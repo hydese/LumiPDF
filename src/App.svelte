@@ -15,7 +15,7 @@
   import { session } from "./lib/reader/session.svelte";
   import { timers } from "./lib/timer/timers.svelte";
   import { ringer } from "./lib/timer/ringer.svelte";
-  import { annotations, type Tool } from "./lib/annotations/store.svelte";
+  import { annotations, DEFAULT_TOOL, type Tool } from "./lib/annotations/store.svelte";
   import { guardClose, minimizeWindow, platform, quitApp } from "./lib/platform/window";
   import RingingDialog from "./lib/timer/ui/RingingDialog.svelte";
   import Dialog from "./lib/ui/Dialog.svelte";
@@ -96,8 +96,8 @@
         annotations.tool = tool;
         return;
       }
-      if (event.key === "Escape" && annotations.tool !== "select" && !event.defaultPrevented) {
-        annotations.tool = "select";
+      if (event.key === "Escape" && annotations.tool !== DEFAULT_TOOL && !event.defaultPrevented) {
+        annotations.tool = DEFAULT_TOOL;
         return;
       }
     }
