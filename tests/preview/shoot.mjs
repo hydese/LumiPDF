@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
  * Screenshots of every screen in light and dark, using a fake backend (mock-tauri.js).
- * Usage: node tests/preview/shoot.mjs [--scale 1] → tests/preview/out/*.png
+ * Usage: node tests/preview/shoot.mjs [--scale 1] [--only a,b] [--version 2.0.0] [--out dir]
+ *   → tests/preview/out/*.png
+ * --version renders the app as that version (e.g. without the BETA badge, for the README pictures:
+ * scripts/readme-images.mjs).
  */
 import { createServer } from "vite";
 import { chromium } from "playwright";
@@ -10,20 +13,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const out = path.join(root, "tests/preview/out");
+const arg = (name) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : null);
+const out = path.resolve(arg("--out") ?? path.join(root, "tests/preview/out"));
+const version = arg("--version") ?? JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version;
 fs.mkdirSync(out, { recursive: true });
 const scaleArg = process.argv.indexOf("--scale");
 const deviceScaleFactor = scaleArg > 0 ? Number(process.argv[scaleArg + 1]) : 1;
 const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1].split(",") : null;
 
-const server = await createServer({ root, configFile: path.join(root, "vite.config.ts"), logLevel: "error", server: { port: 0, strictPort: false } });
+const server = await createServer({ root, configFile: path.join(root, "vite.config.ts"), define: { __APP_VERSION__: JSON.stringify(version) }, logLevel: "error", server: { port: 0, strictPort: false } });
 await server.listen();
 const base = server.resolvedUrls.local[0].replace(/\/$/, "");
 const mock = fs.readFileSync(path.join(root, "tests/preview/mock-tauri.js"), "utf8");
 const browser = await chromium.launch();
 let failures = 0;
 
-const seen = { lastSeenVersion: JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version };
+const seen = { lastSeenVersion: version };
 const gn = { goodnotes: true };
 const shotsAll = [
   { name: "library-light", settings: { app: { appearance: "light", ...seen } }, update: true },
@@ -83,6 +88,11 @@ const shotsAll = [
   { name: "beta-badge", settings: { app: { appearance: "light", ...seen } }, clickText: "Analisi 2" },
   { name: "beta-unlock", settings: { app: { appearance: "dark", ...seen } }, keys: "Control+Comma", section: "About", tapVersion: 4 },
   { name: "fullscreen", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], keys: "F11" },
+  // For the README (scripts/readme-images.mjs): no update banner, the same page in light and dark.
+  { name: "readme-library-light", settings: { app: { appearance: "light", ...seen } }, settle: true },
+  { name: "readme-library-dark", settings: { app: { appearance: "dark", ...seen } }, settle: true },
+  { name: "readme-page-light", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"] },
+  { name: "readme-page-dark", settings: { app: { appearance: "dark", ...seen } }, open: ["Analisi 2 — Trasformate"] },
   { name: "whatsnew-light", settings: { app: { appearance: "light", lastSeenVersion: "1.0.5" } } },
 ];
 const shots = only ? shotsAll.filter((s) => only.includes(s.name)) : shotsAll;
@@ -104,7 +114,7 @@ for (const shot of shots) {
   await page.goto(`${base}/index.html`);
   await page.waitForSelector(".screen", { timeout: 15000 });
   try {
-    if (shot.update) await page.waitForTimeout(3400);
+    if (shot.update || shot.settle) await page.waitForTimeout(3400);
     if (shot.welcome !== undefined) {
       await page.waitForSelector(".welcome .card");
       for (let i = 0; i < shot.welcome; i++) {
