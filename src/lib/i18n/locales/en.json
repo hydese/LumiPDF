@@ -406,6 +406,18 @@
   "export.open": "Open it",
   "export.close": "Done",
   "export.failed": "Couldn’t export: {reason}",
+  "export.protection": "Protection",
+  "export.protected.open": "Opens with a password",
+  "export.protected.print": "Printing blocked",
+  "export.protected.copy": "Copying text blocked",
+  "export.protected.edit": "Editing blocked",
+  "export.protected.annotate": "Annotations blocked",
+  "export.protectionKept": "The copy keeps the same password and restrictions.",
+  "export.unlock": "Remove protection from the copy",
+  "export.unlockHint": "The copy opens without a password.",
+  "export.unlockOwnerHint": "Needs the owner password that set these restrictions.",
+  "export.ownerPassword": "Owner password",
+  "export.annotationsBlocked": "This PDF doesn’t allow annotations, so they stay out unless you remove the protection.",
   "export.protected": "Password-protected PDFs can’t be exported yet.",
   "settings.shortcuts.export": "Export a copy"
 }

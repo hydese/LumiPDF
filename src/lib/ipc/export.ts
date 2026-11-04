@@ -24,8 +24,34 @@ export interface ExportDone {
   document: DocumentRef | null;
 }
 
+export interface ProtectionRequest {
+  /** The password that opened the document, if it needed one. */
+  openPassword: string | null;
+  /** Remove the protection from the copy (needs the right password). */
+  remove: boolean;
+  ownerPassword: string | null;
+}
+
+export interface ProtectionInfo {
+  protected: boolean;
+  openPassword: boolean;
+  /** true = blocked */
+  restrictions: { print: boolean; copy: boolean; edit: boolean; annotate: boolean };
+  /** The open password alone can unlock the copy (nothing else is blocked). */
+  removableWithOpenPassword: boolean;
+}
+
 /** Asks where to save, then writes the copy. Resolves null if the user cancelled. */
-export const exportPdf = (request: { source: string; title: string; annotations: ExportAnnotation[]; compression: Compression }) =>
-  invoke<ExportDone | null>("export_pdf", { request });
+export const exportPdf = (request: {
+  source: string;
+  title: string;
+  annotations: ExportAnnotation[];
+  compression: Compression;
+  protection: ProtectionRequest;
+}) => invoke<ExportDone | null>("export_pdf", { request });
+
+/** What protects an open PDF (passwords and restrictions). */
+export const pdfProtection = (source: string, openPassword: string | null) =>
+  invoke<ProtectionInfo>("pdf_protection", { source, openPassword });
 
 export const revealInFolder = (path: string) => revealItemInDir(path);

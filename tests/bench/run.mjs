@@ -35,7 +35,9 @@ function listPdfs(dir) {
   if (!fs.existsSync(abs)) return [];
   return fs.readdirSync(abs).filter((f) => f.toLowerCase().endsWith(".pdf")).sort().map((f) => `${dir}/${f}`);
 }
-const pdfs = [...listPdfs("tests/fixtures"), ...listPdfs("tests/private")];
+// Files that ask for a password to open are covered by the export tests (Rust); rendering them
+// is the same as the owner-password fixtures once unlocked.
+const pdfs = [...listPdfs("tests/fixtures"), ...listPdfs("tests/private")].filter((f) => !f.includes("user-password"));
 
 // Use the app's own Vite config (Svelte plugin) so the bench can mount real app components.
 const server = await createServer({

@@ -102,6 +102,14 @@ def main() -> None:
             pdf.save(OUT / "owner-password-rc4.pdf", encryption=pikepdf.Encryption(owner="owner", user="", R=4))
             pdf.save(OUT / "owner-password-aes256.pdf", encryption=pikepdf.Encryption(owner="owner", user="", R=6))
 
+        # Needs a password to open ("study"); the owner password is "admin".
+        with pikepdf.open(base) as pdf:
+            pdf.save(OUT / "user-password-aes256.pdf", encryption=pikepdf.Encryption(owner="admin", user="study", R=6))
+        # Opens freely, but printing, copying and editing are blocked (owner password "admin").
+        no_print_copy = pikepdf.Permissions(extract=False, print_lowres=False, print_highres=False, modify_other=False, modify_assembly=False)
+        with pikepdf.open(base) as pdf:
+            pdf.save(OUT / "restricted-aes256.pdf", encryption=pikepdf.Encryption(owner="admin", user="", R=6, allow=no_print_copy))
+
         # Object streams + cross-reference stream (default output of modern exporters).
         with pikepdf.open(base) as pdf:
             pdf.save(OUT / "object-streams.pdf", object_stream_mode=pikepdf.ObjectStreamMode.generate)

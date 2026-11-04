@@ -1,7 +1,7 @@
 <script lang="ts">
   /** Export a copy: annotations in or out, and how much to compress. Never touches the original. */
   import { t, tn, type MessageKey } from "../../i18n";
-  import { exportPdf, revealInFolder, type Compression, type ExportDone } from "../../ipc/export";
+  import { exportPdf, pdfProtection, revealInFolder, type Compression, type ExportDone, type ProtectionInfo } from "../../ipc/export";
   import { session } from "../../reader/session.svelte";
   import { message } from "../../library/library.svelte";
   import Dialog from "../../ui/Dialog.svelte";
@@ -23,6 +23,32 @@
 
   const tab = $derived(session.active);
 
+  // Protection: kept by default; removable only with the right password.
+  let protection = $state<ProtectionInfo | null>(null);
+  let unlock = $state(false);
+  let ownerPassword = $state("");
+  $effect(() => {
+    const t = tab;
+    if (!t) return;
+    pdfProtection(t.path, t.password)
+      .then((info) => (protection = info))
+      .catch(() => (protection = null));
+  });
+  const locks = $derived.by(() => {
+    if (!protection?.protected) return [];
+    const r = protection.restrictions;
+    const list: MessageKey[] = [];
+    if (protection.openPassword) list.push("export.protected.open");
+    if (r.print) list.push("export.protected.print");
+    if (r.copy) list.push("export.protected.copy");
+    if (r.edit) list.push("export.protected.edit");
+    if (r.annotate) list.push("export.protected.annotate");
+    return list;
+  });
+  const needsOwner = $derived(unlock && !!protection && !protection.removableWithOpenPassword);
+  /** Kept protection that forbids annotations keeps them out. */
+  const annotationsBlocked = $derived(!!protection?.restrictions.annotate && !unlock);
+
   function bytes(n: number): string {
     if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;
     return `${(n / 1024 / 1024).toFixed(1)} MB`;
@@ -36,8 +62,13 @@
       const result = await exportPdf({
         source: tab.path,
         title: tab.title,
-        annotations: include ? toExport(annotations.list) : [],
+        annotations: include && !annotationsBlocked ? toExport(annotations.list) : [],
         compression: level,
+        protection: {
+          openPassword: tab.password,
+          remove: unlock,
+          ownerPassword: needsOwner ? ownerPassword : null,
+        },
       });
       if (!result) {
         phase = "choose"; // save dialog cancelled
@@ -85,13 +116,60 @@
       <p>{t("export.intro")}</p>
     </div>
 
-    <label class="row" class:disabled={!annotations.list.length}>
+    <label class="row" class:disabled={!annotations.list.length || annotationsBlocked}>
       <span class="label">
         <span>{t("export.annotations")}</span>
-        <span class="hint">{annotations.list.length ? tn("export.annotationsHint", annotations.list.length) : t("export.noAnnotations")}</span>
+        <span class="hint"
+          >{annotationsBlocked && annotations.list.length
+            ? t("export.annotationsBlocked")
+            : annotations.list.length
+              ? tn("export.annotationsHint", annotations.list.length)
+              : t("export.noAnnotations")}</span
+        >
       </span>
-      <input type="checkbox" class="switch" bind:checked={include} disabled={!annotations.list.length || phase === "working"} />
+      <input
+        type="checkbox"
+        class="switch"
+        checked={include && !annotationsBlocked}
+        onchange={(e) => (include = e.currentTarget.checked)}
+        disabled={!annotations.list.length || annotationsBlocked || phase === "working"}
+      />
     </label>
+
+    {#if locks.length}
+      <div class="protection">
+        <span class="group">{t("export.protection")}</span>
+        <div class="locks">
+          {#each locks as key (key)}
+            <span class="lock"><Icon name="lock" size={11} stroke={2} />{t(key)}</span>
+          {/each}
+        </div>
+        <label class="row">
+          <span class="label">
+            <span>{t("export.unlock")}</span>
+            <span class="hint"
+              >{unlock
+                ? protection?.removableWithOpenPassword
+                  ? t("export.unlockHint")
+                  : t("export.unlockOwnerHint")
+                : t("export.protectionKept")}</span
+            >
+          </span>
+          <input type="checkbox" class="switch" bind:checked={unlock} disabled={phase === "working"} />
+        </label>
+        {#if needsOwner}
+          <input
+            class="field"
+            type="password"
+            autocomplete="off"
+            placeholder={t("export.ownerPassword")}
+            aria-label={t("export.ownerPassword")}
+            bind:value={ownerPassword}
+            disabled={phase === "working"}
+          />
+        {/if}
+      </div>
+    {/if}
 
     <div class="levels" role="radiogroup" aria-label={t("export.compression")}>
       <span class="group">{t("export.compression")}</span>
@@ -113,7 +191,7 @@
         <span class="working"><span class="spinner"></span>{t("export.working")}</span>
       {:else}
         <button class="btn" onclick={onClose}>{t("export.cancel")}</button>
-        <button class="btn primary" onclick={run}><Icon name="export" size={14} stroke={2} />{t("export.save")}</button>
+        <button class="btn primary" onclick={run} disabled={needsOwner && !ownerPassword}><Icon name="export" size={14} stroke={2} />{t("export.save")}</button>
       {/if}
     </div>
   {/if}
@@ -151,6 +229,38 @@
     font-weight: 500;
   }
   .hint {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .protection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .field {
+    height: 34px;
+    padding: 0 10px;
+    border-radius: var(--radius-m);
+    border: 1px solid var(--hairline);
+    background: var(--field);
+    color: var(--text);
+    outline: none;
+  }
+  .field:focus {
+    border-color: var(--accent);
+  }
+  .locks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .lock {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 99px;
+    background: var(--hover);
     font-size: 12px;
     color: var(--text-muted);
   }

@@ -132,6 +132,7 @@ pub fn export(
     dest: &Path,
     annotations: &[ExportAnnotation],
     compression: Compression,
+    protection: &ProtectionRequest,
 ) -> Result<ExportResult, AppError> {
     if same_file(source, dest) {
         return Err(AppError::InvalidInput(
@@ -139,13 +140,7 @@ pub fn export(
         ));
     }
     let original_bytes = fs::metadata(source)?.len();
-    let mut doc = Document::load(source)
-        .map_err(|e| AppError::InvalidInput(format!("This PDF can't be exported: {e}")))?;
-    if doc.is_encrypted() {
-        return Err(AppError::InvalidInput(
-            "Password-protected PDFs can't be exported yet".into(),
-        ));
-    }
+    let (mut doc, keep) = prepare(source, protection, !annotations.is_empty())?;
 
     add_annotations(&mut doc, annotations)?;
     let images_recompressed = match compression.image_target() {
@@ -162,8 +157,18 @@ pub fn export(
     let tmp = dest.with_extension("pdf.lumipdf-tmp");
     {
         let mut file = fs::File::create(&tmp)?;
-        doc.save_modern(&mut file)
-            .map_err(|e| AppError::InvalidInput(format!("Couldn't write the PDF: {e}")))?;
+        let failed = |e: &dyn std::fmt::Display| {
+            AppError::InvalidInput(format!("Couldn't write the PDF: {e}"))
+        };
+        match &keep {
+            // Same keys, passwords and permissions as the original. Object streams are left
+            // out: their contents must not be encrypted twice.
+            Some(state) => {
+                doc.encrypt(state).map_err(|e| failed(&e))?;
+                doc.save_to(&mut file).map_err(|e| failed(&e))?;
+            }
+            None => doc.save_modern(&mut file).map_err(|e| failed(&e))?,
+        }
         file.sync_all()?;
     }
     fs::rename(&tmp, dest).inspect_err(|_| {
@@ -175,6 +180,145 @@ pub fn export(
         exported_bytes: fs::metadata(dest)?.len(),
         images_recompressed,
     })
+}
+
+// ---------------------------------------------------------------------------------------------
+// Protection
+//
+// LumiPDF only unlocks a copy with the password: the one you typed to open the file, or the
+// owner password for printing/copying/editing restrictions. Without it, the copy keeps exactly
+// the original protection (same passwords, same restrictions).
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ProtectionRequest {
+    /// The password typed to open the document (kept in memory by the app while it's open).
+    pub open_password: Option<String>,
+    /// Remove the protection from the copy.
+    pub remove: bool,
+    /// The owner password, needed to lift printing/copying/editing restrictions.
+    pub owner_password: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Restrictions {
+    pub print: bool,
+    pub copy: bool,
+    pub edit: bool,
+    pub annotate: bool,
+}
+
+impl Restrictions {
+    fn any(&self) -> bool {
+        self.print || self.copy || self.edit || self.annotate
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProtectionInfo {
+    pub protected: bool,
+    /// The file asks for a password to open.
+    pub open_password: bool,
+    /// What the file blocks (true = blocked).
+    pub restrictions: Restrictions,
+    /// The open password alone is enough to unlock the copy (nothing else is blocked).
+    pub removable_with_open_password: bool,
+}
+
+/// Opens the source and settles its protection: returns the document and the protection the
+/// copy keeps (None = unprotected copy). Fails if a password is missing or wrong, or if the
+/// protection forbids what's asked. Runs before the save dialog too, so mistakes show early.
+pub fn prepare(
+    source: &Path,
+    protection: &ProtectionRequest,
+    has_annotations: bool,
+) -> Result<(Document, Option<lopdf::encryption::EncryptionState>), AppError> {
+    let (mut doc, used_open_password) = load(source, protection.open_password.as_deref())?;
+    let info = protection_of(&doc, used_open_password);
+    let keep = match doc.encryption_state.take() {
+        Some(state) if protection.remove => {
+            let owner_ok = protection
+                .owner_password
+                .as_deref()
+                .is_some_and(|pw| owner_password_matches(&doc, &state, pw));
+            if !(owner_ok || info.removable_with_open_password) {
+                return Err(AppError::InvalidInput(
+                    "The owner password is not correct, so the copy can't be unlocked".into(),
+                ));
+            }
+            None
+        }
+        state => state,
+    };
+    if keep.is_some() && has_annotations && info.restrictions.annotate {
+        return Err(AppError::InvalidInput(
+            "This PDF doesn't allow adding annotations. Export it without them, or remove the protection with the owner password".into(),
+        ));
+    }
+    Ok((doc, keep))
+}
+
+/// Loads a document, using `open_password` if it asks for one. Returns whether it did.
+fn load(source: &Path, open_password: Option<&str>) -> Result<(Document, bool), AppError> {
+    let doc = Document::load(source)
+        .map_err(|e| AppError::InvalidInput(format!("This PDF can't be exported: {e}")))?;
+    if !doc.is_encrypted() {
+        return Ok((doc, false)); // not protected, or protected without an open password
+    }
+    let password = open_password.filter(|p| !p.is_empty()).ok_or_else(|| {
+        AppError::InvalidInput("This PDF needs its password to be exported".into())
+    })?;
+    let doc = Document::load_with_password(source, password)
+        .map_err(|_| AppError::InvalidInput("The password for this PDF is not correct".into()))?;
+    Ok((doc, true))
+}
+
+fn protection_of(doc: &Document, used_open_password: bool) -> ProtectionInfo {
+    use lopdf::encryption::Permissions as P;
+    let Some(state) = doc.encryption_state.as_ref() else {
+        return ProtectionInfo::default();
+    };
+    let p = state.permissions();
+    let restrictions = Restrictions {
+        print: !p.contains(P::PRINTABLE),
+        copy: !p.contains(P::COPYABLE),
+        edit: !p.contains(P::MODIFIABLE) || !p.contains(P::ASSEMBLABLE),
+        annotate: !p.contains(P::ANNOTABLE),
+    };
+    ProtectionInfo {
+        protected: true,
+        open_password: used_open_password,
+        removable_with_open_password: used_open_password && !restrictions.any(),
+        restrictions,
+    }
+}
+
+/// Checks an owner password against the document's original protection.
+fn owner_password_matches(
+    doc: &Document,
+    state: &lopdf::encryption::EncryptionState,
+    password: &str,
+) -> bool {
+    // The loaded document no longer carries its /Encrypt dictionary; rebuild just enough of one
+    // (the dictionary and the file ID) to run the standard password check.
+    let Ok(encrypt) = state.encode() else {
+        return false;
+    };
+    let mut probe = Document::with_version("1.7");
+    let id = probe.add_object(Object::Dictionary(encrypt));
+    probe.trailer.set("Encrypt", Object::Reference(id));
+    if let Ok(file_id) = doc.trailer.get(b"ID") {
+        probe.trailer.set("ID", file_id.clone());
+    }
+    probe.authenticate_owner_password(password).is_ok()
+}
+
+/// What protects `source` (for the Export window). `open_password` is the one the app used.
+pub fn protection(source: &Path, open_password: Option<&str>) -> Result<ProtectionInfo, AppError> {
+    let (doc, used) = load(source, open_password)?;
+    Ok(protection_of(&doc, used))
 }
 
 fn same_file(a: &Path, b: &Path) -> bool {
@@ -848,6 +992,7 @@ mod tests {
             &out,
             &annotations,
             Compression::None,
+            &ProtectionRequest::default(),
         )
         .unwrap();
         assert!(result.exported_bytes > 0);
@@ -874,11 +1019,25 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let src = dir.path().join("raster.pdf");
         fs::copy(fixture("raster-figures.pdf"), &src).unwrap();
-        let err = export(&src, &src, &[], Compression::Strong).unwrap_err();
+        let err = export(
+            &src,
+            &src,
+            &[],
+            Compression::Strong,
+            &ProtectionRequest::default(),
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("never overwrites"));
 
         let out = dir.path().join("small.pdf");
-        let result = export(&src, &out, &[], Compression::Strong).unwrap();
+        let result = export(
+            &src,
+            &out,
+            &[],
+            Compression::Strong,
+            &ProtectionRequest::default(),
+        )
+        .unwrap();
         assert!(result.exported_bytes < result.original_bytes, "{result:?}");
         assert!(Document::load(&out).unwrap().get_pages().len() == 1);
     }
@@ -890,9 +1049,124 @@ mod tests {
             let path = entry.path();
             if path.extension().is_some_and(|e| e == "pdf") {
                 let out = dir.path().join("o.pdf");
-                export(&path, &out, &[], Compression::Recommended)
+                let protection = ProtectionRequest {
+                    open_password: Some("study".into()),
+                    ..Default::default()
+                };
+                export(&path, &out, &[], Compression::Recommended, &protection)
                     .unwrap_or_else(|e| panic!("{}: {e}", path.display()));
             }
+        }
+    }
+
+    fn protected_export(
+        name: &str,
+        request: ProtectionRequest,
+        annotate: bool,
+    ) -> Result<PathBuf, AppError> {
+        let dir = tempfile::tempdir().unwrap().keep();
+        let out = dir.join("out.pdf");
+        let annotations = if annotate {
+            vec![ExportAnnotation::Note {
+                page: 1,
+                x: 72.0,
+                y: 72.0,
+                text: "hi".into(),
+                color: "#ffd84d".into(),
+            }]
+        } else {
+            vec![]
+        };
+        export(
+            &fixture(name),
+            &out,
+            &annotations,
+            Compression::None,
+            &request,
+        )
+        .map(|_| out)
+    }
+
+    fn req(open: Option<&str>, remove: bool, owner: Option<&str>) -> ProtectionRequest {
+        ProtectionRequest {
+            open_password: open.map(Into::into),
+            remove,
+            owner_password: owner.map(Into::into),
+        }
+    }
+
+    #[test]
+    fn keeps_protection_by_default() {
+        let out = protected_export("restricted-aes256.pdf", req(None, false, None), false).unwrap();
+        let info = protection(&out, None).unwrap();
+        assert!(info.protected && !info.open_password);
+        assert!(info.restrictions.print && info.restrictions.copy);
+        // the original owner password still works on the copy
+        let doc = Document::load(&out).unwrap();
+        let state = doc.encryption_state.clone().unwrap();
+        assert!(owner_password_matches(&doc, &state, "admin"));
+
+        let out = protected_export(
+            "user-password-aes256.pdf",
+            req(Some("study"), false, None),
+            false,
+        )
+        .unwrap();
+        assert!(
+            Document::load(&out).unwrap().is_encrypted(),
+            "still asks for its password"
+        );
+        assert!(Document::load_with_password(&out, "study").is_ok());
+    }
+
+    #[test]
+    fn needs_the_open_password() {
+        let err = |r| {
+            protected_export("user-password-aes256.pdf", r, false)
+                .unwrap_err()
+                .to_string()
+        };
+        assert!(err(req(None, false, None)).contains("needs its password"));
+        assert!(err(req(Some("wrong"), false, None)).contains("not correct"));
+    }
+
+    #[test]
+    fn restrictions_need_the_owner_password() {
+        for owner in [None, Some("wrong"), Some("")] {
+            assert!(
+                protected_export("restricted-aes256.pdf", req(None, true, owner), false).is_err()
+            );
+        }
+        // the open password alone never lifts restrictions
+        assert!(protected_export(
+            "user-password-aes256.pdf",
+            req(Some("study"), true, None),
+            false
+        )
+        .is_err());
+        let out = protected_export(
+            "restricted-aes256.pdf",
+            req(None, true, Some("admin")),
+            true,
+        )
+        .unwrap();
+        assert_eq!(protection(&out, None).unwrap(), ProtectionInfo::default());
+        let out = protected_export(
+            "user-password-aes256.pdf",
+            req(Some("study"), true, Some("admin")),
+            false,
+        )
+        .unwrap();
+        assert!(!Document::load(&out).unwrap().is_encrypted());
+    }
+
+    #[test]
+    fn respects_no_annotations() {
+        let info = protection(&fixture("restricted-aes256.pdf"), None).unwrap();
+        if info.restrictions.annotate {
+            assert!(
+                protected_export("restricted-aes256.pdf", req(None, false, None), true).is_err()
+            );
         }
     }
 
@@ -939,7 +1213,7 @@ mod private_tests {
             ] {
                 let out = out_dir.join(format!("{name}-{level:?}.pdf"));
                 let t = std::time::Instant::now();
-                let r = export(&src, &out, &[], level).unwrap();
+                let r = export(&src, &out, &[], level, &ProtectionRequest::default()).unwrap();
                 println!(
                     "{name} {level:?}: {:.1} MB -> {:.1} MB ({:+.0}%), {} pictures, {:?}",
                     r.original_bytes as f64 / 1e6,
@@ -973,7 +1247,14 @@ mod replay_tests {
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../tests/fixtures/latex-page.pdf");
         let out = PathBuf::from(std::env::var("LUMIPDF_EXPORT_OUT").unwrap());
         let compression: Compression = serde_json::from_value(json["compression"].clone()).unwrap();
-        let r = export(&source, &out, &annotations, compression).unwrap();
+        let r = export(
+            &source,
+            &out,
+            &annotations,
+            compression,
+            &ProtectionRequest::default(),
+        )
+        .unwrap();
         println!("{r:?}");
     }
 }

@@ -64,6 +64,7 @@ pub fn run() {
             annotations::annotations_save,
             export::save_png,
             export::export_pdf,
+            export::pdf_protection,
         ])
         .build(tauri::generate_context!())
         .expect("LumiPDF failed to start")

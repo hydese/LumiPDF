@@ -27,6 +27,9 @@ LumiPDF 2.0 is a full rewrite of LuminaPDF 1.x under a new name.
   (with appearance streams, so other readers show them the same), and compression in four
   levels (none, light, recommended, strong) that shrinks oversized or heavy pictures. Always a
   new file; the original is never overwritten.
+- Export keeps a protected PDF's passwords and restrictions by default. With the password you
+  can remove them from the copy: the open password unlocks a file that only asks for one; lifting
+  printing/copying/editing restrictions always needs the owner password.
 - Reader with Outline, Bookmarks (Ctrl+D) and Notes tabs, floating page and zoom controls.
   Right-click the moon for reading themes and adjustments.
 - Timer with four modes: Timer (set the time in the circle), Pomodoro (focus, breaks, long break

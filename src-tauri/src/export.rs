@@ -90,6 +90,8 @@ pub struct ExportRequest {
     pub title: String,
     pub annotations: Vec<crate::pdf_export::ExportAnnotation>,
     pub compression: crate::pdf_export::Compression,
+    #[serde(default)]
+    pub protection: crate::pdf_export::ProtectionRequest,
 }
 
 #[derive(serde::Serialize)]
@@ -115,6 +117,19 @@ pub async fn export_pdf<R: Runtime>(
     if !app.asset_protocol_scope().is_allowed(&source) {
         return Err(AppError::InvalidInput("This document is not open".into()));
     }
+    // Passwords and permissions are checked before asking where to save.
+    {
+        let (source, protection, annotated) = (
+            source.clone(),
+            request.protection.clone(),
+            !request.annotations.is_empty(),
+        );
+        tauri::async_runtime::spawn_blocking(move || {
+            crate::pdf_export::prepare(&source, &protection, annotated).map(|_| ())
+        })
+        .await
+        .map_err(|e| AppError::InvalidInput(e.to_string()))??;
+    }
     let name = suggested_pdf_name(
         &request.title,
         !request.annotations.is_empty(),
@@ -134,7 +149,13 @@ pub async fn export_pdf<R: Runtime>(
     let dest = with_pdf_extension(dest);
     let written = dest.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        export(&source, &dest, &request.annotations, request.compression)
+        export(
+            &source,
+            &dest,
+            &request.annotations,
+            request.compression,
+            &request.protection,
+        )
     })
     .await
     .map_err(|e| AppError::InvalidInput(e.to_string()))??;
@@ -184,4 +205,22 @@ mod tests {
         );
         assert_eq!(percent_decode("100%"), "100%");
     }
+}
+
+/// What protects an open PDF (passwords, restrictions), for the Export window.
+#[tauri::command]
+pub async fn pdf_protection<R: Runtime>(
+    app: AppHandle<R>,
+    source: String,
+    open_password: Option<String>,
+) -> Result<crate::pdf_export::ProtectionInfo, AppError> {
+    let source = std::path::PathBuf::from(source);
+    if !app.asset_protocol_scope().is_allowed(&source) {
+        return Err(AppError::InvalidInput("This document is not open".into()));
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::pdf_export::protection(&source, open_password.as_deref())
+    })
+    .await
+    .map_err(|e| AppError::InvalidInput(e.to_string()))?
 }

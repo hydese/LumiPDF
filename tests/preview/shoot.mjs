@@ -53,9 +53,10 @@ const shotsAll = [
   { name: "annotate-zoom", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: "zoom" },
   { name: "snip-menu", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], annotate: "snip" },
   { name: "export", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: true, exportFlow: true },
+  { name: "export-protected", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: true, exportFlow: "unlock", protection: { protected: true, openPassword: false, restrictions: { print: true, copy: true, edit: true, annotate: false }, removableWithOpenPassword: false } },
   { name: "whatsnew-light", settings: { app: { appearance: "light", lastSeenVersion: "1.0.5" } } },
 ];
-const shots = shotsAll;
+const shots = only ? shotsAll.filter((s) => only.includes(s.name)) : shotsAll;
 
 for (const shot of shots) {
   if (only && !only.includes(shot.name)) continue;
@@ -70,7 +71,7 @@ for (const shot of shots) {
         : [],
     }),
   );
-  await page.addInitScript(`window.__PREVIEW__ = ${JSON.stringify({ settings: shot.settings, empty: shot.empty })};\n${mock}`);
+  await page.addInitScript(`window.__PREVIEW__ = ${JSON.stringify({ settings: shot.settings, empty: shot.empty, protection: shot.protection })};\n${mock}`);
   await page.goto(`${base}/index.html`);
   await page.waitForSelector(".screen", { timeout: 15000 });
   try {
@@ -179,11 +180,16 @@ for (const shot of shots) {
     await page.keyboard.press("Escape");
     await page.keyboard.press("Control+e");
     await page.waitForTimeout(400);
-    await page.screenshot({ path: path.join(out, "export-dialog.png") });
+    if (shot.exportFlow === "unlock") {
+      await page.click('.protection .switch');
+      await page.fill('.protection .field', "admin");
+      await page.waitForTimeout(200);
+    }
+    await page.screenshot({ path: path.join(out, `${shot.name}-dialog.png`) });
     await page.click('.dialog .btn.primary');
     await page.waitForTimeout(500);
     const req = await page.evaluate(() => window.__EXPORT_REQUEST__);
-    fs.writeFileSync(path.join(out, "export-request.json"), JSON.stringify(req, null, 1));
+    fs.writeFileSync(path.join(out, `${shot.name}-request.json`), JSON.stringify(req, null, 1));
   }
   if (shot.keys) await page.keyboard.press(shot.keys);
     if (shot.section) await page.click(`nav button:has-text("${shot.section}")`);
