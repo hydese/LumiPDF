@@ -4,7 +4,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { DocumentRef } from "./documents";
 
-export type FolderKind = "folder" | "icloud" | "goodnotes";
+export type CloudKind = "icloud" | "onedrive" | "gdrive" | "dropbox";
+export type FolderKind = "folder" | "goodnotes" | CloudKind;
+export const CLOUD_KINDS: CloudKind[] = ["icloud", "onedrive", "gdrive", "dropbox"];
 
 export interface FileEntry {
   path: string;
@@ -14,6 +16,8 @@ export interface FileEntry {
   modified: number;
   /** Stored only in the cloud; showing a thumbnail would download it. */
   cloudOnly: boolean;
+  /** Subfolder inside the library folder, "/"-separated ("" at its top level). */
+  dir: string;
 }
 
 export interface FolderView {
@@ -45,7 +49,8 @@ export interface LibraryView {
   documents: DocView[];
   /** Study seconds per local day, "YYYY-MM-DD". */
   studyDays: Record<string, number>;
-  icloudSuggestion: string | null;
+  /** Cloud drive folders found on this computer that aren't in the library yet. */
+  cloudSuggestions: Array<{ kind: CloudKind; path: string }>;
 }
 
 export interface DocUpdate {

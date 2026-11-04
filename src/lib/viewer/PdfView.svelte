@@ -2,28 +2,29 @@
   import "pdfjs-dist/web/pdf_viewer.css";
   import { onDestroy, onMount } from "svelte";
   import type { PDFDocumentProxy } from "pdfjs-dist";
-  import { ViewerController, type ViewerState } from "./ViewerController";
+  import { ViewerController, type ReadingPlace, type ViewerState } from "./ViewerController";
 
   interface Props {
     doc: PDFDocumentProxy | null;
-    /** Page to open the document at. */
-    startPage?: number;
+    /** Where to open the document: a page number or a saved place. */
+    place?: number | ReadingPlace;
+    onFirstRender?: () => void;
     onState: (state: ViewerState) => void;
     onExternalLink: (url: string) => void;
     controller?: ViewerController | null;
   }
 
-  let { doc, startPage = 1, onState, onExternalLink, controller = $bindable(null) }: Props = $props();
+  let { doc, place = 1, onFirstRender, onState, onExternalLink, controller = $bindable(null) }: Props = $props();
   let container: HTMLDivElement;
 
   onMount(() => {
-    controller = new ViewerController({ container, onState, onExternalLink });
+    controller = new ViewerController({ container, onState, onExternalLink, onFirstRender: () => onFirstRender?.() });
   });
 
   onDestroy(() => controller?.destroy());
 
   $effect(() => {
-    controller?.setDocument(doc, startPage);
+    controller?.setDocument(doc, place);
   });
 </script>
 

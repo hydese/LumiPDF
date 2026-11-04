@@ -8,13 +8,22 @@ LumiPDF 2.0 is a full rewrite of LuminaPDF 1.x under a new name.
 
 ### Added
 - New interface, light and dark, with a single top bar that is also the window title bar.
-- Library home screen: Continue reading with first-page previews and progress, your folders
-  (files stay where they are), iCloud Drive, GoodNotes Auto Backup folders, and title search
-  that ignores accents (Ctrl+K).
-- Reader with Outline, Bookmarks (Ctrl+D) and Notes tabs, floating page and zoom controls, and
-  the page you were on remembered for every document.
-- Study timer: focus, short and long break lengths you choose (arrows change by 5 minutes, or
-  type any time), study time per document and per day, and a streak.
+- Welcome on first install (language, appearance, reading theme, folders and cloud drives,
+  study timer). An update can show chosen welcome steps again via releases.json.
+- Library home screen: Continue reading with first-page previews and progress; folders keep
+  their structure (browse subfolders, path bar); cloud drives (iCloud Drive, OneDrive, Google
+  Drive, Dropbox) found automatically or picked by hand; GoodNotes notebooks card when turned on
+  (title, sorting, count, list or previews, hide notebooks), otherwise Formula sheets; title
+  search that ignores accents (Ctrl+K).
+- Tabs in the top bar. Background tabs sleep (PDF closed, place and a snapshot kept) and come
+  back instantly on the same spot; Ctrl+Tab, Ctrl+1..9, Ctrl+W, middle-click, drag to reorder;
+  optionally reopen last session's tabs.
+- Reader with Outline, Bookmarks (Ctrl+D) and Notes tabs, floating page and zoom controls.
+  Right-click the moon for reading themes and adjustments.
+- Timer with four modes: Timer (set the time in the circle), Pomodoro (focus, breaks, long break
+  after N sessions), Alarm and Chrono with laps. A ringing timer or alarm brings LumiPDF to the
+  front; closing while one runs offers to keep running minimized.
+- Study time: timers count while running; reading alone counts after 10 minutes in a row.
 - Settings page: General (updates), Appearance, Reading, Library and iCloud, Study timer,
   Shortcuts, About.
 - Update check against GitHub releases when LumiPDF opens; the Update button appears only when a

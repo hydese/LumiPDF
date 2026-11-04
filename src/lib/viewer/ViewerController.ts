@@ -19,6 +19,15 @@ export interface ViewerState {
   findMatches: { current: number; total: number } | null;
 }
 
+/** Where the reader is in a document: page, zoom, and how far down that page. */
+export interface ReadingPlace {
+  page: number;
+  /** A fit mode, or a fixed zoom factor. */
+  zoom: "page-width" | "page-fit" | number;
+  /** 0..1: how far the top of the window is into the page. */
+  offset: number;
+}
+
 export interface OutlineItem {
   title: string;
   depth: number;
@@ -33,6 +42,8 @@ export interface ViewerOptions {
   onState: (state: ViewerState) => void;
   /** Called for http(s)/mailto links in the document; never navigates the app window. */
   onExternalLink: (url: string) => void;
+  /** Called once after a newly set document has drawn its first page. */
+  onFirstRender?: () => void;
 }
 
 const SAFE_EXTERNAL_LINK = /^(https?:|mailto:)/i;
@@ -45,8 +56,9 @@ export class ViewerController {
   private readonly options: ViewerOptions;
   private doc: PDFDocumentProxy | null = null;
   private findQuery = "";
-  /** Page to show once the new document's pages are laid out. */
-  private pendingPage = 1;
+  /** Place to restore once the new document's pages are laid out. */
+  private pendingPlace: ReadingPlace = { page: 1, zoom: "page-width", offset: 0 };
+  private awaitingFirstRender = false;
   /** While set, the zoom follows the window size (fit width / fit page). */
   private fit: "page-width" | "page-fit" | null = "page-width";
   private fitFrame = 0;
@@ -71,9 +83,12 @@ export class ViewerController {
 
     this.eventBus.on("pagesinit", () => {
       this.pagesReady = true;
-      this.fit = "page-width";
-      this.applyFit();
-      if (this.pendingPage > 1) this.viewer.currentPageNumber = Math.min(this.pendingPage, this.doc?.numPages ?? 1);
+      this.restorePlace(this.pendingPlace);
+    });
+    this.eventBus.on("pagerendered", () => {
+      if (!this.awaitingFirstRender) return;
+      this.awaitingFirstRender = false;
+      this.options.onFirstRender?.();
     });
     this.eventBus.on("pagechanging", ({ pageNumber }: { pageNumber: number }) => this.update({ page: pageNumber }));
     this.eventBus.on("scalechanging", ({ scale }: { scale: number }) => this.update({ scale }));
@@ -95,16 +110,69 @@ export class ViewerController {
     this.applyDarkMode(false);
   }
 
-  /** Shows `doc`, starting at `page` (where the reader left off). */
-  setDocument(doc: PDFDocumentProxy | null, page = 1): void {
+  /** Shows `doc` at `place` (a page number, or the exact place a tab was left at). */
+  setDocument(doc: PDFDocumentProxy | null, place: number | ReadingPlace = 1): void {
     if (doc === this.doc) return;
     this.doc = doc;
     this.pagesReady = false;
-    this.pendingPage = page;
+    this.awaitingFirstRender = doc !== null;
+    this.pendingPlace = typeof place === "number" ? { page: place, zoom: "page-width", offset: 0 } : place;
     this.findQuery = "";
     this.viewer.setDocument(doc as PDFDocumentProxy);
     this.linkService.setDocument(doc);
-    this.update({ page: Math.min(page, doc?.numPages ?? 1), pages: doc?.numPages ?? 0, findMatches: null });
+    const page = Math.min(this.pendingPlace.page, doc?.numPages ?? 1);
+    this.update({ page, pages: doc?.numPages ?? 0, findMatches: null });
+  }
+
+  /** Where the reader is now, to come back to it later (tabs). */
+  place(): ReadingPlace {
+    const page = this.viewer.currentPageNumber || 1;
+    const div = this.viewer.getPageView(page - 1)?.div as HTMLElement | undefined;
+    const top = this.options.container.scrollTop;
+    const offset = div && div.clientHeight ? Math.min(1, Math.max(0, (top - div.offsetTop) / div.clientHeight)) : 0;
+    return { page, zoom: this.fit ?? this.viewer.currentScale, offset };
+  }
+
+  /**
+   * A picture of what's on screen now (the visible page canvases), shown while a sleeping tab
+   * wakes up. Returns an object URL, or null if nothing is drawn.
+   */
+  async snapshot(): Promise<string | null> {
+    const box = this.options.container.getBoundingClientRect();
+    if (!this.doc || box.width === 0 || box.height === 0) return null;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const out = document.createElement("canvas");
+    out.width = Math.round(box.width * dpr);
+    out.height = Math.round(box.height * dpr);
+    const ctx = out.getContext("2d");
+    if (!ctx) return null;
+    let drew = false;
+    for (const canvas of this.options.container.querySelectorAll<HTMLCanvasElement>(".page canvas")) {
+      const r = canvas.getBoundingClientRect();
+      if (r.bottom < box.top || r.top > box.bottom || r.width === 0) continue;
+      ctx.drawImage(canvas, (r.left - box.left) * dpr, (r.top - box.top) * dpr, r.width * dpr, r.height * dpr);
+      drew = true;
+    }
+    if (!drew) return null;
+    const blob = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, "image/webp", 0.8));
+    return blob ? URL.createObjectURL(blob) : null;
+  }
+
+  private restorePlace(place: ReadingPlace): void {
+    const pages = this.doc?.numPages ?? 1;
+    if (typeof place.zoom === "number") {
+      this.fit = null;
+      this.viewer.currentScale = place.zoom;
+    } else {
+      this.fit = place.zoom;
+      this.applyFit();
+    }
+    const page = Math.min(Math.max(1, place.page), pages);
+    if (page > 1 || place.offset > 0) {
+      this.viewer.currentPageNumber = page;
+      const div = this.viewer.getPageView(page - 1)?.div as HTMLElement | undefined;
+      if (div) this.options.container.scrollTop = div.offsetTop + place.offset * div.clientHeight;
+    }
   }
 
   get document(): PDFDocumentProxy | null {

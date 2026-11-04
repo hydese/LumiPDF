@@ -34,8 +34,18 @@ export interface AppSettings {
   lastSeenVersion: string;
 }
 
+export type TimerMode = "timer" | "pomodoro" | "alarm" | "chrono";
+
 export interface TimerSettings {
-  /** Minutes. */
+  /** The tab the timer panel opens on. */
+  mode: TimerMode;
+  /** Timer (simple countdown) length, minutes. */
+  countdown: number;
+  /** Alarm time, "HH:MM" local. */
+  alarm: string;
+  /** Ask before closing LumiPDF while a timer, alarm or stopwatch is running. */
+  askOnClose: boolean;
+  /** Pomodoro lengths, minutes. */
   focus: number;
   shortBreak: number;
   longBreak: number;
@@ -44,9 +54,29 @@ export interface TimerSettings {
   sound: boolean;
 }
 
+export interface NotebookCard {
+  /** Card title; "" uses the default ("GoodNotes notebooks"). */
+  title: string;
+  sort: "recent" | "name";
+  /** How many notebooks the card shows. */
+  count: number;
+  view: "list" | "grid";
+  /** Notebooks hidden from the card (paths). */
+  hidden: string[];
+}
+
+export interface LibrarySettings {
+  /** Show the GoodNotes notebooks card (otherwise the Formula sheets card takes its place). */
+  goodnotes: boolean;
+  notebooks: NotebookCard;
+}
+
 export interface ReaderLayout {
   sidebarOpen: boolean;
   sidebarTab: SidebarTab;
+  /** Paths of the open tabs, to reopen them next time. */
+  openTabs: string[];
+  activeTab: string;
 }
 
 export interface Settings {
@@ -55,6 +85,7 @@ export interface Settings {
   reading: ReadingSettings;
   timer: TimerSettings;
   reader: ReaderLayout;
+  library: LibrarySettings;
 }
 
 export const TIMER_LIMITS = { minMinutes: 1, maxMinutes: 180, step: 5, minSessions: 1, maxSessions: 12 } as const;
@@ -62,8 +93,9 @@ export const TIMER_LIMITS = { minMinutes: 1, maxMinutes: 180, step: 5, minSessio
 export const DEFAULT_SETTINGS: Settings = {
   version: 1,
   app: { appearance: "system", startScreen: "library", locale: "en", checkForUpdates: true, lastSeenVersion: "" },
-  timer: { focus: 50, shortBreak: 10, longBreak: 20, sessionsBeforeLong: 4, sound: true },
-  reader: { sidebarOpen: true, sidebarTab: "outline" },
+  timer: { mode: "timer", countdown: 25, alarm: "07:30", askOnClose: true, focus: 50, shortBreak: 10, longBreak: 20, sessionsBeforeLong: 4, sound: true },
+  reader: { sidebarOpen: true, sidebarTab: "outline", openTabs: [], activeTab: "" },
+  library: { goodnotes: false, notebooks: { title: "", sort: "recent", count: 5, view: "list", hidden: [] } },
   reading: {
     darkEnabled: true,
     theme: "lumina-black",
@@ -95,6 +127,9 @@ export function parseSettings(raw: unknown): Settings {
   const app = obj(root.app);
   const timer = obj(root.timer);
   const reader = obj(root.reader);
+  const lib = obj(root.library);
+  const nb = obj(lib.notebooks);
+  const dnb = DEFAULT_SETTINGS.library.notebooks;
   const da = DEFAULT_SETTINGS.app;
   const dt = DEFAULT_SETTINGS.timer;
   const { minMinutes: lo, maxMinutes: hi } = TIMER_LIMITS;
@@ -113,6 +148,10 @@ export function parseSettings(raw: unknown): Settings {
       lastSeenVersion: typeof app.lastSeenVersion === "string" && app.lastSeenVersion.length < 40 ? app.lastSeenVersion : da.lastSeenVersion,
     },
     timer: {
+      mode: oneOf(timer.mode, ["timer", "pomodoro", "alarm", "chrono"], dt.mode),
+      countdown: int(timer.countdown, lo, hi, dt.countdown),
+      alarm: typeof timer.alarm === "string" && TIME.test(timer.alarm) ? timer.alarm : dt.alarm,
+      askOnClose: bool(timer.askOnClose, dt.askOnClose),
       focus: int(timer.focus, lo, hi, dt.focus),
       shortBreak: int(timer.shortBreak, lo, hi, dt.shortBreak),
       longBreak: int(timer.longBreak, lo, hi, dt.longBreak),
@@ -122,6 +161,18 @@ export function parseSettings(raw: unknown): Settings {
     reader: {
       sidebarOpen: bool(reader.sidebarOpen, DEFAULT_SETTINGS.reader.sidebarOpen),
       sidebarTab: oneOf(reader.sidebarTab, ["outline", "bookmarks", "notes"], DEFAULT_SETTINGS.reader.sidebarTab),
+      openTabs: Array.isArray(reader.openTabs) ? reader.openTabs.filter((p): p is string => typeof p === "string").slice(0, 30) : [],
+      activeTab: typeof reader.activeTab === "string" ? reader.activeTab : "",
+    },
+    library: {
+      goodnotes: bool(lib.goodnotes, DEFAULT_SETTINGS.library.goodnotes),
+      notebooks: {
+        title: typeof nb.title === "string" ? nb.title.slice(0, 60) : dnb.title,
+        sort: oneOf(nb.sort, ["recent", "name"], dnb.sort),
+        count: int(nb.count, 1, 24, dnb.count),
+        view: oneOf(nb.view, ["list", "grid"], dnb.view),
+        hidden: Array.isArray(nb.hidden) ? nb.hidden.filter((p): p is string => typeof p === "string").slice(0, 500) : [],
+      },
     },
     reading: {
       darkEnabled: typeof reading.darkEnabled === "boolean" ? reading.darkEnabled : d.darkEnabled,

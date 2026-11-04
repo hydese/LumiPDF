@@ -21,31 +21,42 @@ await server.listen();
 const base = server.resolvedUrls.local[0].replace(/\/$/, "");
 const mock = fs.readFileSync(path.join(root, "tests/preview/mock-tauri.js"), "utf8");
 const browser = await chromium.launch();
+let failures = 0;
 
 const seen = { lastSeenVersion: "2.0.0-alpha.0" };
-const shots = [
+const gn = { goodnotes: true };
+const shotsAll = [
   { name: "library-light", settings: { app: { appearance: "light", ...seen } }, update: true },
-  { name: "library-dark", settings: { app: { appearance: "dark", ...seen } }, update: true },
+  { name: "library-dark", settings: { app: { appearance: "dark", ...seen }, library: gn }, update: true },
+  { name: "library-goodnotes-grid", settings: { app: { appearance: "light", ...seen }, library: { goodnotes: true, notebooks: { view: "grid" } } } },
+  { name: "library-folder", settings: { app: { appearance: "light", ...seen } }, clickText: "Analisi 2", scrollTop: true },
+  { name: "library-subfolder", settings: { app: { appearance: "dark", ...seen } }, clickText: ["Analisi 2", "Esercitazioni"], scrollTop: true },
   { name: "library-empty", settings: { app: { appearance: "light", ...seen } }, empty: true },
   { name: "library-search", settings: { app: { appearance: "light", ...seen } }, search: "analisi" },
-  { name: "timer-light", settings: { app: { appearance: "light", ...seen } }, click: '[aria-label="Study timer"]' },
-  { name: "timer-dark", settings: { app: { appearance: "dark", ...seen } }, click: '[aria-label="Study timer"]' },
-  { name: "reader-dark", settings: { app: { appearance: "light", ...seen } }, open: "Controlli", update: true },
-  { name: "reader-light", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: "Analisi 2 — Trasformate" },
-  { name: "reader-settings", settings: { app: { appearance: "light", ...seen } }, open: "Analisi 2 — Trasformate", click: '[aria-label="Reading settings"]' },
+  { name: "timer-timer", settings: { app: { appearance: "light", ...seen } }, click: '[aria-label="Study timer"]' },
+  { name: "timer-pomodoro", settings: { app: { appearance: "dark", ...seen }, timer: { mode: "pomodoro" } }, click: '[aria-label="Study timer"]' },
+  { name: "timer-alarm", settings: { app: { appearance: "light", ...seen }, timer: { mode: "alarm" } }, click: '[aria-label="Study timer"]' },
+  { name: "timer-chrono", settings: { app: { appearance: "dark", ...seen }, timer: { mode: "chrono" } }, click: '[aria-label="Study timer"]', after: 'button.main' },
+  { name: "reader-tabs-dark", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate", "Automatica — Lezione 12", "Controlli"], update: true },
+  { name: "reader-light", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate", "Fisica 1"] },
+  { name: "reader-moon-menu", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], rightClick: '[aria-label="Dark mode"]' },
   { name: "settings-light", settings: { app: { appearance: "light", ...seen } }, keys: "Control+Comma", update: true },
-  { name: "settings-dark", settings: { app: { appearance: "dark", ...seen } }, keys: "Control+Comma", update: true },
-  { name: "settings-timer", settings: { app: { appearance: "light", ...seen } }, keys: "Control+Comma", section: "Study timer" },
-  { name: "settings-about-dark", settings: { app: { appearance: "dark", ...seen } }, keys: "Control+Comma", section: "About" },
+  { name: "settings-library", settings: { app: { appearance: "light", ...seen }, library: gn }, keys: "Control+Comma", section: "Library and cloud" },
+  { name: "settings-timer-dark", settings: { app: { appearance: "dark", ...seen } }, keys: "Control+Comma", section: "Study timer" },
+  { name: "welcome-1", settings: { app: { appearance: "light" } }, welcome: 0 },
+  { name: "welcome-3-dark", settings: { app: { appearance: "dark" } }, welcome: 2 },
+  { name: "welcome-4", settings: { app: { appearance: "light" } }, welcome: 3 },
+  { name: "welcome-5", settings: { app: { appearance: "light" } }, welcome: 4 },
   { name: "whatsnew-light", settings: { app: { appearance: "light", lastSeenVersion: "1.0.5" } } },
-  { name: "whatsnew-dark", settings: { app: { appearance: "dark", lastSeenVersion: "1.0.5" } } },
 ];
+const shots = shotsAll;
 
 for (const shot of shots) {
   if (only && !only.includes(shot.name)) continue;
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor });
   const page = await context.newPage();
   page.on("pageerror", (e) => console.error(`[${shot.name}]`, e.message));
+  page.on("console", (m) => m.type() === "error" && console.error(`[${shot.name}] console:`, m.text()));
   await page.route("https://api.github.com/**", (route) =>
     route.fulfill({
       json: shot.update
@@ -56,17 +67,40 @@ for (const shot of shots) {
   await page.addInitScript(`window.__PREVIEW__ = ${JSON.stringify({ settings: shot.settings, empty: shot.empty })};\n${mock}`);
   await page.goto(`${base}/index.html`);
   await page.waitForSelector(".screen", { timeout: 15000 });
-  if (shot.update) await page.waitForTimeout(3400);
-  if (shot.search) await page.fill('input[type="search"]', shot.search);
-  if (shot.open) {
-    await page.click(`button[title*="${shot.open}"]`);
-    await page.waitForSelector(".pdfViewer .page canvas", { timeout: 15000 });
-    await page.waitForTimeout(1200);
+  try {
+    if (shot.update) await page.waitForTimeout(3400);
+    if (shot.welcome !== undefined) {
+      await page.waitForSelector(".welcome .card");
+      for (let i = 0; i < shot.welcome; i++) {
+        await page.click('.welcome footer .btn.primary');
+        await page.waitForTimeout(150);
+      }
+    }
+    if (shot.search) await page.fill('input[type="search"]', shot.search);
+    for (const text of [shot.clickText ?? []].flat()) {
+      await page.click(`.folder:has-text("${text}")`);
+      await page.waitForTimeout(300);
+    }
+    for (const title of [shot.open ?? []].flat()) {
+      if (await page.locator(".screen .reading").count()) await page.click(".screen .reading");
+      if (await page.locator('.layer:not([hidden]) .back').count()) await page.click('.layer:not([hidden]) .back');
+      await page.click(`.layer:not([hidden]) button[title*="${title}"]`);
+      await page.locator(".layer:not([hidden]) .pdfViewer .page canvas >> visible=true").first().waitFor({ timeout: 15000 });
+      await page.waitForTimeout(1000);
+    }
+    if (shot.keys) await page.keyboard.press(shot.keys);
+    if (shot.section) await page.click(`nav button:has-text("${shot.section}")`);
+    if (shot.click) await page.click(shot.click);
+    if (shot.rightClick) await page.click(shot.rightClick, { button: "right" });
+    if (shot.after) {
+      await page.click(shot.after);
+      await page.waitForTimeout(2300);
+    }
+    await page.waitForTimeout(900);
+  } catch (err) {
+    console.error(`[${shot.name}] failed:`, err.message.split("\n")[0]);
+    failures++;
   }
-  if (shot.keys) await page.keyboard.press(shot.keys);
-  if (shot.section) await page.click(`nav button:has-text("${shot.section}")`);
-  if (shot.click) await page.click(shot.click);
-  await page.waitForTimeout(900);
   await page.screenshot({ path: path.join(out, `${shot.name}.png`) });
   console.log("shot", shot.name);
   await context.close();
@@ -74,3 +108,4 @@ for (const shot of shots) {
 
 await browser.close();
 await server.close();
+if (failures) process.exit(1);

@@ -1,5 +1,5 @@
 {
-  "$comment": "What's new after an update. Add an entry for every version you release, newest first. The app shows the entry for its own version once, on the first launch after updating; the GitHub release notes are generated from it. A test fails if the version in package.json has no entry. Tags: new, better, fixed.",
+  "$comment": "What's new after an update. Add an entry for every version you release, newest first. The app shows the entry for its own version once, on the first launch after updating; the GitHub release notes are generated from it. A test fails if the version in package.json has no entry. Tags: new, better, fixed. Optional \"welcome\": [\"language\" | \"appearance\" | \"reading\" | \"library\" | \"timer\"] shows those welcome steps again after updating, when a change needs the user to choose something.",
   "releases": [
     {
       "version": "2.0.0",

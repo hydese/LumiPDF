@@ -6,15 +6,18 @@
   import { onMount } from "svelte";
   import { setLocale, t } from "./lib/i18n";
   import { isPrimaryModifier } from "./lib/platform/shortcuts";
-  import { platform } from "./lib/platform/window";
-  import { onDocumentsOpened, takePendingDocuments } from "./lib/ipc/documents";
+    import { onDocumentsOpened, takePendingDocuments } from "./lib/ipc/documents";
   import { settings } from "./lib/settings/store.svelte";
   import { readingMode } from "./lib/dark/readingMode.svelte";
   import { appearance } from "./lib/app/appearance.svelte";
   import { navigation } from "./lib/app/navigation.svelte";
   import { library } from "./lib/library/library.svelte";
   import { session } from "./lib/reader/session.svelte";
-  import { timer } from "./lib/timer/timer.svelte";
+  import { timers } from "./lib/timer/timers.svelte";
+  import { ringer } from "./lib/timer/ringer.svelte";
+  import { guardClose, minimizeWindow, platform, quitApp } from "./lib/platform/window";
+  import RingingDialog from "./lib/timer/ui/RingingDialog.svelte";
+  import Dialog from "./lib/ui/Dialog.svelte";
   import { studyClock } from "./lib/timer/study.svelte";
   import { updates } from "./lib/updates/updates.svelte";
   import { whatsNew } from "./lib/whatsnew/whatsnewState.svelte";
@@ -23,6 +26,7 @@
   import SettingsScreen from "./lib/screens/SettingsScreen.svelte";
   import PasswordDialog from "./lib/ui/PasswordDialog.svelte";
   import WhatsNewDialog from "./lib/whatsnew/WhatsNewDialog.svelte";
+  import Welcome from "./lib/welcome/Welcome.svelte";
   import type BarActions from "./lib/ui/BarActions.svelte";
 
   let ready = $state(false);
@@ -35,8 +39,9 @@
   $effect(() => setLocale(locale));
   $effect(() => {
     void settings.value.timer;
-    timer.syncWithSettings();
+    timers.syncWithSettings();
   });
+  let askClose = $state(false);
 
   function onKeydown(event: KeyboardEvent) {
     if (event.key === "Escape" && navigation.screen === "settings" && !event.defaultPrevented) {
@@ -52,9 +57,15 @@
       action();
     };
 
+    if (key === "tab" && session.tabs.length) {
+      return run(() => session.cycle(event.shiftKey ? -1 : 1));
+    }
+    if (!event.shiftKey && /^[1-9]$/.test(key) && session.tabs.length) {
+      return run(() => session.activateIndex(Number(key)));
+    }
     if (event.shiftKey) {
       if (key === "d") run(() => readingMode.toggle());
-      else if (key === "t") run(() => timer.toggle());
+      else if (key === "t") run(() => timers.toggleCurrent());
       return;
     }
     switch (key) {
@@ -101,7 +112,8 @@
       await settings.load();
       setLocale(settings.value.app.locale);
       stops.push(appearance.start(), readingMode.start(), studyClock.start());
-      timer.syncWithSettings();
+      timers.syncWithSettings();
+      stops.push(guardClose(() => settings.value.timer.askOnClose && timers.busy, () => (askClose = true)));
       ready = true;
       whatsNew.onLaunch();
       if (settings.value.app.checkForUpdates) stops.push(updates.checkSoon());
@@ -109,8 +121,8 @@
       const [pending] = await takePendingDocuments().catch(() => []);
       if (pending) {
         await session.open(pending);
-      } else if (settings.value.app.startScreen === "last-document" && library.continueReading[0]) {
-        await session.openFromLibrary(library.continueReading[0].path);
+      } else if (settings.value.app.startScreen === "last-document") {
+        await session.restore(settings.value.reader.openTabs, settings.value.reader.activeTab);
       }
     })();
 
@@ -138,7 +150,7 @@
   {#key locale}
     <div class="app">
       <!-- The reader stays mounted while Settings is open, so the document keeps its place. -->
-      {#if session.current}
+      {#if session.tabs.length}
         <div class="layer" hidden={navigation.screen !== "reader"}>
           <ReaderScreen bind:findOpen bind:findInput bind:barActions />
         </div>
@@ -161,6 +173,28 @@
 
     {#if session.password}
       <PasswordDialog name={session.password.name} retry={session.password.retry} onSubmit={(p) => session.answerPassword(p)} />
+    {/if}
+    {#if ringer.ringing}
+      <RingingDialog />
+    {/if}
+    {#if askClose}
+      <Dialog labelledBy="close-title" width={400} onClose={() => (askClose = false)}>
+        <h2 id="close-title" class="dialog-title">{t("close.title")}</h2>
+        <p class="dialog-text">{t("close.text")}</p>
+        <div class="dialog-actions">
+          <button class="btn" onclick={() => quitApp()}>{t("close.quit")}</button>
+          <button
+            class="btn primary"
+            onclick={() => {
+              askClose = false;
+              minimizeWindow();
+            }}>{t("close.keep")}</button
+          >
+        </div>
+      </Dialog>
+    {/if}
+    {#if whatsNew.welcome}
+      <Welcome steps={whatsNew.welcome} onDone={() => whatsNew.finishWelcome()} />
     {/if}
     {#if whatsNew.notes}
       <WhatsNewDialog notes={whatsNew.notes} previousVersion={whatsNew.previousVersion} onClose={() => whatsNew.dismiss()} />
@@ -197,6 +231,21 @@
     background: var(--surface-raised);
     box-shadow: var(--pop-shadow);
     color: var(--text);
+  }
+  .dialog-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .dialog-text {
+    margin: -8px 0 0;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
   }
   .toast.error {
     color: var(--danger);

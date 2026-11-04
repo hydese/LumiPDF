@@ -1,15 +1,15 @@
 /**
- * The study (Pomodoro) timer: focus sessions and breaks with lengths the user chooses.
- * Breaks start on their own when a focus session ends; the next focus session waits for the user.
+ * Pomodoro: focus sessions and breaks with lengths the user chooses. Breaks start on their own
+ * when a focus session ends; the next focus session waits for the user.
  */
 import { settings } from "../settings/store.svelte";
-import { playBell } from "./bell";
+import { ringer } from "./ringer.svelte";
 
 export type Phase = "focus" | "short" | "long";
 
 const TICK_MS = 250;
 
-class StudyTimer {
+class Pomodoro {
   phase = $state<Phase>("focus");
   running = $state(false);
   /** Focus session number within the current cycle, 1-based. */
@@ -21,8 +21,9 @@ class StudyTimer {
 
   readonly totalMs = $derived(this.durationMs(this.phase));
   readonly progress = $derived(this.totalMs > 0 ? Math.min(1, Math.max(0, 1 - this.remainingMs / this.totalMs)) : 0);
-  /** True once the timer has been used (shown in the top bar while true). */
+  /** Started and not back at the beginning (shown in the top bar while true). */
   readonly active = $derived(this.running || this.remainingMs !== this.totalMs || this.phase !== "focus" || this.session > 1);
+  readonly studying = $derived(this.running && this.phase === "focus");
 
   constructor() {
     this.remainingMs = this.durationMs("focus");
@@ -81,7 +82,7 @@ class StudyTimer {
 
   #advance(finished: boolean): void {
     this.#stop();
-    if (finished && settings.value.timer.sound) playBell();
+    if (finished) ringer.chime(this.phase === "focus" ? "focusDone" : "breakDone");
     const { sessionsBeforeLong } = settings.value.timer;
     if (this.phase === "focus") {
       this.phase = this.session % sessionsBeforeLong === 0 ? "long" : "short";
@@ -101,14 +102,4 @@ class StudyTimer {
   }
 }
 
-/** "36:48", or "1:05:00" for an hour or more. */
-export function formatClock(ms: number): string {
-  const total = Math.ceil(ms / 1000);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const mm = h ? String(m).padStart(2, "0") : String(m);
-  return `${h ? `${h}:` : ""}${mm.padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
-
-export const timer = new StudyTimer();
+export const pomodoro = new Pomodoro();

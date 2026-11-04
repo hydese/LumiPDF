@@ -7,6 +7,7 @@ import {
   libraryForget,
   libraryLoad,
   libraryRemoveFolder,
+  CLOUD_KINDS,
   type DocView,
   type FileEntry,
   type FolderKind,
@@ -29,8 +30,6 @@ class LibraryStore {
   loading = $state(false);
   error = $state<string | null>(null);
   query = $state("");
-  /** Path of the folder shown in "Folders", or "all". */
-  folderFilter = $state("all");
 
   readonly #byPath = $derived(new Map((this.view?.documents ?? []).map((d) => [d.path, d])));
 
@@ -38,15 +37,20 @@ class LibraryStore {
     (this.view?.documents ?? []).filter((d) => d.file && d.lastOpened > 0).slice(0, CONTINUE_READING),
   );
 
-  /** Plain folders (iCloud and GoodNotes have their own cards). */
+  /** Plain folders (cloud drives and GoodNotes have their own cards). */
   readonly folders = $derived((this.view?.folders ?? []).filter((f) => f.kind === "folder"));
-  readonly icloud = $derived((this.view?.folders ?? []).find((f) => f.kind === "icloud") ?? null);
+  readonly clouds = $derived((this.view?.folders ?? []).filter((f) => (CLOUD_KINDS as string[]).includes(f.kind)));
   readonly goodnotes = $derived((this.view?.folders ?? []).find((f) => f.kind === "goodnotes") ?? null);
 
-  readonly shelf = $derived.by((): FileEntry[] => {
-    const folders = this.folderFilter === "all" ? this.folders : this.folders.filter((f) => f.path === this.folderFilter);
-    return unique(folders.flatMap((f) => f.files));
-  });
+  /** Where the folder browser is: a library folder and a subfolder inside it. */
+  location = $state<{ root: string; dir: string } | null>(null);
+  readonly locationFolder = $derived(this.view?.folders.find((f) => f.path === this.location?.root) ?? null);
+  readonly level = $derived(this.locationFolder ? levelOf(this.locationFolder, this.location!.dir) : null);
+
+  browse(root: string, dir = ""): void {
+    this.query = "";
+    this.location = { root, dir };
+  }
 
   readonly documentCount = $derived(
     new Set([...(this.view?.folders ?? []).flatMap((f) => f.files.map((x) => x.path)), ...this.continueReading.map((d) => d.path)]).size,
@@ -76,7 +80,7 @@ class LibraryStore {
     try {
       this.view = await libraryLoad();
       this.error = null;
-      if (this.folderFilter !== "all" && !this.folders.some((f) => f.path === this.folderFilter)) this.folderFilter = "all";
+      if (this.location && !this.locationFolder) this.location = null;
     } catch (err) {
       this.error = message(err);
     } finally {
@@ -103,9 +107,33 @@ class LibraryStore {
   }
 }
 
-function unique(files: FileEntry[]): FileEntry[] {
-  const seen = new Set<string>();
-  return files.filter((f) => !seen.has(f.path) && seen.add(f.path));
+export interface Subfolder {
+  name: string;
+  dir: string;
+  /** PDFs anywhere inside it. */
+  count: number;
+  /** Up to three of its newest PDFs, for the folder preview. */
+  preview: FileEntry[];
+}
+
+/** One level of a library folder: its subfolders and the PDFs directly in it. */
+export function levelOf(folder: FolderView, dir: string): { subfolders: Subfolder[]; files: FileEntry[] } {
+  const prefix = dir ? `${dir}/` : "";
+  const subs = new Map<string, Subfolder>();
+  const files: FileEntry[] = [];
+  for (const file of folder.files) {
+    if (file.dir === dir) {
+      files.push(file);
+    } else if (!dir || file.dir.startsWith(prefix)) {
+      const name = file.dir.slice(prefix.length).split("/")[0]!;
+      let sub = subs.get(name);
+      if (!sub) subs.set(name, (sub = { name, dir: prefix + name, count: 0, preview: [] }));
+      sub.count++;
+      if (sub.preview.length < 3) sub.preview.push(file);
+    }
+  }
+  const subfolders = [...subs.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
+  return { subfolders, files };
 }
 
 export function message(err: unknown): string {

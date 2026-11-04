@@ -12,14 +12,16 @@
     left?: Snippet;
     center?: Snippet;
     right?: Snippet;
+    /** "tabs": the middle grows and starts at the left (Reader tabs); default: centred title. */
+    layout?: "centered" | "tabs";
   }
-  let { left, center, right }: Props = $props();
+  let { left, center, right, layout = "centered" }: Props = $props();
 
   let maximized = $state(false);
   $effect(() => watchMaximized((m) => (maximized = m)));
 </script>
 
-<header class="bar" class:mac={platform === "macos"} data-tauri-drag-region>
+<header class="bar" class:mac={platform === "macos"} class:tabs={layout === "tabs"} data-tauri-drag-region>
   <div class="side left" data-tauri-drag-region>{@render left?.()}</div>
   <div class="center" data-tauri-drag-region>{@render center?.()}</div>
   <div class="side right" data-tauri-drag-region>
@@ -61,6 +63,14 @@
     color: var(--text);
     position: relative;
     z-index: 10;
+  }
+  .bar.tabs {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--space-3);
+  }
+  .bar.tabs .center {
+    justify-content: flex-start;
+    align-items: flex-end;
   }
   .bar.mac {
     padding-left: 84px; /* room for the traffic lights */

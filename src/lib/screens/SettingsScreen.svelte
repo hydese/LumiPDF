@@ -1,21 +1,24 @@
 <script lang="ts">
-  import { formatWhen, t, type MessageKey } from "../i18n";
+  import { formatWhen, t, tn, type MessageKey } from "../i18n";
+  import { CLOUD_KINDS } from "../ipc/library";
   import { AVAILABLE_LOCALES } from "../i18n";
   import { formatShortcut } from "../platform/shortcuts";
   import { platform } from "../platform/window";
   import { settings } from "../settings/store.svelte";
-  import type { Appearance, StartScreen, TimerSettings } from "../settings/schema";
+  import type { StartScreen, TimerSettings } from "../settings/schema";
   import { TIMER_LIMITS } from "../settings/schema";
   import { navigation, type SettingsSection } from "../app/navigation.svelte";
   import { updates, RELEASES_PAGE } from "../updates/updates.svelte";
   import { library } from "../library/library.svelte";
-  import { timer } from "../timer/timer.svelte";
+  import { timers } from "../timer/timers.svelte";
   import { openExternal } from "../ipc/system";
   import { whatsNew } from "../whatsnew/whatsnewState.svelte";
   import TitleBar from "../ui/TitleBar.svelte";
+  import BackButton from "../ui/BackButton.svelte";
   import Icon, { type IconName } from "../ui/Icon.svelte";
   import AppMark from "../ui/AppMark.svelte";
   import ReadingSettingsPanel from "../ui/ReadingSettingsPanel.svelte";
+  import AppearancePicker from "../ui/AppearancePicker.svelte";
   import DurationField from "../timer/ui/DurationField.svelte";
 
   const GITHUB = "https://github.com/hydese/LumiPDF";
@@ -47,12 +50,14 @@
     ["settings.shortcuts.fit", "mod+0"],
     ["settings.shortcuts.timer", "mod+shift+t"],
     ["settings.shortcuts.settings", "mod+,"],
+    ["settings.shortcuts.nextTab", "mod+tab"],
+    ["settings.shortcuts.prevTab", "mod+shift+tab"],
     ["settings.shortcuts.close", "mod+w"],
   ];
 
   function setTimer(key: keyof TimerSettings, value: number | boolean) {
     settings.update((x) => ((x.timer as unknown as Record<string, number | boolean>)[key] = value));
-    timer.syncWithSettings();
+    timers.syncWithSettings();
   }
 
   const updateTitle = $derived.by(() => {
@@ -94,10 +99,7 @@
 <div class="screen">
   <TitleBar>
     {#snippet left()}
-      <button class="back" onclick={() => navigation.closeSettings()}>
-        <Icon name="back" size={16} stroke={2} />
-        {t("nav.back")}
-      </button>
+      <BackButton label={t("nav.back")} onclick={() => navigation.closeSettings()} />
     {/snippet}
     {#snippet center()}
       <h1 data-tauri-drag-region>{t("settings.title")}</h1>
@@ -176,14 +178,7 @@
       {:else if section === "appearance"}
         <section class="card">
           <div class="label"><span>{t("settings.appearance.app")}</span><span class="hint">{t("settings.appearance.hint")}</span></div>
-          <div class="appearance" role="radiogroup" aria-label={t("settings.appearance.app")}>
-            {#each ["system", "light", "dark"] as const as option (option)}
-              <button role="radio" aria-checked={s.app.appearance === option} onclick={() => settings.update((x) => (x.app.appearance = option as Appearance))}>
-                <span class="preview {option}"><span class="bar"></span><span class="side"></span><span class="page"></span></span>
-                {t(`settings.appearance.${option}`)}
-              </button>
-            {/each}
-          </div>
+          <AppearancePicker />
         </section>
       {:else if section === "reading"}
         <section class="card">
@@ -193,12 +188,9 @@
         <section class="card list">
           <h3 class="group">{t("settings.library.folders")}</h3>
           <p class="hint pad">{t("settings.library.foldersHint")}</p>
-          {#each library.view?.folders ?? [] as folder (folder.path)}
+          {#each library.folders as folder (folder.path)}
             <div class="row">
-              <span class="label">
-                <span>{folder.name}</span>
-                <span class="hint">{t(`settings.library.kind.${folder.kind}` as MessageKey)} · {folder.path}</span>
-              </span>
+              <span class="label"><span>{folder.name}</span><span class="hint">{folder.path}</span></span>
               <button class="btn small" onclick={() => library.removeFolder(folder)}>{t("settings.library.remove")}</button>
             </div>
           {:else}
@@ -206,22 +198,101 @@
           {/each}
           <div class="row actions">
             <button class="btn small" onclick={() => library.addFolder("folder")}><Icon name="plus" size={13} stroke={2} />{t("library.addFolder")}</button>
-            {#if !library.icloud}
-              <button class="btn small" onclick={() => library.addFolder("icloud")}><Icon name="cloud" size={13} />{t("icloud.add")}</button>
-            {/if}
-            {#if !library.goodnotes}
-              <button class="btn small" onclick={() => library.addFolder("goodnotes")}><Icon name="notebook" size={13} />{t("goodnotes.choose")}</button>
-            {/if}
           </div>
+        </section>
+
+        <section class="card list">
+          <h3 class="group">{t("settings.library.clouds")}</h3>
+          <p class="hint pad">{t("cloud.intro")}</p>
+          {#each CLOUD_KINDS as kind (kind)}
+            {@const connected = library.clouds.find((f) => f.kind === kind)}
+            {@const found = library.view?.cloudSuggestions.find((c) => c.kind === kind)}
+            {@const name = t(`cloud.${kind}` as MessageKey)}
+            <div class="row">
+              <span class="label">
+                <span>{name}</span>
+                <span class="hint" class:ok={!connected && found}>
+                  {connected ? connected.path : found ? `${t("cloud.found")} · ${found.path}` : t("cloud.notFound", { name })}
+                </span>
+              </span>
+              {#if connected}
+                <button class="btn small" onclick={() => library.removeFolder(connected)}>{t("cloud.disconnect")}</button>
+              {:else}
+                <button class="btn small" class:primary={found} onclick={() => library.addFolder(kind)}>{found ? t("cloud.connect") : t("cloud.choose")}</button>
+              {/if}
+            </div>
+          {/each}
+        </section>
+
+        <section class="card list">
+          <h3 class="group">{t("settings.library.goodnotes")}</h3>
+          <label class="row">
+            <span class="label"><span>{t("settings.library.goodnotesToggle")}</span><span class="hint">{t("settings.library.goodnotesHint")}</span></span>
+            <input type="checkbox" class="switch" checked={s.library.goodnotes} onchange={(e) => settings.update((x) => (x.library.goodnotes = e.currentTarget.checked))} />
+          </label>
+          {#if s.library.goodnotes}
+            <div class="row">
+              <span class="label">
+                <span>{t("settings.library.goodnotesFolder")}</span>
+                <span class="hint">{library.goodnotes?.path ?? t("goodnotes.setup")}</span>
+              </span>
+              {#if library.goodnotes}
+                <button class="btn small" onclick={() => library.removeFolder(library.goodnotes!)}>{t("settings.library.remove")}</button>
+              {:else}
+                <button class="btn small primary" onclick={() => library.addFolder("goodnotes")}>{t("goodnotes.choose")}</button>
+              {/if}
+            </div>
+            <label class="row">
+              <span class="label"><span>{t("settings.library.notebooks.title")}</span></span>
+              <input
+                class="select text"
+                value={s.library.notebooks.title}
+                placeholder={t("goodnotes.title")}
+                maxlength="60"
+                onchange={(e) => settings.update((x) => (x.library.notebooks.title = e.currentTarget.value.trim()))}
+              />
+            </label>
+            <label class="row">
+              <span class="label"><span>{t("settings.library.notebooks.sort")}</span></span>
+              <select class="select" value={s.library.notebooks.sort} onchange={(e) => settings.update((x) => (x.library.notebooks.sort = e.currentTarget.value as "recent" | "name"))}>
+                <option value="recent">{t("settings.library.notebooks.sortRecent")}</option>
+                <option value="name">{t("settings.library.notebooks.sortName")}</option>
+              </select>
+            </label>
+            <label class="row">
+              <span class="label"><span>{t("settings.library.notebooks.count")}</span></span>
+              <select class="select" value={s.library.notebooks.count} onchange={(e) => settings.update((x) => (x.library.notebooks.count = Number(e.currentTarget.value)))}>
+                {#each [3, 5, 8, 12, 24] as n (n)}<option value={n}>{n}</option>{/each}
+              </select>
+            </label>
+            <label class="row">
+              <span class="label"><span>{t("settings.library.notebooks.view")}</span></span>
+              <select class="select" value={s.library.notebooks.view} onchange={(e) => settings.update((x) => (x.library.notebooks.view = e.currentTarget.value as "list" | "grid"))}>
+                <option value="list">{t("settings.library.notebooks.list")}</option>
+                <option value="grid">{t("settings.library.notebooks.grid")}</option>
+              </select>
+            </label>
+            {#if s.library.notebooks.hidden.length}
+              <div class="row">
+                <span class="label"><span>{tn("notebooks.hiddenCount", s.library.notebooks.hidden.length)}</span></span>
+                <button class="btn small" onclick={() => settings.update((x) => (x.library.notebooks.hidden = []))}>{t("notebooks.showHidden")}</button>
+              </div>
+            {/if}
+          {/if}
         </section>
       {:else if section === "timer"}
         <section class="card">
+          <div class="label"><span>{t("settings.timer.countdown")}</span></div>
+          <div class="durations">
+            <DurationField label={t("timer.mode.timer")} value={s.timer.countdown} onChange={(m) => setTimer("countdown", m)} />
+          </div>
+          <div class="label"><span>{t("settings.timer.pomodoro")}</span></div>
           <div class="durations">
             <DurationField label={t("timer.focus")} value={s.timer.focus} onChange={(m) => setTimer("focus", m)} />
             <DurationField label={t("timer.shortBreak")} value={s.timer.shortBreak} onChange={(m) => setTimer("shortBreak", m)} />
             <DurationField label={t("timer.longBreak")} value={s.timer.longBreak} onChange={(m) => setTimer("longBreak", m)} />
           </div>
-          <p class="hint">{t("timer.hint")}</p>
+          <p class="hint">{t("timer.setHint")}</p>
         </section>
         <section class="card list">
           <label class="row">
@@ -236,7 +307,12 @@
             <span class="label"><span>{t("timer.sound")}</span></span>
             <input type="checkbox" class="switch" checked={s.timer.sound} onchange={(e) => setTimer("sound", e.currentTarget.checked)} />
           </label>
+          <label class="row">
+            <span class="label"><span>{t("settings.timer.askOnClose")}</span><span class="hint">{t("settings.timer.askOnCloseHint")}</span></span>
+            <input type="checkbox" class="switch" checked={s.timer.askOnClose} onchange={(e) => setTimer("askOnClose", e.currentTarget.checked)} />
+          </label>
         </section>
+        <p class="hint">{t("timer.studyNote")}</p>
       {:else if section === "shortcuts"}
         <section class="card list">
           {#each SHORTCUTS as [label, keys] (label)}
@@ -251,7 +327,10 @@
           <AppMark size={56} />
           <h3>{t("app.name")} {updates.current}</h3>
           <p>{t("settings.about.text")}</p>
-          <button class="btn" onclick={() => whatsNew.showCurrent()}>{t("settings.about.showWhatsNew")}</button>
+          <div class="about-actions">
+            <button class="btn" onclick={() => whatsNew.showCurrent()}>{t("settings.about.showWhatsNew")}</button>
+            <button class="btn" onclick={() => whatsNew.showWelcome()}>{t("settings.about.showWelcome")}</button>
+          </div>
         </section>
       {/if}
 
@@ -272,22 +351,6 @@
     display: flex;
     flex-direction: column;
     background: var(--bg);
-  }
-  .back {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    height: 30px;
-    padding: 0 10px 0 6px;
-    border: none;
-    border-radius: var(--radius-m);
-    background: transparent;
-    color: var(--text-soft);
-    font-weight: 500;
-  }
-  .back:hover {
-    background: var(--hover);
-    color: var(--text);
   }
   h1 {
     margin: 0;
@@ -413,6 +476,12 @@
     overflow-wrap: anywhere;
     margin: 0;
   }
+  .hint.ok {
+    color: var(--ok);
+  }
+  .select.text {
+    width: 220px;
+  }
   .hint.pad {
     padding: 0 18px 10px;
   }
@@ -460,84 +529,6 @@
     flex-direction: column;
     gap: 3px;
   }
-  .appearance {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-  .appearance button {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 0;
-    border: none;
-    background: none;
-    color: var(--text-soft);
-  }
-  .appearance button[aria-checked="true"] {
-    color: var(--text);
-    font-weight: 500;
-  }
-  .preview {
-    position: relative;
-    width: 128px;
-    height: 84px;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 0 0 1px var(--hairline);
-    background: #f6f6f4;
-  }
-  .appearance button[aria-checked="true"] .preview {
-    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
-  }
-  .preview .bar {
-    position: absolute;
-    inset: 0 0 auto;
-    height: 14px;
-    background: #fbfbf9;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  }
-  .preview .side {
-    position: absolute;
-    left: 0;
-    top: 14px;
-    bottom: 0;
-    width: 30px;
-    background: #efefec;
-  }
-  .preview .page {
-    position: absolute;
-    left: 46px;
-    top: 24px;
-    width: 50px;
-    height: 70px;
-    border-radius: 2px;
-    background: #fff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  }
-  .preview.dark {
-    background: #161618;
-  }
-  .preview.dark .bar {
-    background: #1c1c1f;
-    border-color: rgba(255, 255, 255, 0.08);
-  }
-  .preview.dark .side {
-    background: #1f1f22;
-  }
-  .preview.dark .page {
-    background: #2a2a2e;
-  }
-  .preview.system {
-    background: linear-gradient(90deg, #f6f6f4 50%, #161618 50%);
-  }
-  .preview.system .bar {
-    background: linear-gradient(90deg, #fbfbf9 50%, #1c1c1f 50%);
-  }
-  .preview.system .page {
-    background: linear-gradient(90deg, #fff 50%, #2a2a2e 50%);
-  }
   .durations {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 160px));
@@ -569,6 +560,12 @@
     max-width: 420px;
     color: var(--text-muted);
     line-height: 1.5;
+  }
+  .about-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
   .footer {
     margin: 0;

@@ -1,20 +1,25 @@
 <script lang="ts">
-  /** The home screen: continue reading, iCloud Drive, GoodNotes backups and folders. */
-  import { formatDuration, t, tn } from "../i18n";
+  /** The home screen: continue reading, cloud drives, notebooks or formula sheets, and folders. */
+  import { formatDuration, t, tn, type MessageKey } from "../i18n";
   import { formatShortcut } from "../platform/shortcuts";
   import { platform } from "../platform/window";
   import { weekTotal } from "../app/dates";
   import { library } from "../library/library.svelte";
-  import { titleOf } from "../library/titles";
   import { session } from "../reader/session.svelte";
-  import type { FolderView } from "../ipc/library";
+  import type { CloudKind } from "../ipc/library";
   import TitleBar from "../ui/TitleBar.svelte";
   import AppMark from "../ui/AppMark.svelte";
   import Icon from "../ui/Icon.svelte";
   import BarActions from "../ui/BarActions.svelte";
   import DocCard from "../library/ui/DocCard.svelte";
   import ShelfItem from "../library/ui/ShelfItem.svelte";
-  import Thumb from "../library/ui/Thumb.svelte";
+  import SourceCard from "../library/ui/SourceCard.svelte";
+  import MiniList from "../library/ui/MiniList.svelte";
+  import NotebooksCard from "../library/ui/NotebooksCard.svelte";
+  import FolderBrowser from "../library/ui/FolderBrowser.svelte";
+  import { CLOUD_TONE } from "../library/ui/cards";
+  import { settings } from "../settings/store.svelte";
+  import { navigation } from "../app/navigation.svelte";
 
   interface Props {
     searchInput?: HTMLInputElement | null;
@@ -57,62 +62,6 @@
   }
 </script>
 
-{#snippet sourceCard(folder: FolderView | null, kind: "icloud" | "goodnotes")}
-  <section class="source" aria-labelledby="source-{kind}">
-    <div class="source-head">
-      <span class="badge {kind}"><Icon name={kind === "icloud" ? "cloud" : "notebook"} size={16} stroke={1.9} /></span>
-      <div class="source-title">
-        <h2 id="source-{kind}">{kind === "icloud" ? t("icloud.title") : t("goodnotes.title")}</h2>
-        <span>
-          {#if folder}
-            {kind === "icloud" ? tn("icloud.count", folder.files.length) : tn("goodnotes.count", folder.files.length)}
-          {:else if kind === "icloud"}
-            {view?.icloudSuggestion ? t("icloud.found") : t("icloud.missing")}
-          {:else}
-            {t("goodnotes.readOnly")}
-          {/if}
-        </span>
-      </div>
-      {#if !folder}
-        {#if kind === "icloud"}
-          {#if view?.icloudSuggestion}
-            <button class="btn small" onclick={() => library.addFolder("icloud")}>{t("icloud.add")}</button>
-          {:else}
-            <button class="btn small" onclick={() => library.addFolder("icloud")}>{t("icloud.choose")}</button>
-          {/if}
-        {:else}
-          <button class="btn small" onclick={() => library.addFolder("goodnotes")}>{t("goodnotes.choose")}</button>
-        {/if}
-      {/if}
-    </div>
-    {#if folder}
-      {#if !folder.available}
-        <p class="source-note">{t("library.folderMissing")}</p>
-      {:else if folder.files.length === 0}
-        <p class="source-note">{t("library.folderEmpty")}</p>
-      {:else}
-        <ul class="source-list">
-          {#each folder.files.slice(0, 5) as file (file.path)}
-            <li>
-              <button onclick={() => session.openFromLibrary(file.path)} title={file.path}>
-                <span class="mini-page"><Thumb {file} height={28} /></span>
-                <span class="mini-title">{titleOf(file.name)}</span>
-                {#if file.cloudOnly}
-                  <span class="mini-meta" title={t("library.cloudOnly")}><Icon name="cloud" size={13} /></span>
-                {:else}
-                  <span class="mini-meta">{metaOf(file.path, "") ?? ""}</span>
-                {/if}
-              </button>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    {:else if kind === "goodnotes"}
-      <p class="source-note">{t("goodnotes.setup")}</p>
-    {/if}
-  </section>
-{/snippet}
-
 <div class="screen">
   <TitleBar>
     {#snippet left()}
@@ -123,6 +72,13 @@
           <Icon name="open" size={15} />{t("nav.open")}
         </button>
       </nav>
+      {#if session.tabs.length}
+        <button class="reading" title={t("tabs.backToReading", { count: session.tabs.length })} onclick={() => navigation.go("reader")}>
+          {t("tabs.reading")}
+          <span class="badge-count">{session.tabs.length}</span>
+          <Icon name="forward" size={14} stroke={2} />
+        </button>
+      {/if}
     {/snippet}
     {#snippet center()}
       <label class="search">
@@ -150,6 +106,10 @@
             <ShelfItem file={hit.file} meta={metaOf(hit.file.path, hit.where)} progress={progressOf(hit.file.path)} onOpen={() => session.openFromLibrary(hit.file.path)} />
           {/each}
         </div>
+      </section>
+    {:else if library.location}
+      <section class="block browsing">
+        <FolderBrowser folders={library.folders} />
       </section>
     {:else}
       <div class="heading">
@@ -193,40 +153,53 @@
 
       {#if view}
         <div class="sources">
-          {@render sourceCard(library.icloud, "icloud")}
-          {@render sourceCard(library.goodnotes, "goodnotes")}
+          {#each library.clouds as cloud (cloud.path)}
+            <SourceCard icon="cloud" tone={CLOUD_TONE[cloud.kind as CloudKind]} title={t(`cloud.${cloud.kind}` as MessageKey)} subtitle={tn("cloud.count", cloud.files.length)}>
+              {#snippet action()}
+                {#if cloud.files.length}<button class="btn small" onclick={() => library.browse(cloud.path)}>{t("cloud.showAll")}</button>{/if}
+              {/snippet}
+              {#if !cloud.available}
+                <p class="card-note">{t("library.folderMissing")}</p>
+              {:else if cloud.files.length}
+                <MiniList files={cloud.files.slice(0, 5)} />
+              {:else}
+                <p class="card-note">{t("cloud.empty")}</p>
+              {/if}
+            </SourceCard>
+          {:else}
+            <SourceCard icon="cloud" tone="sky" title={t("cloud.title")}>
+              {#snippet action()}
+                <button class="btn small" onclick={() => navigation.openSettings("library")}>{t("cloud.more")}</button>
+              {/snippet}
+              {#if view.cloudSuggestions.length}
+                <ul class="connect">
+                  {#each view.cloudSuggestions as s (s.kind)}
+                    <li>
+                      <span class="connect-name">{t(`cloud.${s.kind}` as MessageKey)}<span>{t("cloud.found")}</span></span>
+                      <button class="btn small primary" onclick={() => library.addFolder(s.kind)}>{t("cloud.connect")}</button>
+                    </li>
+                  {/each}
+                </ul>
+              {:else}
+                <p class="card-note">{t("cloud.intro")}</p>
+              {/if}
+            </SourceCard>
+          {/each}
+
+          {#if settings.value.library.goodnotes}
+            <NotebooksCard folder={library.goodnotes} />
+          {:else}
+            <SourceCard icon="note" tone="warm" title={t("sheets.title")} subtitle={t("sheets.soon")}>
+              <p class="card-note">{t("sheets.text")}</p>
+            </SourceCard>
+          {/if}
         </div>
       {/if}
 
       {#if library.folders.length}
         <section class="block" aria-labelledby="folders">
-          <div class="folders-head">
-            <h2 id="folders" class="section-title">{t("library.folders")}</h2>
-            <div class="chips" role="tablist" aria-label={t("library.folders")}>
-              <button role="tab" aria-selected={library.folderFilter === "all"} onclick={() => (library.folderFilter = "all")}>{t("library.all")}</button>
-              {#each library.folders as folder (folder.path)}
-                <button role="tab" aria-selected={library.folderFilter === folder.path} title={folder.path} onclick={() => (library.folderFilter = folder.path)}>
-                  {folder.name}
-                </button>
-              {/each}
-            </div>
-          </div>
-          {#each library.folders.filter((f) => library.folderFilter === f.path || library.folderFilter === "all") as folder (folder.path)}
-            {#if !folder.available}
-              <p class="note">{folder.name}: {t("library.folderMissing")}</p>
-            {:else if folder.truncated}
-              <p class="note">{folder.name}: {t("library.folderTruncated", { count: folder.files.length })}</p>
-            {/if}
-          {/each}
-          {#if library.shelf.length}
-            <div class="shelf">
-              {#each library.shelf as file (file.path)}
-                <ShelfItem {file} meta={metaOf(file.path, "")} progress={progressOf(file.path)} onOpen={() => session.openFromLibrary(file.path)} />
-              {/each}
-            </div>
-          {:else}
-            <p class="note">{t("library.folderEmpty")}</p>
-          {/if}
+          <h2 id="folders" class="visually-hidden">{t("library.folders")}</h2>
+          <FolderBrowser folders={library.folders} />
         </section>
       {/if}
     {/if}
@@ -277,6 +250,33 @@
     color: var(--text);
     font-weight: 500;
     box-shadow: var(--segment-shadow);
+  }
+  .reading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 8px 0 12px;
+    border: none;
+    border-radius: 14px;
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .reading:hover {
+    filter: brightness(0.97);
+  }
+  .badge-count {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 11px;
+    display: grid;
+    place-items: center;
   }
   .search {
     display: flex;
@@ -368,151 +368,36 @@
     background: color-mix(in srgb, var(--danger) 12%, transparent);
     color: var(--danger);
   }
-  .note {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: 12px;
-  }
 
   .sources {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 20px;
   }
-  .source {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 16px;
-    border-radius: var(--radius-l);
-    background: var(--surface);
-    border: 1px solid var(--hairline);
-    box-shadow: var(--card-shadow);
-  }
-  .source-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .badge {
-    width: 30px;
-    height: 30px;
-    border-radius: var(--radius-m);
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-  }
-  .badge.icloud {
-    background: var(--accent-soft);
-    color: var(--accent-text);
-  }
-  .badge.goodnotes {
-    background: var(--warm-soft);
-    color: var(--warm-text);
-  }
-  .source-title {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-  .source-title h2 {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 600;
-  }
-  .source-title span {
-    font-size: 12px;
-    color: var(--text-muted);
-  }
-  .source-note {
-    margin: 0;
-    font-size: 12px;
-    color: var(--text-muted);
-    line-height: 1.5;
-  }
-  .source-list {
+  .connect {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 8px;
   }
-  .source-list button {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 7px 8px;
-    border: none;
-    border-radius: 7px;
-    background: transparent;
-    text-align: left;
-  }
-  .source-list button:hover {
-    background: var(--hover);
-  }
-  .mini-page {
-    width: 24px;
-    height: 28px;
-    flex-shrink: 0;
-    display: grid;
-    place-items: center;
-  }
-  .mini-page :global(.placeholder) {
-    padding: 0;
-    gap: 0;
-  }
-  .mini-page :global(.placeholder span) {
-    display: none;
-  }
-  .mini-title {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .mini-meta {
-    font-size: 11.5px;
-    color: var(--text-muted);
-    white-space: nowrap;
-  }
-
-  .folders-head {
+  .connect li {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    flex-wrap: wrap;
   }
-  .chips {
+  .connect-name {
     display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-  .chips button {
-    height: 28px;
-    padding: 0 12px;
-    border-radius: 14px;
-    border: 1px solid var(--hairline);
-    background: transparent;
-    color: var(--text-soft);
-    font-size: 12px;
+    flex-direction: column;
     font-weight: 500;
-    max-width: 220px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
-  .chips button[aria-selected="true"] {
-    background: var(--text);
-    border-color: var(--text);
-    color: var(--bg);
+  .connect-name span {
+    font-size: 11.5px;
+    font-weight: 400;
+    color: var(--ok);
   }
-
   .empty {
     display: flex;
     flex-direction: column;

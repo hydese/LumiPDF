@@ -16,6 +16,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, Runtime, State};
 
+use crate::cloud::{self, CloudKind};
 use crate::documents::{self, DocumentRef};
 use crate::store::{config_file, read_json, write_json};
 use crate::AppError;
@@ -33,8 +34,11 @@ const MAX_BOOKMARKS: usize = 1000;
 #[serde(rename_all = "lowercase")]
 pub enum FolderKind {
     Folder,
-    /// The iCloud Drive folder (iCloud for Windows, or iCloud Drive on macOS).
+    /// Cloud drive folders, synced by their desktop apps (see cloud.rs).
     Icloud,
+    Onedrive,
+    Gdrive,
+    Dropbox,
     /// A folder GoodNotes backs notebooks up to as PDFs (Auto Backup).
     Goodnotes,
 }
@@ -95,6 +99,8 @@ pub struct FileEntry {
     pub modified: u64,
     /// Stored only in the cloud (iCloud/OneDrive placeholder); reading it would download it.
     pub cloud_only: bool,
+    /// Subfolder inside the library folder, "/"-separated ("" for files at its top level).
+    pub dir: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -123,8 +129,14 @@ pub struct LibraryView {
     pub folders: Vec<FolderView>,
     pub documents: Vec<DocView>,
     pub study_days: BTreeMap<String, u64>,
-    /// iCloud Drive folder on this computer, if it exists and isn't added yet.
-    pub icloud_suggestion: Option<String>,
+    /// Cloud drive folders found on this computer that aren't in the library yet.
+    pub cloud_suggestions: Vec<CloudSuggestion>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CloudSuggestion {
+    pub kind: CloudKind,
+    pub path: String,
 }
 
 /// Changes the frontend reports while a document is open.
@@ -186,12 +198,26 @@ fn entry_for(path: &Path, meta: &fs::Metadata) -> FileEntry {
         size: meta.len(),
         modified: ms(meta.modified()),
         cloud_only: is_cloud_only(meta),
+        dir: String::new(),
     }
 }
 
 fn is_pdf_name(path: &Path) -> bool {
     path.extension()
         .is_some_and(|e| e.eq_ignore_ascii_case("pdf"))
+}
+
+/// The folder of `file` relative to `root`, as "a/b" ("" when directly in `root`).
+fn relative_dir(root: &Path, file: &Path) -> String {
+    file.parent()
+        .and_then(|p| p.strip_prefix(root).ok())
+        .map(|rel| {
+            rel.components()
+                .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join("/")
+        })
+        .unwrap_or_default()
 }
 
 /// Finds PDFs under `root` (hidden files and folders skipped), newest first.
@@ -222,7 +248,9 @@ pub fn scan_folder(root: &Path) -> (Vec<FileEntry>, bool) {
                     break;
                 }
                 if let Ok(meta) = entry.metadata() {
-                    found.push(entry_for(&path, &meta));
+                    let mut file = entry_for(&path, &meta);
+                    file.dir = relative_dir(root, &path);
+                    found.push(file);
                 }
             }
         }
@@ -364,14 +392,28 @@ fn lock<'a>(
         .map_err(|_| AppError::InvalidInput("Library is unavailable".into()))
 }
 
-fn icloud_drive<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
+fn cloud_kind(kind: FolderKind) -> Option<CloudKind> {
+    match kind {
+        FolderKind::Icloud => Some(CloudKind::Icloud),
+        FolderKind::Onedrive => Some(CloudKind::Onedrive),
+        FolderKind::Gdrive => Some(CloudKind::Gdrive),
+        FolderKind::Dropbox => Some(CloudKind::Dropbox),
+        FolderKind::Folder | FolderKind::Goodnotes => None,
+    }
+}
+
+fn folder_kind(kind: CloudKind) -> FolderKind {
+    match kind {
+        CloudKind::Icloud => FolderKind::Icloud,
+        CloudKind::Onedrive => FolderKind::Onedrive,
+        CloudKind::Gdrive => FolderKind::Gdrive,
+        CloudKind::Dropbox => FolderKind::Dropbox,
+    }
+}
+
+fn detect_cloud<R: Runtime>(app: &AppHandle<R>, kind: CloudKind) -> Option<PathBuf> {
     let home = app.path().home_dir().ok()?;
-    let candidates = if cfg!(target_os = "macos") {
-        vec![home.join("Library/Mobile Documents/com~apple~CloudDocs")]
-    } else {
-        vec![home.join("iCloudDrive"), home.join("iCloud Drive")]
-    };
-    candidates.into_iter().find(|p| p.is_dir())
+    cloud::detect(kind, &home, &|k| std::env::var(k).ok())
 }
 
 fn build_view<R: Runtime>(app: &AppHandle<R>, data: &LibraryData) -> LibraryView {
@@ -410,15 +452,20 @@ fn build_view<R: Runtime>(app: &AppHandle<R>, data: &LibraryData) -> LibraryView
             }
         })
         .collect();
-    let icloud_suggestion = icloud_drive(app)
-        .and_then(|p| normalize(&p))
-        .map(|p| p.to_string_lossy().into_owned())
-        .filter(|p| !data.folders.iter().any(|f| &f.path == p));
+    let cloud_suggestions = cloud::ALL
+        .into_iter()
+        .filter(|k| !data.folders.iter().any(|f| f.kind == folder_kind(*k)))
+        .filter_map(|kind| {
+            let path = detect_cloud(app, kind).and_then(|p| normalize(&p))?;
+            let path = path.to_string_lossy().into_owned();
+            (!data.folders.iter().any(|f| f.path == path)).then_some(CloudSuggestion { kind, path })
+        })
+        .collect();
     LibraryView {
         folders,
         documents,
         study_days: data.study_days.clone(),
-        icloud_suggestion,
+        cloud_suggestions,
     }
 }
 
@@ -431,7 +478,7 @@ pub async fn library_load<R: Runtime>(app: AppHandle<R>) -> Result<LibraryView, 
         .map_err(|e| AppError::InvalidInput(e.to_string()))
 }
 
-/// Adds a folder the user picks. For iCloud Drive the usual folder is used when it exists.
+/// Adds a folder the user picks. For a cloud drive, its usual folder is used when it exists.
 /// Returns false if the user cancelled.
 #[tauri::command]
 pub async fn library_add_folder<R: Runtime>(
@@ -445,10 +492,10 @@ pub async fn library_add_folder<R: Runtime>(
             .blocking_pick_folder()
             .and_then(|f| f.into_path().ok())
     };
-    let picked = match kind {
-        // iCloud Drive is found automatically; if it lives somewhere unusual, the user picks it.
-        FolderKind::Icloud => icloud_drive(&app).or_else(pick),
-        _ => pick(),
+    // Cloud drives are found automatically; if one lives somewhere unusual, the user picks it.
+    let picked = match cloud_kind(kind) {
+        Some(cloud) => detect_cloud(&app, cloud).or_else(pick),
+        None => pick(),
     };
     let Some(path) = picked.and_then(|p| normalize(&p)).filter(|p| p.is_dir()) else {
         return Ok(false);
@@ -558,9 +605,12 @@ mod tests {
         touch(&dir.path().join(".hidden/c.pdf"));
         touch(&dir.path().join(".d.pdf"));
         let (files, truncated) = scan_folder(dir.path());
-        let mut names: Vec<_> = files.iter().map(|f| f.name.as_str()).collect();
+        let mut names: Vec<_> = files
+            .iter()
+            .map(|f| (f.dir.as_str(), f.name.as_str()))
+            .collect();
         names.sort();
-        assert_eq!(names, ["a.pdf", "b.PDF"]);
+        assert_eq!(names, [("", "a.pdf"), ("sub", "b.PDF")]);
         assert!(!truncated);
     }
 

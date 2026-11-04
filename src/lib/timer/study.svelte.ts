@@ -1,26 +1,56 @@
 /**
- * Counts study time: while a document is open and you're actively reading (window focused,
- * some input in the last few minutes), or while a focus session runs. Time is saved to the
- * library every minute: per document and per day.
+ * Counts study time.
+ *
+ * - While a Timer, Pomodoro focus session or Chrono runs, that time counts (and goes to the open
+ *   document too, if you're reading one).
+ * - With no timer running, reading counts once you've been reading for 10 minutes in a row
+ *   (window in front, some input in the last 5 minutes); those first 10 minutes count too.
+ *   Shorter glances don't count.
+ *
+ * Time is saved to the library every minute: per document and per day.
  */
 import { dayKey } from "../app/dates";
 import { navigation } from "../app/navigation.svelte";
 import { libraryAddStudyTime, libraryUpdate } from "../ipc/library";
 import { library } from "../library/library.svelte";
 import { session } from "../reader/session.svelte";
-import { timer } from "./timer.svelte";
+import { timers } from "./timers.svelte";
 
 const TICK_S = 15;
 const FLUSH_EVERY_TICKS = 4;
-const IDLE_AFTER_MS = 3 * 60_000;
+const IDLE_AFTER_MS = 5 * 60_000;
+/** Reading without a timer counts once a session reaches this length. */
+export const READING_THRESHOLD_S = 10 * 60;
+
+export interface StudyTick {
+  /** A timer that measures study is running. */
+  timing: boolean;
+  /** The user is reading a document right now. */
+  reading: boolean;
+}
+
+/**
+ * Pure rule, testable: given the current reading run and this tick, returns the seconds to count
+ * now and the new run length. `pending` is the run time not yet counted.
+ */
+export function studyStep(run: number, pending: number, tick: StudyTick, step: number): { count: number; run: number; pending: number } {
+  if (tick.timing) return { count: step, run: tick.reading ? run + step : 0, pending: 0 };
+  if (!tick.reading) return { count: 0, run: 0, pending: 0 };
+  const nextRun = run + step;
+  if (nextRun < READING_THRESHOLD_S) return { count: 0, run: nextRun, pending: pending + step };
+  return { count: pending + step, run: nextRun, pending: 0 };
+}
 
 class StudyClock {
-  /** Seconds not yet saved, so totals shown in the UI stay live. */
+  /** Seconds counted but not yet saved, so totals shown in the UI stay live. */
   unsavedToday = $state(0);
   #docSeconds = new Map<string, number>();
   #daySeconds = 0;
   #lastInput = Date.now();
   #ticks = 0;
+  #run = 0;
+  #pending = 0;
+  #pendingDoc: string | null = null;
 
   readonly todaySeconds = $derived((library.view?.studyDays[dayKey(new Date())] ?? 0) + this.unsavedToday);
 
@@ -41,15 +71,21 @@ class StudyClock {
 
   #tick(): void {
     const present = document.visibilityState === "visible" && document.hasFocus() && Date.now() - this.#lastInput < IDLE_AFTER_MS;
-    const reading = present && navigation.screen === "reader" && session.current !== null;
-    const focusing = timer.running && timer.phase === "focus";
-    if (reading) {
-      const path = session.current!.ref.path;
-      this.#docSeconds.set(path, (this.#docSeconds.get(path) ?? 0) + TICK_S);
-    } else if (focusing) {
-      this.#daySeconds += TICK_S;
+    const doc = navigation.screen === "reader" ? (session.current?.ref.path ?? null) : null;
+    const reading = present && doc !== null;
+    if (doc !== this.#pendingDoc) {
+      // Switched document: the reading run starts over.
+      this.#run = this.#pending = 0;
+      this.#pendingDoc = doc;
     }
-    if (reading || focusing) this.unsavedToday += TICK_S;
+    const step = studyStep(this.#run, this.#pending, { timing: timers.studying, reading }, TICK_S);
+    this.#run = step.run;
+    this.#pending = step.pending;
+    if (step.count) {
+      if (reading && doc) this.#docSeconds.set(doc, (this.#docSeconds.get(doc) ?? 0) + step.count);
+      else this.#daySeconds += step.count;
+      this.unsavedToday += step.count;
+    }
     if (++this.#ticks % FLUSH_EVERY_TICKS === 0) void this.flush();
   }
 

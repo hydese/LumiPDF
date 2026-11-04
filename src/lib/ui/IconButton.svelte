@@ -11,10 +11,11 @@
     size?: "s" | "m";
     disabled?: boolean;
     onclick?: (event: MouseEvent) => void;
+    oncontextmenu?: (event: MouseEvent) => void;
     children?: Snippet;
     el?: HTMLButtonElement | null;
   }
-  let { icon, label, title, pressed, size = "m", disabled, onclick, children, el = $bindable(null) }: Props = $props();
+  let { icon, label, title, pressed, size = "m", disabled, onclick, oncontextmenu, children, el = $bindable(null) }: Props = $props();
 </script>
 
 <button
@@ -26,6 +27,7 @@
   title={title ?? label}
   {disabled}
   {onclick}
+  {oncontextmenu}
 >
   <Icon name={icon} size={size === "m" ? 17 : 15} />
   {@render children?.()}

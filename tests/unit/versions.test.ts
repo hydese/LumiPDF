@@ -31,11 +31,12 @@ describe("what's new", () => {
     }
   });
 
-  it("shows notes once after an update, never on a fresh install", () => {
-    expect(whatsNewOnLaunch("2.0.0", "")).toEqual({ show: null, remember: true });
+  it("shows the welcome on a fresh install, notes once after an update", () => {
+    expect(whatsNewOnLaunch("2.0.0", "")).toEqual({ welcome: ["language", "appearance", "reading", "library", "timer"], show: null, remember: false });
     expect(whatsNewOnLaunch("2.0.0", "2.0.0").show).toBeNull();
     expect(whatsNewOnLaunch("2.0.0", "1.0.5").show?.version).toBe("2.0.0");
-    expect(whatsNewOnLaunch("2.0.0-beta.2", "2.0.0-beta.1")).toEqual({ show: null, remember: true });
+    expect(whatsNewOnLaunch("2.0.0", "1.0.5").welcome).toEqual([]);
+    expect(whatsNewOnLaunch("2.0.0-beta.2", "2.0.0-beta.1")).toEqual({ welcome: [], show: null, remember: true });
   });
 });
 

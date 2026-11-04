@@ -13,12 +13,14 @@
   import { readOutline, type OutlineItem } from "../viewer/ViewerController";
   import PdfView from "../viewer/PdfView.svelte";
   import TitleBar from "../ui/TitleBar.svelte";
+  import BackButton from "../ui/BackButton.svelte";
   import IconButton from "../ui/IconButton.svelte";
-  import Icon from "../ui/Icon.svelte";
   import BarActions from "../ui/BarActions.svelte";
   import Sidebar from "../reader/ui/Sidebar.svelte";
   import PagePill from "../reader/ui/PagePill.svelte";
   import FindBar from "../reader/ui/FindBar.svelte";
+  import TabStrip from "../reader/ui/TabStrip.svelte";
+  import { navigation } from "../app/navigation.svelte";
 
   interface Props {
     findOpen?: boolean;
@@ -66,12 +68,9 @@
 </script>
 
 <div class="screen" data-theme={readingMode.isDark ? "dark" : undefined} class:reading-dark={readingMode.isDark}>
-  <TitleBar>
+  <TitleBar layout="tabs">
     {#snippet left()}
-      <button class="back" onclick={() => session.close()} title={t("reader.toLibrary")}>
-        <Icon name="back" size={16} stroke={2} />
-        {t("reader.toLibrary")}
-      </button>
+      <BackButton label={t("reader.toLibrary")} onclick={() => navigation.go("library")} />
       <IconButton
         icon="sidebar"
         size="s"
@@ -82,15 +81,10 @@
       />
     {/snippet}
     {#snippet center()}
-      <div class="title" data-tauri-drag-region>
-        <span class="name" data-tauri-drag-region title={doc?.ref.path}>{doc?.title ?? ""}</span>
-        {#if currentSection}
-          <span class="section" data-tauri-drag-region>{currentSection.title}</span>
-        {/if}
-      </div>
+      <TabStrip />
     {/snippet}
     {#snippet right()}
-      <BarActions bind:this={barActions} compactUpdate readingSettings>
+      <BarActions bind:this={barActions} compactUpdate>
         {#snippet before()}
           <IconButton
             icon="bookmark"
@@ -118,11 +112,15 @@
     <main class="pages">
       <PdfView
         doc={doc?.pdf.doc ?? null}
-        startPage={doc?.startPage ?? 1}
+        place={session.active?.place ?? 1}
+        onFirstRender={() => session.onFirstRender()}
         onState={(s) => session.onViewerState(s)}
         onExternalLink={(url) => void openExternal(url)}
         bind:controller={session.controller}
       />
+      {#if session.showSnapshot && session.active?.snapshot}
+        <img class="snapshot" src={session.active.snapshot} alt="" draggable="false" />
+      {/if}
       {#if findOpen}
         <FindBar bind:input={findInput} onClose={() => (findOpen = false)} />
       {/if}
@@ -143,45 +141,14 @@
     --bar: #1a1a1d;
     --sidebar-bg: #161619;
   }
-  .back {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    height: 30px;
-    padding: 0 10px 0 6px;
-    border: none;
-    border-radius: var(--radius-m);
-    background: transparent;
-    color: var(--text-soft);
-    font-weight: 500;
-    white-space: nowrap;
-  }
-  .back:hover {
-    background: var(--hover);
-    color: var(--text);
-  }
-  .title {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    line-height: 1.25;
-    min-width: 0;
-    max-width: 44vw;
-  }
-  .name {
-    font-weight: 600;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .section {
-    font-size: 11.5px;
-    color: var(--text-muted);
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .snapshot {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 4;
+    pointer-events: none;
+    background: var(--canvas-bg);
   }
   .body {
     flex: 1;

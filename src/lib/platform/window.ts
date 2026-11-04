@@ -21,6 +21,41 @@ export const minimizeWindow = () => void current()?.minimize();
 export const toggleMaximizeWindow = () => void current()?.toggleMaximize();
 export const closeWindow = () => void current()?.close();
 
+/** Shows, restores and focuses the window (when a timer rings). */
+export function bringWindowToFront(): void {
+  const win = current();
+  if (!win) return;
+  void (async () => {
+    try {
+      await win.show();
+      await win.unminimize();
+      await win.setFocus();
+      await win.requestUserAttention(2); // informational flash in the taskbar
+    } catch {
+      // Not allowed or not supported: the bell still rings.
+    }
+  })();
+}
+
+/**
+ * Lets `shouldAsk` veto closing the window: when it returns true, closing is cancelled and
+ * `onAsk` is called (to show the "keep running?" dialog). Returns a cleanup function.
+ */
+export function guardClose(shouldAsk: () => boolean, onAsk: () => void): () => void {
+  const win = current();
+  if (!win) return () => {};
+  const unlisten = win.onCloseRequested((event) => {
+    if (shouldAsk()) {
+      event.preventDefault();
+      onAsk();
+    }
+  });
+  return () => void unlisten.then((stop) => stop());
+}
+
+/** Closes for real, skipping the close guard. */
+export const quitApp = () => void current()?.destroy();
+
 /** Calls `handler` with the maximized state now and whenever it changes. */
 export function watchMaximized(handler: (maximized: boolean) => void): () => void {
   const win = current();

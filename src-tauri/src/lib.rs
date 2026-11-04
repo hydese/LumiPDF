@@ -4,6 +4,7 @@
 //! which files the webview may read, user settings, and later the library index, annotation sidecars,
 //! study stats, export and compression. Each area lives in its own module.
 
+mod cloud;
 mod commands;
 mod documents;
 mod error;
