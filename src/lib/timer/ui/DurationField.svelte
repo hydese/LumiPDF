@@ -63,10 +63,10 @@
     </span>
     <span class="arrows">
       <button type="button" tabindex="-1" aria-label={t("timer.more", { label })} disabled={value >= MAX} onclick={() => stepBy(1)}>
-        <Icon name="up" size={11} stroke={2.6} />
+        <Icon name="up" size={9} stroke={2.4} />
       </button>
       <button type="button" tabindex="-1" aria-label={t("timer.less", { label })} disabled={value <= MIN} onclick={() => stepBy(-1)}>
-        <Icon name="down" size={11} stroke={2.6} />
+        <Icon name="down" size={9} stroke={2.4} />
       </button>
     </span>
   </span>
@@ -129,7 +129,7 @@
     color: var(--text-muted);
   }
   .arrows {
-    width: 22px;
+    width: 18px;
     display: flex;
     flex-direction: column;
     border-left: 1px solid var(--hairline);
@@ -139,7 +139,7 @@
     padding: 0;
     border: none;
     background: transparent;
-    color: var(--text-soft);
+    color: var(--text-faint);
     display: grid;
     place-items: center;
   }

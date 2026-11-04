@@ -44,7 +44,7 @@
 
 <div class="stepper">
   <button type="button" class="arrow" aria-label={upLabel} onclick={() => stepBy(1)} disabled={!wrap && value >= max}>
-    <Icon name="up" size={16} stroke={2.4} />
+    <Icon name="up" size={11} stroke={2.2} />
   </button>
   <input
     class="big"
@@ -73,7 +73,7 @@
     }}
   />
   <button type="button" class="arrow" aria-label={downLabel} onclick={() => stepBy(-1)} disabled={!wrap && value <= min}>
-    <Icon name="down" size={16} stroke={2.4} />
+    <Icon name="down" size={11} stroke={2.2} />
   </button>
 </div>
 
@@ -84,12 +84,12 @@
     align-items: center;
   }
   .arrow {
-    width: 40px;
-    height: 22px;
+    width: 28px;
+    height: 16px;
     border: none;
-    border-radius: 7px;
+    border-radius: 5px;
     background: transparent;
-    color: var(--text-muted);
+    color: var(--text-faint);
     display: grid;
     place-items: center;
   }
