@@ -18,6 +18,10 @@ LumiPDF 2.0 is a full rewrite of LuminaPDF 1.x under a new name.
 - Tabs in the top bar. Background tabs sleep (PDF closed, place and a snapshot kept) and come
   back instantly on the same spot; Ctrl+Tab, Ctrl+1..9, Ctrl+W, middle-click, drag to reorder;
   optionally reopen last session's tabs.
+- Annotations: highlight, underline and strike text (from the tool or a menu over the
+  selection), smooth pressure-sensitive pen, freehand highlighter, sticky notes and comments,
+  eraser, undo/redo. Listed in the Notes tab; drawn to suit dark pages; stored next to the app
+  by the PDF's own ID, so they follow the file and the PDF is never modified.
 - Reader with Outline, Bookmarks (Ctrl+D) and Notes tabs, floating page and zoom controls.
   Right-click the moon for reading themes and adjustments.
 - Timer with four modes: Timer (set the time in the circle), Pomodoro (focus, breaks, long break

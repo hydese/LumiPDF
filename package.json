@@ -25,6 +25,7 @@
     "@tauri-apps/plugin-dialog": "2.8.4",
     "@tauri-apps/plugin-opener": "2.7.2",
     "pdfjs-dist": "6.4.299",
+    "perfect-freehand": "1.2.2",
     "svelte": "5.57.3"
   },
   "devDependencies": {

@@ -18,6 +18,13 @@
   import BarActions from "../ui/BarActions.svelte";
   import Sidebar from "../reader/ui/Sidebar.svelte";
   import PagePill from "../reader/ui/PagePill.svelte";
+  import { annotations } from "../annotations/store.svelte";
+  import { AnnotationLayer } from "../annotations/layer";
+  import type { TextMark } from "../annotations/model";
+  import ToolGroup from "../annotations/ui/ToolGroup.svelte";
+  import ToolOptions from "../annotations/ui/ToolOptions.svelte";
+  import MarkMenu from "../annotations/ui/MarkMenu.svelte";
+  import NoteEditor from "../annotations/ui/NoteEditor.svelte";
   import FindBar from "../reader/ui/FindBar.svelte";
   import TabStrip from "../reader/ui/TabStrip.svelte";
   import { navigation } from "../app/navigation.svelte";
@@ -65,6 +72,66 @@
     }
     return best;
   });
+
+  // ---- Annotations --------------------------------------------------------------------------
+  let layer = $state.raw<AnnotationLayer | null>(null);
+  let menu = $state<{ at: DOMRect; mark: TextMark | null } | null>(null);
+  let editing = $state<{ id: string; anchor: HTMLElement } | null>(null);
+
+  /** A stand-in anchor for popovers that open at a screen rectangle. */
+  function anchorAt(rect: DOMRect): HTMLElement {
+    return { getBoundingClientRect: () => rect, contains: () => false } as unknown as HTMLElement;
+  }
+
+  $effect(() => {
+    const controller = session.controller;
+    if (!controller) return;
+    const l = new AnnotationLayer(controller, {
+      onNoteOpen: (id, anchor) => {
+        menu = null;
+        editing = { id, anchor };
+      },
+      onMarkClick: (id, at) => {
+        const mark = annotations.get(id);
+        if (mark && mark.type !== "ink" && mark.type !== "marker" && mark.type !== "note") menu = { at, mark };
+      },
+      style: () => settings.value.annotate,
+    });
+    layer = l;
+    // Selecting text in select mode shows the mark menu above the selection.
+    const onUp = () =>
+      setTimeout(() => {
+        if (annotations.tool !== "select") return;
+        const rect = l.selectionRect();
+        if (rect) menu = { at: rect, mark: null };
+      });
+    controller.container.addEventListener("pointerup", onUp);
+    return () => {
+      controller.container.removeEventListener("pointerup", onUp);
+      l.destroy();
+      layer = null;
+    };
+  });
+
+  $effect(() => layer?.setTool(annotations.tool));
+  $effect(() => {
+    void annotations.revision;
+    layer?.redrawAll();
+  });
+  $effect(() => {
+    const pdf = doc?.pdf.doc ?? null;
+    layer?.reset();
+    void annotations.activate(pdf);
+  });
+
+  function createMark(kind: TextMark["type"], color: string): TextMark | null {
+    return layer?.markSelection(kind, color)[0] ?? null;
+  }
+
+  function openComment(mark: TextMark) {
+    const rect = layer?.rectOf(mark);
+    if (rect) editing = { id: mark.id, anchor: anchorAt(rect) };
+  }
 </script>
 
 <div class="screen" data-theme={readingMode.isDark ? "dark" : undefined} class:reading-dark={readingMode.isDark}>
@@ -86,6 +153,7 @@
     {#snippet right()}
       <BarActions bind:this={barActions} compactUpdate>
         {#snippet before()}
+          <ToolGroup />
           <IconButton
             icon="bookmark"
             label={session.isBookmarked ? t("reader.unbookmark") : t("reader.bookmark")}
@@ -121,6 +189,13 @@
       {#if session.showSnapshot && session.active?.snapshot}
         <img class="snapshot" src={session.active.snapshot} alt="" draggable="false" />
       {/if}
+      <ToolOptions />
+      {#if menu}
+        <MarkMenu at={menu.at} mark={menu.mark} onCreate={createMark} onComment={openComment} onClose={() => (menu = null)} />
+      {/if}
+      {#if editing}
+        <NoteEditor id={editing.id} anchor={editing.anchor} onClose={() => (editing = null)} />
+      {/if}
       {#if findOpen}
         <FindBar bind:input={findInput} onClose={() => (findOpen = false)} />
       {/if}
@@ -140,6 +215,79 @@
   .screen.reading-dark {
     --bar: #1a1a1d;
     --sidebar-bg: #161619;
+  }
+  /* Annotation layers (created by annotations/layer.ts inside each pdf.js page). */
+  .pages :global(.lumi-marks) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .pages :global(.lumi-ink) {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+  }
+  .pages :global(.lumi-ink canvas) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .pages :global(.lumi-note) {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    margin: -11px 0 0 -4px;
+    padding: 0;
+    border: none;
+    border-radius: 6px 6px 6px 2px;
+    background: var(--note);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), inset 0 -6px 0 rgba(0, 0, 0, 0.08);
+    pointer-events: auto;
+    cursor: pointer;
+    transition: transform var(--fast) var(--ease);
+  }
+  .pages :global(.lumi-note::after) {
+    content: "";
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    top: 7px;
+    height: 6px;
+    border-top: 1.5px solid rgba(0, 0, 0, 0.35);
+    border-bottom: 1.5px solid rgba(0, 0, 0, 0.35);
+  }
+  .pages :global(.lumi-note.small) {
+    width: 14px;
+    height: 14px;
+    margin: -14px 0 0 2px;
+  }
+  .pages :global(.lumi-note.small::after) {
+    display: none;
+  }
+  .pages :global(.lumi-note:hover) {
+    transform: scale(1.12);
+  }
+  /* Drawing tools: the text layer and links must not take the pointer. */
+  .pages :global(.tool-draw .textLayer),
+  .pages :global(.tool-draw .annotationLayer) {
+    pointer-events: none !important;
+  }
+  .pages :global(.tool-draw) {
+    cursor: crosshair;
+    touch-action: none;
+  }
+  .pages :global([data-tool="eraser"]) {
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Ccircle cx='9' cy='9' r='7.5' fill='rgba(255,255,255,0.6)' stroke='%23444' stroke-width='1.2'/%3E%3C/svg%3E") 9 9, crosshair;
+  }
+  .pages :global([data-tool="note"]) {
+    cursor: copy;
+  }
+  .pages :global([data-tool="highlight"] .textLayer) {
+    cursor: text;
   }
   .snapshot {
     position: absolute;

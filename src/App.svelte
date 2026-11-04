@@ -15,6 +15,7 @@
   import { session } from "./lib/reader/session.svelte";
   import { timers } from "./lib/timer/timers.svelte";
   import { ringer } from "./lib/timer/ringer.svelte";
+  import { annotations, type Tool } from "./lib/annotations/store.svelte";
   import { guardClose, minimizeWindow, platform, quitApp } from "./lib/platform/window";
   import RingingDialog from "./lib/timer/ui/RingingDialog.svelte";
   import Dialog from "./lib/ui/Dialog.svelte";
@@ -43,12 +44,42 @@
   });
   let askClose = $state(false);
 
+  /** Saves annotations and study time, then closes for real. */
+  async function quitSaved() {
+    await Promise.allSettled([annotations.flush(), studyClock.flush()]);
+    quitApp();
+  }
+
   function onKeydown(event: KeyboardEvent) {
     if (event.key === "Escape" && navigation.screen === "settings" && !event.defaultPrevented) {
       navigation.closeSettings();
       return;
     }
+    const typing = (event.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable='true']");
+    const reading = navigation.screen === "reader" && session.current !== null;
+    if (reading && !typing && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      const tools: Record<string, Tool> = { v: "select", h: "highlight", p: "pen", m: "marker", e: "eraser", n: "note" };
+      const tool = tools[event.key.toLowerCase()];
+      if (tool) {
+        event.preventDefault();
+        annotations.tool = tool;
+        return;
+      }
+      if (event.key === "Escape" && annotations.tool !== "select" && !event.defaultPrevented) {
+        annotations.tool = "select";
+        return;
+      }
+    }
     if (!isPrimaryModifier(event, platform) || event.altKey) return;
+    if (reading && !typing) {
+      const k = event.key.toLowerCase();
+      if (k === "z" || k === "y") {
+        event.preventDefault();
+        if (k === "y" || event.shiftKey) annotations.redo();
+        else annotations.undo();
+        return;
+      }
+    }
     const key = event.key.toLowerCase();
     const inReader = navigation.screen === "reader" && session.current !== null;
     const c = session.controller;
@@ -113,7 +144,16 @@
       setLocale(settings.value.app.locale);
       stops.push(appearance.start(), readingMode.start(), studyClock.start());
       timers.syncWithSettings();
-      stops.push(guardClose(() => settings.value.timer.askOnClose && timers.busy, () => (askClose = true)));
+      // Every close goes through here: save what's pending, or ask first if a timer is running.
+      stops.push(
+        guardClose(
+          () => true,
+          () => {
+            if (settings.value.timer.askOnClose && timers.busy) askClose = true;
+            else void quitSaved();
+          },
+        ),
+      );
       ready = true;
       whatsNew.onLaunch();
       if (settings.value.app.checkForUpdates) stops.push(updates.checkSoon());
@@ -182,7 +222,7 @@
         <h2 id="close-title" class="dialog-title">{t("close.title")}</h2>
         <p class="dialog-text">{t("close.text")}</p>
         <div class="dialog-actions">
-          <button class="btn" onclick={() => quitApp()}>{t("close.quit")}</button>
+          <button class="btn" onclick={() => quitSaved()}>{t("close.quit")}</button>
           <button
             class="btn primary"
             onclick={() => {

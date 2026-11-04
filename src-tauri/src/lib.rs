@@ -4,6 +4,7 @@
 //! which files the webview may read, user settings, and later the library index, annotation sidecars,
 //! study stats, export and compression. Each area lives in its own module.
 
+mod annotations;
 mod cloud;
 mod commands;
 mod documents;
@@ -57,6 +58,8 @@ pub fn run() {
             library::library_update,
             library::library_add_study_time,
             library::library_forget,
+            annotations::annotations_load,
+            annotations::annotations_save,
         ])
         .build(tauri::generate_context!())
         .expect("LumiPDF failed to start")

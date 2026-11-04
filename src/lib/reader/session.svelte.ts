@@ -13,6 +13,7 @@ import { library, message } from "../library/library.svelte";
 import { titleOf } from "../library/titles";
 import { navigation } from "../app/navigation.svelte";
 import { settings } from "../settings/store.svelte";
+import { annotations } from "../annotations/store.svelte";
 import { loadDocument, PasswordCancelledError, type LoadedPdf } from "../viewer/pdfjs";
 import type { ReadingPlace, ViewerController, ViewerState } from "../viewer/ViewerController";
 
@@ -188,6 +189,7 @@ class DocumentSession {
     if (tab.id === this.activeId) await this.#flushPage();
     this.tabs = this.tabs.filter((t) => t.id !== id);
     if (tab.snapshot) URL.revokeObjectURL(tab.snapshot);
+    if (tab.pdf) await annotations.release(tab.pdf.doc);
     await tab.pdf?.close();
     if (tab.id === this.activeId) {
       this.activeId = null;

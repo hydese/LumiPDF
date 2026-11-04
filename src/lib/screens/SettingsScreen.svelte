@@ -47,6 +47,8 @@
     ["settings.shortcuts.fit", "mod+0"],
     ["settings.shortcuts.timer", "mod+shift+t"],
     ["settings.shortcuts.settings", "mod+,"],
+    ["settings.shortcuts.undo", "mod+z"],
+    ["settings.shortcuts.redo", "mod+shift+z"],
     ["settings.shortcuts.nextTab", "mod+tab"],
     ["settings.shortcuts.prevTab", "mod+shift+tab"],
     ["settings.shortcuts.close", "mod+w"],
@@ -298,6 +300,10 @@
               <kbd>{sc(keys)}</kbd>
             </div>
           {/each}
+          <div class="row">
+            <span>{t("settings.shortcuts.tools")}</span>
+            <kbd>V · H · P · M · E · N</kbd>
+          </div>
         </section>
       {:else if section === "about"}
         <section class="card about">

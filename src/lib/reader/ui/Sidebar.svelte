@@ -8,6 +8,7 @@
   import type { OutlineItem } from "../../viewer/ViewerController";
   import { session } from "../session.svelte";
   import OutlineTree from "./OutlineTree.svelte";
+  import NotesList from "../../annotations/ui/NotesList.svelte";
   import Icon from "../../ui/Icon.svelte";
 
   interface Props {
@@ -59,7 +60,7 @@
         <p class="empty">{t("reader.noBookmarks", { shortcut: formatShortcut("mod+d", platform) })}</p>
       {/if}
     {:else}
-      <p class="empty">{t("reader.notesSoon")}</p>
+      <NotesList onGo={(a) => session.controller?.goToPage(a.page)} />
     {/if}
   </div>
 </aside>

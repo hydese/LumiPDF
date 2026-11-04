@@ -28,6 +28,19 @@ export interface ReadingPlace {
   offset: number;
 }
 
+/** The parts of a pdf.js page view the annotation layer uses. */
+export interface PageViewLike {
+  id: number;
+  div: HTMLDivElement;
+  viewport: {
+    scale: number;
+    width: number;
+    height: number;
+    convertToViewportPoint(x: number, y: number): [number, number];
+    convertToPdfPoint(x: number, y: number): [number, number];
+  };
+}
+
 export interface OutlineItem {
   title: string;
   depth: number;
@@ -122,6 +135,23 @@ export class ViewerController {
     this.linkService.setDocument(doc);
     const page = Math.min(this.pendingPlace.page, doc?.numPages ?? 1);
     this.update({ page, pages: doc?.numPages ?? 0, findMatches: null });
+  }
+
+  /** The scrolling element that holds the pages. */
+  get container(): HTMLDivElement {
+    return this.options.container;
+  }
+
+  /** Page view of a 1-based page number (exists for every page, drawn or not). */
+  pageView(page: number): PageViewLike | null {
+    return (this.viewer.getPageView(page - 1) as unknown as PageViewLike | undefined) ?? null;
+  }
+
+  /** Calls `handler` each time a page finishes drawing (after zoom, scrolling into view…). */
+  onPageRendered(handler: (view: PageViewLike) => void): () => void {
+    const listener = ({ source }: { source: PageViewLike }) => handler(source);
+    this.eventBus.on("pagerendered", listener);
+    return () => this.eventBus.off("pagerendered", listener);
   }
 
   /** Where the reader is now, to come back to it later (tabs). */

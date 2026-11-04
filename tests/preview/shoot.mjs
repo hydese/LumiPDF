@@ -47,6 +47,9 @@ const shotsAll = [
   { name: "welcome-3-dark", settings: { app: { appearance: "dark" } }, welcome: 2 },
   { name: "welcome-4", settings: { app: { appearance: "light" } }, welcome: 3 },
   { name: "timer-alarm-12h", settings: { app: { appearance: "dark", ...seen }, timer: { mode: "alarm", clock24: false } }, click: '[aria-label="Study timer"]' },
+  { name: "annotate-light", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: true },
+  { name: "annotate-dark", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], annotate: true },
+  { name: "annotate-menu", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: "menu" },
   { name: "whatsnew-light", settings: { app: { appearance: "light", lastSeenVersion: "1.0.5" } } },
 ];
 const shots = shotsAll;
@@ -88,7 +91,47 @@ for (const shot of shots) {
       await page.locator(".layer:not([hidden]) .pdfViewer .page canvas >> visible=true").first().waitFor({ timeout: 15000 });
       await page.waitForTimeout(1000);
     }
-    if (shot.keys) await page.keyboard.press(shot.keys);
+    if (shot.annotate) {
+    const text = page.locator(".layer:not([hidden]) .textLayer span").filter({ hasText: "Consider" }).first();
+    const box = await text.boundingBox();
+    const drag = async (x1, y1, x2, y2, steps = 12) => {
+      await page.mouse.move(x1, y1);
+      await page.mouse.down();
+      for (let i = 1; i <= steps; i++) await page.mouse.move(x1 + ((x2 - x1) * i) / steps, y1 + ((y2 - y1) * i) / steps + Math.sin(i) * 0.6);
+      await page.mouse.up();
+      await page.waitForTimeout(120);
+    };
+    if (shot.annotate === "menu") {
+      await drag(box.x + 2, box.y + box.height / 2, box.x + 330, box.y + box.height / 2 + 22);
+      await page.waitForTimeout(300);
+    } else {
+      // Highlight a line of text with the highlight tool.
+      await page.keyboard.press("h");
+      await drag(box.x + 2, box.y + box.height / 2, box.x + 420, box.y + box.height / 2);
+      // Underline the next line in blue.
+      await page.click('.options button[aria-label="Underline"]');
+      await drag(box.x + 2, box.y + box.height * 1.6, box.x + 300, box.y + box.height * 1.6);
+      // Pen: circle an equation and an arrow.
+      await page.keyboard.press("p");
+      await page.mouse.move(box.x + 250, box.y + 80);
+      await page.mouse.down();
+      for (let a = 0; a <= 64; a++) await page.mouse.move(box.x + 330 + Math.cos(a / 10) * 95, box.y + 85 + Math.sin(a / 10) * 30);
+      await page.mouse.up();
+      await drag(box.x + 440, box.y + 140, box.x + 520, box.y + 110, 20);
+      // Highlighter stroke on the "Small text" line.
+      await page.keyboard.press("m");
+      await drag(box.x, box.y + 300, box.x + 260, box.y + 302, 20);
+      // A sticky note.
+      await page.keyboard.press("n");
+      await page.mouse.click(box.x + 700, box.y + 190);
+      await page.keyboard.type("Exam: prove stability with Lyapunov");
+      await page.click(".editor .btn.primary");
+      await page.keyboard.press("p");
+      await page.click('.doc-sidebar [role="tab"]:has-text("Notes")');
+      await page.waitForTimeout(400);
+    }
+  }
+  if (shot.keys) await page.keyboard.press(shot.keys);
     if (shot.section) await page.click(`nav button:has-text("${shot.section}")`);
     if (shot.click) await page.click(shot.click);
     if (shot.rightClick) await page.click(shot.rightClick, { button: "right" });

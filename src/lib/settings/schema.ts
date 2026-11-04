@@ -81,6 +81,17 @@ export interface ReaderLayout {
   activeTab: string;
 }
 
+/** The annotation tools remember their last colour and size. */
+export interface AnnotateSettings {
+  inkColor: string;
+  inkWidth: number;
+  markerColor: string;
+  markerWidth: number;
+  markColor: string;
+  markKind: "highlight" | "underline" | "strike";
+  noteColor: string;
+}
+
 export interface Settings {
   version: 1;
   app: AppSettings;
@@ -88,6 +99,7 @@ export interface Settings {
   timer: TimerSettings;
   reader: ReaderLayout;
   library: LibrarySettings;
+  annotate: AnnotateSettings;
 }
 
 /** The system clock format: 24-hour unless the locale uses AM/PM. */
@@ -107,6 +119,7 @@ export const DEFAULT_SETTINGS: Settings = {
   app: { appearance: "system", startScreen: "library", locale: "en", checkForUpdates: true, lastSeenVersion: "" },
   timer: { mode: "timer", countdown: 25, alarm: "07:30", clock24: systemUses24h(), askOnClose: true, focus: 50, shortBreak: 10, longBreak: 20, sessionsBeforeLong: 4, sound: true },
   reader: { sidebarOpen: true, sidebarTab: "outline", openTabs: [], activeTab: "" },
+  annotate: { inkColor: "#2f5bd8", inkWidth: 1.8, markerColor: "#ffe14d", markerWidth: 13, markColor: "#ffe14d", markKind: "highlight", noteColor: "#ffd84d" },
   library: { goodnotes: false, notebooks: { title: "", sort: "recent", count: 5, view: "list", hidden: [] } },
   reading: {
     darkEnabled: true,
@@ -142,6 +155,10 @@ export function parseSettings(raw: unknown): Settings {
   const lib = obj(root.library);
   const nb = obj(lib.notebooks);
   const dnb = DEFAULT_SETTINGS.library.notebooks;
+  const an = obj(root.annotate);
+  const dan = DEFAULT_SETTINGS.annotate;
+  const hex = (v: unknown, d: string) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : d);
+  const width = (v: unknown, lo: number, hi: number, d: number) => (typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
   const da = DEFAULT_SETTINGS.app;
   const dt = DEFAULT_SETTINGS.timer;
   const { minMinutes: lo, maxMinutes: hi } = TIMER_LIMITS;
@@ -176,6 +193,15 @@ export function parseSettings(raw: unknown): Settings {
       sidebarTab: oneOf(reader.sidebarTab, ["outline", "bookmarks", "notes"], DEFAULT_SETTINGS.reader.sidebarTab),
       openTabs: Array.isArray(reader.openTabs) ? reader.openTabs.filter((p): p is string => typeof p === "string").slice(0, 30) : [],
       activeTab: typeof reader.activeTab === "string" ? reader.activeTab : "",
+    },
+    annotate: {
+      inkColor: hex(an.inkColor, dan.inkColor),
+      inkWidth: width(an.inkWidth, 0.5, 10, dan.inkWidth),
+      markerColor: hex(an.markerColor, dan.markerColor),
+      markerWidth: width(an.markerWidth, 4, 40, dan.markerWidth),
+      markColor: hex(an.markColor, dan.markColor),
+      markKind: oneOf(an.markKind, ["highlight", "underline", "strike"], dan.markKind),
+      noteColor: hex(an.noteColor, dan.noteColor),
     },
     library: {
       goodnotes: bool(lib.goodnotes, DEFAULT_SETTINGS.library.goodnotes),

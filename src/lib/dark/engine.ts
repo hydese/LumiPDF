@@ -44,6 +44,16 @@ export function onDarkModeChange(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
+/** A colour as it appears on dark pages (unchanged in light mode). Used for annotations. */
+export function mapColor(css: string): string {
+  return active ? active.mapper.mapCss(css) : css;
+}
+
+/** True while pages are drawn dark. */
+export function isDarkActive(): boolean {
+  return active !== null;
+}
+
 export function darkBackground(): string | null {
   if (!active) return null;
   const [r, g, b] = active.mapper.background;

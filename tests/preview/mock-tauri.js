@@ -91,6 +91,11 @@
     library_add_folder: () => false,
     library_remove_folder: () => null,
     open_pdf_dialog: () => [],
+    annotations_load: () => window.__SAVED_ANNOTATIONS__ ?? null,
+    annotations_save: ({ data }) => {
+      window.__SAVED_ANNOTATIONS__ = data;
+      return null;
+    },
     "plugin:window|is_maximized": () => false,
     "plugin:event|listen": () => 1,
     "plugin:event|unlisten": () => null,

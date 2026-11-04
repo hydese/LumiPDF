@@ -5,11 +5,36 @@
       "version": "2.0.0",
       "date": "",
       "items": [
-        { "tag": "new", "title": "LumiPDF 2.0", "text": "LuminaPDF, rewritten from scratch and renamed: lighter, faster and sharper." },
-        { "tag": "new", "title": "A library on the home screen", "text": "Pick up where you left off, add your folders, iCloud Drive and GoodNotes backups, and search by title." },
-        { "tag": "better", "title": "Crisp dark mode", "text": "Pages are recoloured while they are drawn, so text stays as sharp as the original in all five reading themes." },
-        { "tag": "new", "title": "Study timer", "text": "Focus and break lengths you choose, with your study time and streak." },
-        { "tag": "fixed", "title": "PDFs that wouldn't open", "text": "Protected and damaged PDFs that 1.x refused now open normally." }
+        {
+          "tag": "new",
+          "title": "LumiPDF 2.0",
+          "text": "LuminaPDF, rewritten from scratch and renamed: lighter, faster and sharper."
+        },
+        {
+          "tag": "new",
+          "title": "A library on the home screen",
+          "text": "Pick up where you left off, add your folders, iCloud Drive and GoodNotes backups, and search by title."
+        },
+        {
+          "tag": "better",
+          "title": "Crisp dark mode",
+          "text": "Pages are recoloured while they are drawn, so text stays as sharp as the original in all five reading themes."
+        },
+        {
+          "tag": "new",
+          "title": "Mark up as you study",
+          "text": "Highlight, underline or strike text, write with a smooth pen, use the highlighter and sticky notes. Everything is listed in the Notes tab, and it stays readable in dark mode."
+        },
+        {
+          "tag": "new",
+          "title": "Study timer",
+          "text": "Focus and break lengths you choose, with your study time and streak."
+        },
+        {
+          "tag": "fixed",
+          "title": "PDFs that wouldn't open",
+          "text": "Protected and damaged PDFs that 1.x refused now open normally."
+        }
       ]
     }
   ]
