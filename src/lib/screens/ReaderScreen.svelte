@@ -34,6 +34,7 @@
   import TabStrip from "../reader/ui/TabStrip.svelte";
   import { navigation } from "../app/navigation.svelte";
   import SheetEditor from "../sheets/ui/SheetEditor.svelte";
+  import { fullscreen } from "../app/fullscreen.svelte";
   import { sheets } from "../sheets/sheets.svelte";
   import { documentUrl } from "../ipc/documents";
   import { documentOptions, pdfjs } from "../viewer/pdfjs";
@@ -271,6 +272,13 @@
             title={t("reader.bookmarkTitle", { shortcut: formatShortcut("mod+d", platform) })}
             pressed={session.isBookmarked}
             onclick={() => session.toggleBookmark()}
+          />
+          <IconButton
+            icon={fullscreen.on ? "shrink" : "expand"}
+            label={fullscreen.on ? t("fullscreen.exit") : t("fullscreen.enter")}
+            title={t(fullscreen.on ? "fullscreen.exitTitle" : "fullscreen.enterTitle")}
+            pressed={fullscreen.on}
+            onclick={() => fullscreen.toggle()}
           />
           <IconButton
             icon="search"

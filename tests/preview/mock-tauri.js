@@ -156,6 +156,8 @@
       return null;
     },
     "plugin:window|is_maximized": () => false,
+    "plugin:window|set_fullscreen": ({ value }) => ((window.__FULLSCREEN__ = value), null),
+    "plugin:window|is_fullscreen": () => window.__FULLSCREEN__ ?? false,
     "plugin:event|listen": () => 1,
     "plugin:event|unlisten": () => null,
   };

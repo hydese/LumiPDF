@@ -38,6 +38,8 @@ export interface AppSettings {
   updateMode: UpdateMode;
   /** Get test versions (pre-releases) before everyone else. */
   betaUpdates: boolean;
+  /** The beta switch was revealed (hidden gesture: click the version in About 7 times). */
+  betaUnlocked: boolean;
   /** The version whose "What's new" the user has seen; "" on a fresh install. */
   lastSeenVersion: string;
 }
@@ -75,7 +77,11 @@ export interface NotebookCard {
   hidden: string[];
 }
 
+export type FolderSort = "name" | "name-desc" | "recent";
+
 export interface LibrarySettings {
+  /** Order of folders and files in the folder browser. */
+  sort: FolderSort;
   /** Show the GoodNotes notebooks card (next to the Formula sheets card). */
   goodnotes: boolean;
   notebooks: NotebookCard;
@@ -165,13 +171,13 @@ export const TIMER_LIMITS = { minMinutes: 1, maxMinutes: 180, step: 1, minSessio
 
 export const DEFAULT_SETTINGS: Settings = {
   version: 1,
-  app: { appearance: "system", startScreen: "library", locale: "en", checkForUpdates: true, updateMode: "ask", betaUpdates: false, lastSeenVersion: "" },
+  app: { appearance: "system", startScreen: "library", locale: "en", checkForUpdates: true, updateMode: "ask", betaUpdates: false, betaUnlocked: false, lastSeenVersion: "" },
   timer: { mode: "timer", countdown: 25, alarm: "07:30", clock24: systemUses24h(), askOnClose: true, focus: 50, shortBreak: 10, longBreak: 20, sessionsBeforeLong: 4, sound: true },
   reader: { sidebarOpen: true, sidebarTab: "outline", openTabs: [], activeTab: "", linkPreviews: true },
   study: { goal: 120, tools: true, timer: true, stats: true, sheets: true, hintDismissed: false },
   sheets: { last: "", paper: systemPaper(), tipDismissed: false },
   annotate: { inkColor: "#2f5bd8", inkWidth: 1.8, markerColor: "#ffe14d", markerWidth: 13, markColor: "#ffe14d", markKind: "highlight", noteColor: "#ffd84d", recentColors: [] },
-  library: { goodnotes: false, notebooks: { title: "", sort: "recent", count: 5, view: "list", hidden: [] } },
+  library: { sort: "name", goodnotes: false, notebooks: { title: "", sort: "recent", count: 5, view: "list", hidden: [] } },
   reading: {
     darkEnabled: true,
     textClarity: false,
@@ -228,6 +234,7 @@ export function parseSettings(raw: unknown): Settings {
       checkForUpdates: bool(app.checkForUpdates, da.checkForUpdates),
       updateMode: oneOf(app.updateMode, ["auto", "ask"], da.updateMode),
       betaUpdates: bool(app.betaUpdates, da.betaUpdates),
+      betaUnlocked: bool(app.betaUnlocked, da.betaUnlocked),
       lastSeenVersion: typeof app.lastSeenVersion === "string" && app.lastSeenVersion.length < 40 ? app.lastSeenVersion : da.lastSeenVersion,
     },
     timer: {
@@ -273,6 +280,7 @@ export function parseSettings(raw: unknown): Settings {
       recentColors: Array.isArray(an.recentColors) ? an.recentColors.filter((c): c is string => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c)).slice(0, 8) : [],
     },
     library: {
+      sort: oneOf(lib.sort, ["name", "name-desc", "recent"], DEFAULT_SETTINGS.library.sort),
       goodnotes: bool(lib.goodnotes, DEFAULT_SETTINGS.library.goodnotes),
       notebooks: {
         title: typeof nb.title === "string" ? nb.title.slice(0, 60) : dnb.title,

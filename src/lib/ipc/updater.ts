@@ -9,7 +9,8 @@ export type DownloadEvent = { event: "progress"; downloaded: number; total: numb
 
 /** This copy can install updates itself (installed, not the portable exe). */
 export const updateInstallable = () => invoke<boolean>("update_installable");
-export const updateCheck = (beta: boolean) => invoke<UpdateMeta | null>("update_check", { beta });
+/** `switching`: leaving the beta channel, so an older stable version is offered too. */
+export const updateCheck = (beta: boolean, switching = false) => invoke<UpdateMeta | null>("update_check", { beta, switching });
 export function updateDownload(onEvent: (e: DownloadEvent) => void): Promise<void> {
   const channel = new Channel<DownloadEvent>();
   channel.onmessage = onEvent;

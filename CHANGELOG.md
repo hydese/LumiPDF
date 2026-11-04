@@ -39,8 +39,13 @@ LumiPDF 2.0 is a full rewrite of LuminaPDF 1.x under a new name.
 - Hand tool (G): drag to scroll, no text selection; links and notes still work.
 - In-app updates (installed version): signed updates from GitHub releases, installed
   automatically when LumiPDF closes or when you choose (welcome step and Settings → General);
-  optional beta channel. The portable version keeps the download link. Release workflow builds
-  signed installers and a portable .zip into a draft release; publishing updates the channels.
+  hidden beta channel. The portable version keeps the download link. The release workflow builds
+  the signed installer into a draft release (public releases are installer-only; the portable
+  exe is a test build from CI); publishing updates the channels.
+- Full screen (F11 or the button in the reader): the top bar hides and returns at the top edge.
+- Folder browser sorting: name A–Z, Z–A, or recently opened.
+- Beta builds show a BETA badge in the top bar. The beta channel is hidden (testers unlock it in
+  Settings → About); leaving it on a beta offers to switch back to the stable version.
 - Text clarity (Settings → Reading, off by default): slightly bolder text and lines at least one
   pixel wide, for screens at 100% scaling.
 - The eraser end of a stylus erases; an eraser stroke always deletes what it went over, however

@@ -15,15 +15,14 @@ A lightweight PDF reader for long study sessions, with a dark mode that keeps te
 - **Snip.** Copy any area or save it as a PNG.
 - **Export.** A new PDF with your annotations as real PDF annotations, optional compression, and password protection kept (or removed, only with the password).
 - **Study tools** (optional): timer, Pomodoro, alarm and stopwatch; study time, daily goal and streaks; formula sheets built from your snips and exported ready to print. Turn them off for a plain PDF reader.
-- **Updates** installed in the app (automatically or when you choose), with an optional beta channel.
+- **Updates** installed in the app (automatically or when you choose).
 - **Private and offline.** Your files never leave your computer. The only network access is the update check (GitHub).
 
 ## Download
 
 Releases are on the [Releases page](https://github.com/hydese/LumiPDF/releases):
 
-- `LumiPDF_x.y.z_x64-setup.exe`: installer, updates itself.
-- `LumiPDF_x.y.z_x64-portable.zip`: a single exe that runs without installing.
+- `LumiPDF_x.y.z_x64-setup.exe`: the installer. LumiPDF then updates itself.
 
 Windows may warn about an unknown publisher until code signing is in place (see [Code signing](#code-signing)).
 
@@ -56,7 +55,8 @@ plain pdf.js. PDFs placed in `tests/private/` are included in the bench but neve
 1. Update `version` in `package.json` and add its entry to `src/lib/whatsnew/releases.json`
    (shown in the app after updating, and used as the release notes).
 2. Push a tag `vX.Y.Z` (or `vX.Y.Z-beta.N` for a beta). The **Release** workflow builds the signed
-   installer and portable zip and saves a **draft** release.
+   installer and saves a **draft** release (installer only; test builds, including the portable
+   exe, come from the CI workflow's artifacts).
 3. Check the draft and publish it. The **Update channels** workflow then points the in-app updater
    at it (betas reach only users with "Beta versions" on).
 

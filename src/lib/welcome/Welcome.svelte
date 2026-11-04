@@ -86,10 +86,6 @@
                 <span>{t("welcome.updates.askText")}</span>
               </button>
             </div>
-            <label class="row beta">
-              <span class="label"><span>{t("welcome.updates.beta")}</span><span class="hint">{t("welcome.updates.betaHint")}</span></span>
-              <input type="checkbox" class="switch" checked={s.app.betaUpdates} onchange={(e) => settings.update((x) => (x.app.betaUpdates = e.currentTarget.checked))} />
-            </label>
             <p class="later">{t("welcome.updates.later")}</p>
           {:else if step === "appearance"}
             <h1 id="welcome-title">{t("welcome.appearance.title")}</h1>
@@ -249,10 +245,6 @@
   .usage-icon.read {
     background: var(--segment);
     color: var(--text);
-  }
-  .beta {
-    width: 100%;
-    text-align: left;
   }
   .later {
     font-size: 12.5px;

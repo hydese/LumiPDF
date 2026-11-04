@@ -22,6 +22,7 @@
   import { studyClock } from "./lib/timer/study.svelte";
   import { sheets } from "./lib/sheets/sheets.svelte";
   import { studyTools } from "./lib/app/studyTools.svelte";
+  import { fullscreen } from "./lib/app/fullscreen.svelte";
   import { updates } from "./lib/updates/updates.svelte";
   import { whatsNew } from "./lib/whatsnew/whatsnewState.svelte";
   import LibraryScreen from "./lib/screens/LibraryScreen.svelte";
@@ -67,6 +68,16 @@
   }
 
   function onKeydown(event: KeyboardEvent) {
+    if (event.key === "F11") {
+      event.preventDefault();
+      void fullscreen.toggle();
+      return;
+    }
+    if (event.key === "Escape" && fullscreen.on && !event.defaultPrevented && !(event.target as HTMLElement | null)?.closest?.("input, textarea, [role='dialog']")) {
+      event.preventDefault();
+      void fullscreen.exit();
+      return;
+    }
     if (event.key === "Escape" && navigation.screen === "settings" && !event.defaultPrevented) {
       navigation.closeSettings();
       return;
@@ -213,7 +224,7 @@
 
 {#if ready}
   {#key locale}
-    <div class="app">
+    <div class="app" class:fullscreen={fullscreen.on}>
       <!-- The reader stays mounted while Settings is open, so the document keeps its place. -->
       {#if session.tabs.length}
         <div class="layer" hidden={navigation.screen !== "reader"}>
@@ -273,6 +284,25 @@
   .app {
     height: 100%;
     position: relative;
+  }
+  /* Full screen: the top bar floats over the page and hides until the pointer reaches the top. */
+  .app.fullscreen :global(.screen > .bar) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    transform: translateY(calc(-100% + 4px));
+    opacity: 0;
+    transition:
+      transform 0.18s ease,
+      opacity 0.18s ease;
+    box-shadow: var(--pop-shadow);
+  }
+  .app.fullscreen :global(.screen > .bar:hover),
+  .app.fullscreen :global(.screen > .bar:focus-within) {
+    transform: none;
+    opacity: 1;
   }
   .layer {
     position: absolute;

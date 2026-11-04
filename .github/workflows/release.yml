@@ -64,9 +64,8 @@ jobs:
           New-Item -ItemType Directory out | Out-Null
           Copy-Item src-tauri/target/release/bundle/nsis/*-setup.exe out/
           Copy-Item src-tauri/target/release/bundle/nsis/*-setup.exe.sig out/
-          New-Item -ItemType Directory portable | Out-Null
-          Copy-Item src-tauri/target/release/lumipdf.exe portable/LumiPDF.exe
-          Compress-Archive -Path portable/LumiPDF.exe -DestinationPath "out/LumiPDF_${v}_x64-portable.zip"
+          # No portable here: public releases are installer-only (the portable build is for
+          # testing and comes from the CI workflow's artifacts).
       - uses: actions/upload-artifact@v7
         with:
           name: release-windows

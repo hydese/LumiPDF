@@ -80,6 +80,9 @@ const shotsAll = [
   { name: "settings-updates-auto", settings: { app: { appearance: "light", ...seen, updateMode: "auto" } }, keys: "Control+Comma", update: true },
   { name: "clarity-off", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"] },
   { name: "clarity-on", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false, textClarity: true } }, open: ["Analisi 2 — Trasformate"] },
+  { name: "beta-badge", settings: { app: { appearance: "light", ...seen } }, clickText: "Analisi 2" },
+  { name: "beta-unlock", settings: { app: { appearance: "dark", ...seen } }, keys: "Control+Comma", section: "About", tapVersion: 7 },
+  { name: "fullscreen", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], keys: "F11" },
   { name: "whatsnew-light", settings: { app: { appearance: "light", lastSeenVersion: "1.0.5" } } },
 ];
 const shots = only ? shotsAll.filter((s) => only.includes(s.name)) : shotsAll;
@@ -422,6 +425,12 @@ for (const shot of shots) {
     if (shot.section) await page.click(`nav button:has-text("${shot.section}")`);
     if (shot.click) await page.click(shot.click);
     if (shot.hover) await page.hover(shot.hover);
+    if (shot.tapVersion) {
+      for (let i = 0; i < shot.tapVersion; i++) await page.click(".about .version");
+      await page.click('nav button:has-text("General")');
+      await page.waitForTimeout(300);
+      console.log("beta switch visible:", await page.locator('.row:has-text("Beta versions")').count());
+    }
     if (shot.linkHover !== undefined) {
       // Hover an internal link on page 2 (page 1 is the contents page: no previews there).
       const page2 = page.locator('.layer:not([hidden]) .page[data-page-number="2"]');

@@ -56,6 +56,12 @@ export type InstallStatus = "none" | "downloading" | "ready" | "installing" | "f
 
 class Updates {
   readonly current = __APP_VERSION__;
+  /** This build is a beta (pre-release). */
+  readonly isBeta = (parseVersion(__APP_VERSION__)?.pre.length ?? 0) > 0;
+  /** The beta switch is shown: unlocked by the hidden gesture, or already in use. */
+  get betaVisible(): boolean {
+    return settings.value.app.betaUnlocked || settings.value.app.betaUpdates || this.isBeta;
+  }
   status = $state<UpdateStatus>("idle");
   available = $state<AvailableUpdate | null>(null);
   lastChecked = $state<Date | null>(null);
@@ -136,6 +142,32 @@ class Updates {
       this.install = "failed";
       this.installError = err instanceof Error ? err.message : String((err as { message?: string })?.message ?? err);
     }
+  }
+
+  /**
+   * Leaves the beta channel. On a beta build, looks for the stable version to go back to (even
+   * if its number is lower) and returns it, so the caller can ask "switch now?". Null: there's
+   * no stable version yet (or this copy can't install updates).
+   */
+  async leaveBeta(): Promise<{ version: string; installable: boolean } | null> {
+    settings.update((s) => (s.app.betaUpdates = false));
+    this.install = "none";
+    if (!this.isBeta) {
+      void this.check();
+      return null;
+    }
+    this.installable = await updateInstallable().catch(() => false);
+    if (!this.installable) {
+      // Portable: the release page has the stable download, if there is one.
+      await this.check();
+      return this.available ? { version: this.available.version, installable: false } : null;
+    }
+    const meta = await updateCheck(false, true).catch(() => null);
+    if (!meta) return null;
+    this.signed = true;
+    this.available = { version: meta.version, notes: meta.notes ?? "", url: RELEASES_PAGE, publishedAt: "" };
+    this.status = "available";
+    return { version: meta.version, installable: true };
   }
 
   /** Automatic mode: an update is downloaded and should be installed when LumiPDF closes. */

@@ -10,6 +10,9 @@
   import ShelfItem from "./ShelfItem.svelte";
   import Thumb from "./Thumb.svelte";
   import Icon from "../../ui/Icon.svelte";
+  import { settings } from "../../settings/store.svelte";
+  import type { FolderSort } from "../../settings/schema";
+  import { sortFiles, sortFolders } from "../sorting";
 
   interface Props {
     /** Top-level folders, shown when nothing is open yet. */
@@ -32,6 +35,19 @@
     const d = library.doc(file.path);
     return d && d.pages ? Math.round((d.page / d.pages) * 100) : undefined;
   }
+  const sort = $derived(settings.value.library.sort);
+  const opened = (path: string) => library.doc(path)?.lastOpened ?? 0;
+  /** Most recent opening of any file inside a subfolder (for "Recently opened"). */
+  function folderRecency(files: FileEntry[], dir: string): number {
+    let best = 0;
+    for (const f of files) if (f.dir === dir || f.dir.startsWith(dir + "/")) best = Math.max(best, opened(f.path));
+    return best;
+  }
+  const topFolders = $derived(sortFolders(folders, sort, (f) => rootName(f), (f) => folderRecency(f.files, "")));
+  const subfolders = $derived(
+    library.level && root ? sortFolders(library.level.subfolders, sort, (s) => s.name, (s) => folderRecency(root.files, s.dir)) : [],
+  );
+  const files = $derived(library.level ? sortFiles(library.level.files, sort, opened) : []);
   const asSubfolder = (f: FolderView): Subfolder => ({ name: rootName(f), dir: "", count: f.files.length, preview: f.files.slice(0, 3) });
 </script>
 
@@ -52,6 +68,7 @@
   </button>
 {/snippet}
 
+<div class="toolbar">
 <nav class="path" aria-label={t("folders.root")}>
   <button class="crumb" class:current={!loc} onclick={() => (library.location = null)}>{t("folders.root")}</button>
   {#if root && loc}
@@ -63,10 +80,20 @@
     {/each}
   {/if}
 </nav>
+<label class="sort">
+  <Icon name="list" size={13} />
+  <span class="visually-hidden">{t("folders.sort")}</span>
+  <select class="select" value={sort} aria-label={t("folders.sort")} onchange={(e) => settings.update((s) => (s.library.sort = e.currentTarget.value as FolderSort))}>
+    <option value="name">{t("folders.sort.name")}</option>
+    <option value="name-desc">{t("folders.sort.nameDesc")}</option>
+    <option value="recent">{t("folders.sort.recent")}</option>
+  </select>
+</label>
+</div>
 
 {#if !root}
   <div class="grid">
-    {#each folders as f (f.path)}
+    {#each topFolders as f (f.path)}
       {@render tile(asSubfolder(f), () => library.browse(f.path), f.path)}
     {/each}
   </div>
@@ -78,10 +105,10 @@
   {/if}
   {#if library.level.subfolders.length || library.level.files.length}
     <div class="grid">
-      {#each library.level.subfolders as sub (sub.dir)}
+      {#each subfolders as sub (sub.dir)}
         {@render tile(sub, () => library.browse(root.path, sub.dir), sub.dir)}
       {/each}
-      {#each library.level.files as file (file.path)}
+      {#each files as file (file.path)}
         <ShelfItem {file} meta={metaOf(file)} progress={progressOf(file)} onOpen={() => session.openFromLibrary(file.path)} />
       {/each}
     </div>
@@ -91,6 +118,23 @@
 {/if}
 
 <style>
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .sort {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .sort .select {
+    height: 28px;
+    font-size: 12.5px;
+  }
   .path {
     display: flex;
     align-items: center;

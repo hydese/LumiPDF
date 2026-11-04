@@ -56,7 +56,7 @@ fs.writeFileSync(
 );
 fs.writeFileSync(
   path.join(out, "release-notes.md"),
-  `${notes}\n\n**Download:** Windows installer (\`-setup.exe\`, updates itself) or portable (\`-portable.zip\`, no install).` +
+  `${notes}\n\n**Download:** the Windows installer (\`-setup.exe\`); LumiPDF then updates itself.` +
     (mac ? " macOS: `.app.zip` (Apple Silicon)." : "") +
     "\n",
 );

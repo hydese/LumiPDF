@@ -18,6 +18,7 @@
   import BackButton from "../ui/BackButton.svelte";
   import Icon, { type IconName } from "../ui/Icon.svelte";
   import AppMark from "../ui/AppMark.svelte";
+  import Dialog from "../ui/Dialog.svelte";
   import ReadingSettingsPanel from "../ui/ReadingSettingsPanel.svelte";
   import AppearancePicker from "../ui/AppearancePicker.svelte";
 
@@ -55,11 +56,36 @@
     ["settings.shortcuts.nextTab", "mod+tab"],
     ["settings.shortcuts.prevTab", "mod+shift+tab"],
     ["settings.shortcuts.close", "mod+w"],
+    ["settings.shortcuts.fullscreen", "f11"],
   ];
 
   function setTimer(key: keyof TimerSettings, value: number | boolean) {
     settings.update((x) => ((x.timer as unknown as Record<string, number | boolean>)[key] = value));
     timers.syncWithSettings();
+  }
+
+  // ---- Beta ----------------------------------------------------------------------------------
+  let taps = 0;
+  let tapTimer: ReturnType<typeof setTimeout> | undefined;
+  let betaNotice = $state<string | null>(null);
+  function tapVersion() {
+    clearTimeout(tapTimer);
+    tapTimer = setTimeout(() => (taps = 0), 1500);
+    if (++taps < 7) return;
+    taps = 0;
+    settings.update((x) => (x.app.betaUnlocked = true));
+    betaNotice = t("settings.update.betaUnlocked");
+  }
+  /** Leaving the beta on a beta build: offer the stable version. */
+  let leaving = $state<{ version: string; installable: boolean } | "none" | null>(null);
+  async function setBeta(on: boolean) {
+    if (on) {
+      settings.update((x) => (x.app.betaUpdates = true));
+      void updates.check();
+      return;
+    }
+    const stable = await updates.leaveBeta();
+    if (updates.isBeta) leaving = stable ?? "none";
   }
 
   const updateTitle = $derived.by(() => {
@@ -183,18 +209,12 @@
               <option value="ask">{t("settings.update.modeAsk")}</option>
             </select>
           </label>
-          <label class="row">
-            <span class="label"><span>{t("settings.update.beta")}</span><span class="hint">{t("settings.update.betaHint")}</span></span>
-            <input
-              type="checkbox"
-              class="switch"
-              checked={s.app.betaUpdates}
-              onchange={(e) => {
-                settings.update((x) => (x.app.betaUpdates = e.currentTarget.checked));
-                void updates.check();
-              }}
-            />
-          </label>
+          {#if updates.betaVisible}
+            <label class="row">
+              <span class="label"><span>{t("settings.update.beta")}</span><span class="hint">{t("settings.update.betaHint")}</span></span>
+              <input type="checkbox" class="switch" checked={s.app.betaUpdates} onchange={(e) => setBeta(e.currentTarget.checked)} />
+            </label>
+          {/if}
         </section>
 
         <section class="card list study-tools">
@@ -369,13 +389,15 @@
           {/each}
           <div class="row">
             <span>{t("settings.shortcuts.tools")}</span>
-            <kbd>V · H · P · M · E · N · S</kbd>
+            <kbd>G · V · H · P · M · E · N · S</kbd>
           </div>
         </section>
       {:else if section === "about"}
         <section class="card about">
           <AppMark size={56} />
-          <h3>{t("app.name")} {updates.current}</h3>
+          <!-- Clicking the version 7 times reveals the beta switch (for testers). -->
+          <h3><button class="version" onclick={tapVersion}>{t("app.name")} {updates.current}</button></h3>
+          {#if betaNotice}<p class="beta-notice" role="status">{betaNotice}</p>{/if}
           <p>{t("settings.about.text")}</p>
           <div class="about-actions">
             <button class="btn" onclick={() => whatsNew.showCurrent()}>{t("settings.about.showWhatsNew")}</button>
@@ -395,7 +417,68 @@
   </div>
 </div>
 
+{#if leaving}
+  <Dialog labelledBy="leave-beta-title" width={420} onClose={() => (leaving = null)}>
+    <h2 id="leave-beta-title" class="dialog-title">{t("settings.update.leaveTitle")}</h2>
+    {#if leaving === "none"}
+      <p class="dialog-text">{t("settings.update.leaveNone")}</p>
+      <div class="dialog-actions"><button class="btn primary" onclick={() => (leaving = null)}>{t("export.close")}</button></div>
+    {:else}
+      {@const target = leaving}
+      <p class="dialog-text">{t(target.installable ? "settings.update.leaveText" : "settings.update.leavePortable", { version: target.version })}</p>
+      <div class="dialog-actions">
+        <button class="btn" onclick={() => (leaving = null)}>{t("settings.update.leaveLater")}</button>
+        {#if target.installable}
+          <button
+            class="btn primary"
+            onclick={() => {
+              leaving = null;
+              void updates.installNow();
+            }}>{t("settings.update.leaveNow", { version: target.version })}</button
+          >
+        {:else}
+          <button
+            class="btn primary"
+            onclick={() => {
+              leaving = null;
+              void openExternal(RELEASES_PAGE);
+            }}>{t("settings.update.download")}</button
+          >
+        {/if}
+      </div>
+    {/if}
+  </Dialog>
+{/if}
+
 <style>
+  .dialog-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .dialog-text {
+    margin: -8px 0 0;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .version {
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: default;
+  }
+  .beta-notice {
+    margin: 0;
+    color: var(--accent);
+    font-weight: 500;
+  }
   .progress {
     width: 120px;
     height: 6px;

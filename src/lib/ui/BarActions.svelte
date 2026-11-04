@@ -38,6 +38,12 @@
   }
 </script>
 
+{#if updates.isBeta}
+  <button class="beta-badge" title={t("beta.badgeTitle", { version: updates.current })} onclick={() => navigation.openSettings("general")}>
+    <span class="beta-word">{t("beta.badge")}</span>
+    <span class="beta-version">{updates.current.split("-").slice(1).join("-")}</span>
+  </button>
+{/if}
 {@render before?.()}
 
 {#if updates.install === "ready"}
@@ -121,6 +127,33 @@
 {/if}
 
 <style>
+  .beta-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px 0 4px;
+    margin-right: 6px;
+    border: none;
+    border-radius: 14px;
+    background: #f5a524;
+    color: #2b1a00;
+    font-weight: 600;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .beta-word {
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: #2b1a00;
+    color: #ffd27a;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+  }
+  .beta-badge:hover {
+    filter: brightness(1.05);
+  }
   .update-pill {
     display: flex;
     align-items: center;

@@ -56,6 +56,20 @@ export function guardClose(shouldAsk: () => boolean, onAsk: () => void): () => v
 /** Closes for real, skipping the close guard. */
 export const quitApp = () => void current()?.destroy();
 
+/** Full screen on or off. Resolves to the new state. */
+export async function setFullscreen(on: boolean): Promise<boolean> {
+  const w = current();
+  if (!w) {
+    // Browser preview: the page's own fullscreen.
+    if (on) await document.documentElement.requestFullscreen?.().catch(() => {});
+    else if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
+    return on;
+  }
+  await w.setFullscreen(on).catch(() => {});
+  const state: unknown = await w.isFullscreen().catch(() => on);
+  return typeof state === "boolean" ? state : on;
+}
+
 /** Calls `handler` with the maximized state now and whenever it changes. */
 export function watchMaximized(handler: (maximized: boolean) => void): () => void {
   const win = current();

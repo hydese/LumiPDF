@@ -80,20 +80,25 @@ pub fn update_installable() -> bool {
 }
 
 /// Looks for a signed update on the chosen channel. Null when there is none (or this copy can't
-/// install updates).
+/// install updates). `switching`: leaving the beta channel, so any different stable version is
+/// offered, even an older one than this beta.
 #[tauri::command]
 pub async fn update_check<R: Runtime>(
     app: AppHandle<R>,
     pending: State<'_, PendingUpdate>,
     beta: bool,
+    switching: Option<bool>,
 ) -> Result<Option<UpdateMeta>, AppError> {
     if !installed() {
         return Ok(None);
     }
     let url = Url::parse(if beta { BETA } else { STABLE })
         .map_err(|e| AppError::InvalidInput(e.to_string()))?;
-    let update = app
-        .updater_builder()
+    let mut builder = app.updater_builder();
+    if switching.unwrap_or(false) {
+        builder = builder.version_comparator(|current, remote| remote.version != current);
+    }
+    let update = builder
         .endpoints(vec![url])
         .and_then(|b| b.build())
         .map_err(|e| AppError::InvalidInput(e.to_string()))?

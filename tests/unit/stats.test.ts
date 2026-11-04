@@ -51,3 +51,14 @@ describe("study stats", () => {
     expect(shortDuration(2 * 3600)).toBe("2h");
   });
 });
+
+import { sortFiles } from "../../src/lib/library/sorting";
+describe("folder sorting", () => {
+  const files = [{ name: "Lezione 10.pdf", path: "a" }, { name: "lezione 2.pdf", path: "b" }, { name: "Esame.pdf", path: "c" }];
+  const opened: Record<string, number> = { a: 5, c: 9 };
+  it("sorts by name (numbers in order, ignoring case) and by recency", () => {
+    expect(sortFiles(files, "name", () => 0).map((f) => f.path)).toEqual(["c", "b", "a"]);
+    expect(sortFiles(files, "name-desc", () => 0).map((f) => f.path)).toEqual(["a", "b", "c"]);
+    expect(sortFiles(files, "recent", (p) => opened[p] ?? 0).map((f) => f.path)).toEqual(["c", "a", "b"]);
+  });
+});
