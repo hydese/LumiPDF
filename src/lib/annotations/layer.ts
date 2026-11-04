@@ -99,6 +99,7 @@ export class AnnotationLayer {
   destroy(): void {
     cancelAnimationFrame(this.#frame);
     this.#snipBox?.remove();
+    this.#snipDim?.remove();
     for (const off of this.#cleanups) off();
     for (const p of this.#pages.values()) {
       p.marks.remove();
@@ -106,6 +107,7 @@ export class AnnotationLayer {
     }
     this.#pages.clear();
     this.#snipBox?.remove();
+    this.#snipDim?.remove();
   }
 
   /** Redraws every page that has layers (after annotations or the theme change). */
@@ -421,6 +423,7 @@ export class AnnotationLayer {
 
   #snip: { page: number; x0: number; y0: number; x1: number; y1: number; done: boolean } | null = null;
   #snipBox: HTMLDivElement | null = null;
+  #snipDim: HTMLDivElement | null = null;
 
   /** The snip rectangle in page pixels, normalised. */
   #snipRect(): { left: number; top: number; width: number; height: number } | null {
@@ -438,6 +441,7 @@ export class AnnotationLayer {
     const view = this.#snip ? this.controller.pageView(this.#snip.page) : null;
     if (!rect || !view?.div.isConnected) {
       this.#snipBox?.remove();
+    this.#snipDim?.remove();
       return;
     }
     if (!this.#snipBox) {
@@ -448,13 +452,17 @@ export class AnnotationLayer {
         zIndex: "40",
         pointerEvents: "none",
         boxSizing: "border-box",
-        border: "2px solid var(--accent)",
-        borderRadius: "4px",
-        background: "color-mix(in srgb, var(--accent) 14%, transparent)",
-        outline: "1px solid rgba(255, 255, 255, 0.55)",
-        outlineOffset: "1px",
+        border: "1.5px dashed var(--accent)",
+        borderRadius: "3px",
+        background: "rgba(61, 107, 240, 0.08)",
       });
       this.#snipBox = box;
+      // Dims the reading area around the selection: one layer with a hole cut out (a huge
+      // box-shadow does the same but doesn't always get painted).
+      const dim = document.createElement("div");
+      dim.className = "lumi-snip-dim";
+      Object.assign(dim.style, { position: "fixed", zIndex: "39", pointerEvents: "none", background: "rgba(0, 0, 0, 0.18)" });
+      this.#snipDim = dim;
     }
     const page = view.div.getBoundingClientRect();
     Object.assign(this.#snipBox.style, {
@@ -463,6 +471,17 @@ export class AnnotationLayer {
       width: `${rect.width}px`,
       height: `${rect.height}px`,
     });
+    const area = this.controller.container.getBoundingClientRect();
+    const x = page.left + rect.left - area.left;
+    const y = page.top + rect.top - area.top;
+    Object.assign(this.#snipDim!.style, {
+      left: `${area.left}px`,
+      top: `${area.top}px`,
+      width: `${area.width}px`,
+      height: `${area.height}px`,
+      clipPath: `path(evenodd, "M0 0H${area.width}V${area.height}H0Z M${x} ${y}h${rect.width}v${rect.height}h${-rect.width}Z")`,
+    });
+    if (!this.#snipDim!.isConnected) document.body.append(this.#snipDim!);
     if (!this.#snipBox.isConnected) document.body.append(this.#snipBox);
   }
 
@@ -475,6 +494,7 @@ export class AnnotationLayer {
   clearSnip(): void {
     this.#snip = null;
     this.#snipBox?.remove();
+    this.#snipDim?.remove();
   }
 
   /** Renders the snipped area at `scale` × its on-screen size. */
