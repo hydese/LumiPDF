@@ -37,6 +37,8 @@ export interface DocState {
   pages: number;
   bookmarks: number[];
   studySeconds: number;
+  /** Study seconds per local day on this document (recent days only). */
+  studyDays: Record<string, number>;
 }
 
 export interface DocView extends DocState {

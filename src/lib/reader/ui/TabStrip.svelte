@@ -20,13 +20,13 @@
     <div
       class="tab"
       class:active={tab.id === session.activeId}
-      class:asleep={!tab.pdf}
+      class:asleep={!tab.pdf && tab.kind === "pdf"}
       class:dragging={dragging === tab.id}
       data-tab={tab.id}
       role="tab"
       tabindex="0"
       aria-selected={tab.id === session.activeId}
-      title={tab.pdf ? tab.path : t("tabs.asleep", { title: tab.title })}
+      title={tab.kind === "sheet" ? t("sheets.tabTitle", { title: tab.title }) : tab.pdf ? tab.path : t("tabs.asleep", { title: tab.title })}
       draggable="true"
       onclick={() => session.activate(tab.id)}
       onkeydown={(e) => (e.key === "Enter" || e.key === " ") && session.activate(tab.id)}
@@ -44,6 +44,7 @@
       }}
       ondragend={() => (dragging = null)}
     >
+      {#if tab.kind === "sheet"}<span class="kind"><Icon name="sheet" size={12} stroke={2} /></span>{/if}
       <span class="title">{tab.title}</span>
       <button
         class="close"
@@ -114,6 +115,11 @@
   .tab.active + .tab::before,
   .tab:hover + .tab::before {
     display: none;
+  }
+  .kind {
+    display: flex;
+    color: var(--warm-text, #c46a1a);
+    flex-shrink: 0;
   }
   .title {
     flex: 1;

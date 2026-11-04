@@ -30,6 +30,15 @@
 .btn.primary:hover:not(:disabled) {
   background: var(--accent-hover);
 }
+.btn.danger {
+  border-color: transparent;
+  background: var(--danger);
+  color: #fff;
+  font-weight: 600;
+}
+.btn.danger:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
 .btn.small {
   height: 28px;
   padding: 0 10px;

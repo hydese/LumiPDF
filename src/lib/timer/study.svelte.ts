@@ -99,7 +99,16 @@ class StudyClock {
     this.unsavedToday = 0;
     if (!saved) return;
     // Keep the shown total right without rescanning the library.
-    if (library.view) library.view.studyDays[day] = (library.view.studyDays[day] ?? 0) + saved;
+    if (library.view) {
+      library.view.studyDays[day] = (library.view.studyDays[day] ?? 0) + saved;
+      for (const [path, seconds] of docs) {
+        const doc = library.view.documents.find((d) => d.path === path);
+        if (!doc) continue;
+        doc.studySeconds += seconds;
+        doc.studyDays ??= {};
+        doc.studyDays[day] = (doc.studyDays[day] ?? 0) + seconds;
+      }
+    }
     for (const [path, seconds] of docs) await libraryUpdate(path, { studySeconds: seconds, day }).catch(() => {});
     if (dayOnly) await libraryAddStudyTime(day, dayOnly).catch(() => {});
   }

@@ -197,6 +197,13 @@
         <section class="card">
           <ReadingSettingsPanel embedded />
         </section>
+        <section class="card list">
+          <h3 class="group">{t("settings.group.reader")}</h3>
+          <label class="row">
+            <span class="label"><span>{t("settings.linkPreviews")}</span><span class="hint">{t("settings.linkPreviews.hint")}</span></span>
+            <input type="checkbox" class="switch" checked={s.reader.linkPreviews} onchange={(e) => settings.update((x) => (x.reader.linkPreviews = e.currentTarget.checked))} />
+          </label>
+        </section>
       {:else if section === "library"}
         <section class="card list">
           <h3 class="group">{t("settings.library.folders")}</h3>

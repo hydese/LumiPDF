@@ -1,7 +1,7 @@
 /**
- * Which screen is showing. Three screens, no URLs: the Library (home), the Reader and Settings.
+ * Which screen is showing. No URLs: the Library (home), the Reader, Study stats and Settings.
  */
-export type Screen = "library" | "reader" | "settings";
+export type Screen = "library" | "reader" | "stats" | "settings";
 export type SettingsSection = "general" | "appearance" | "reading" | "library" | "shortcuts" | "about";
 
 class Navigation {

@@ -21,6 +21,7 @@
   import PagePill from "../reader/ui/PagePill.svelte";
   import { annotations } from "../annotations/store.svelte";
   import { AnnotationLayer } from "../annotations/layer";
+  import { LinkPreview } from "../reader/linkPreview";
   import type { TextMark } from "../annotations/model";
   import ToolGroup from "../annotations/ui/ToolGroup.svelte";
   import ToolOptions from "../annotations/ui/ToolOptions.svelte";
@@ -32,6 +33,11 @@
   import FindBar from "../reader/ui/FindBar.svelte";
   import TabStrip from "../reader/ui/TabStrip.svelte";
   import { navigation } from "../app/navigation.svelte";
+  import SheetEditor from "../sheets/ui/SheetEditor.svelte";
+  import { sheets } from "../sheets/sheets.svelte";
+  import { documentUrl } from "../ipc/documents";
+  import { documentOptions, pdfjs } from "../viewer/pdfjs";
+  import type { PDFDocumentProxy } from "pdfjs-dist";
 
   interface Props {
     findOpen?: boolean;
@@ -80,6 +86,8 @@
 
   // ---- Annotations --------------------------------------------------------------------------
   let layer = $state.raw<AnnotationLayer | null>(null);
+  /** The formula sheet in the active tab (the PDF view stays mounted behind it). */
+  const sheetId = $derived(session.activeSheet);
   let menu = $state<{ at: DOMRect; mark: TextMark | null } | null>(null);
   let editing = $state<{ id: string; anchor: HTMLElement } | null>(null);
   let snipAt = $state<DOMRect | null>(null);
@@ -94,6 +102,43 @@
     if (!blob) throw new Error("the image could not be made");
     return blob;
   }
+  /**
+   * The same PDF opened a second time, without the dark engine, so snips for formula sheets are
+   * drawn on white paper with their original colours. Kept for the tab in use.
+   */
+  let plain: { path: string; doc: Promise<PDFDocumentProxy>; destroy: () => Promise<void> } | null = null;
+  function plainPage(page: number) {
+    const tab = session.active;
+    if (!tab) return Promise.reject(new Error("no document"));
+    if (plain?.path !== tab.path) {
+      void plain?.destroy().catch(() => {});
+      const task = pdfjs.getDocument({ ...documentOptions(documentUrl({ path: tab.path, name: tab.name, size: 0 })), password: tab.password ?? undefined });
+      plain = { path: tab.path, doc: task.promise, destroy: () => task.destroy() };
+      plain.doc.catch(() => (plain = null));
+    }
+    return plain.doc.then((d) => d.getPage(page));
+  }
+
+  $effect(() => () => void plain?.destroy().catch(() => {}));
+
+  async function addSnipToSheet(target?: string) {
+    const tab = session.active;
+    const area = layer?.snipArea();
+    if (!tab || !area || !snipAt) throw new Error("nothing to capture");
+    const scale = Math.max(1, Math.min(3 * (window.devicePixelRatio || 1), 8000 / Math.max(snipAt.width, snipAt.height)));
+    const canvas = await layer!.renderSnip(scale, plainPage);
+    if (!canvas) throw new Error("nothing to capture");
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) throw new Error("the image could not be made");
+    const sheetId = target === "new" ? (await sheets.create()).id : target;
+    const sheet = await sheets.addSnip(
+      blob,
+      { px: [canvas.width, canvas.height], natural: [area.width, area.height], source: { path: tab.path, name: tab.name, page: area.page } },
+      sheetId,
+    );
+    return { id: sheet.id, title: sheet.title };
+  }
+
   async function copySnip() {
     const blob = await snipBlob();
     await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
@@ -129,6 +174,7 @@
       onSnipClear: () => (snipAt = null),
     });
     layer = l;
+    const previews = new LinkPreview(controller, l, () => settings.value.reader.linkPreviews && annotations.tool === "select");
     // Selecting text in select mode shows the mark menu above the selection.
     const onUp = () =>
       setTimeout(() => {
@@ -146,6 +192,7 @@
     return () => {
       controller.container.removeEventListener("scroll", onScroll);
       controller.container.removeEventListener("pointerup", onUp);
+      previews.destroy();
       l.destroy();
       layer = null;
     };
@@ -192,6 +239,7 @@
   <TitleBar layout="tabs">
     {#snippet left()}
       <BackButton label={t("reader.toLibrary")} onclick={() => navigation.go("library")} />
+      {#if !sheetId}
       <IconButton
         icon="sidebar"
         size="s"
@@ -200,6 +248,7 @@
         pressed={sidebarOpen}
         onclick={() => settings.update((s) => (s.reader.sidebarOpen = !s.reader.sidebarOpen))}
       />
+      {/if}
     {/snippet}
     {#snippet center()}
       <TabStrip />
@@ -207,6 +256,7 @@
     {#snippet right()}
       <BarActions bind:this={barActions} compactUpdate>
         {#snippet before()}
+          {#if !sheetId}
           <ToolGroup />
           <IconButton
             icon="export"
@@ -229,12 +279,16 @@
             pressed={findOpen}
             onclick={() => (findOpen = !findOpen)}
           />
+          {/if}
         {/snippet}
       </BarActions>
     {/snippet}
   </TitleBar>
 
-  <div class="body">
+  {#if sheetId}
+    <div class="sheet-layer"><SheetEditor id={sheetId} /></div>
+  {/if}
+  <div class="body" class:behind={!!sheetId}>
     {#if sidebarOpen}
       <Sidebar {outline} current={currentSection} />
     {/if}
@@ -258,7 +312,14 @@
         <ExportDialog onClose={() => (exportOpen = false)} />
       {/if}
       {#if snipAt}
-        <SnipMenu at={snipAt} onCopy={copySnip} onSave={saveSnip} onClose={closeSnip} />
+        <SnipMenu
+          at={snipAt}
+          onCopy={copySnip}
+          onSave={saveSnip}
+          onAddToSheet={addSnipToSheet}
+          onOpenSheet={(id, title) => void session.openSheet(id, title)}
+          onClose={closeSnip}
+        />
       {/if}
       {#if editing}
         <NoteEditor id={editing.id} anchor={editing.anchor} onClose={() => (editing = null)} />
@@ -273,16 +334,60 @@
 
 <style>
   .screen {
+    position: relative;
     height: 100%;
     display: flex;
     flex-direction: column;
     background: var(--canvas-bg);
     color: var(--text);
   }
+  .sheet-layer {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+  }
+  .body.behind {
+    position: absolute;
+    visibility: hidden;
+    pointer-events: none;
+    inset: 0;
+  }
   .screen.reading-dark {
     --bar: #1a1a1d;
     --sidebar-bg: #161619;
   }
+  /* Link previews (reader/linkPreview.ts). */
+  :global(.lumi-link-preview) {
+    position: fixed;
+    z-index: 70;
+    padding: 6px;
+    border-radius: 12px;
+    background: var(--surface-raised);
+    box-shadow: var(--pop-shadow);
+    border: 1px solid var(--hairline);
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(2px);
+    transition:
+      opacity 0.14s ease,
+      transform 0.14s ease;
+  }
+  :global(.lumi-link-preview.ready) {
+    opacity: 1;
+    transform: none;
+  }
+  :global(.lumi-link-body) {
+    border-radius: 7px;
+    overflow: hidden;
+    background: #fff;
+  }
+  :global(.lumi-link-preview.dark .lumi-link-body) {
+    background: var(--page-dark, #000);
+  }
+  :global(.lumi-link-body canvas) {
+    display: block;
+  }
+
   /* Annotation layers (created by annotations/layer.ts inside each pdf.js page). */
   .pages :global(.lumi-marks) {
     position: absolute;

@@ -128,7 +128,7 @@ def main() -> None:
         # LaTeX page with Latin Modern fonts, maths, grey and coloured text, and a
         # luminosity soft mask (TikZ fading): dark mode must keep the fade, because the mask's
         # lightness controls transparency and must never be recoloured.
-        for name in ("soft-mask", "latex-page"):
+        for name in ("soft-mask", "latex-page", "latex-links"):
             tex = pathlib.Path(__file__).resolve().parent / "fixtures" / f"{name}.tex"
             subprocess.run(["pdflatex", "-interaction=batchmode", "-output-directory", tmp, str(tex)], check=True)
             shutil.copy(pathlib.Path(tmp) / f"{name}.pdf", OUT / f"{name}.pdf")

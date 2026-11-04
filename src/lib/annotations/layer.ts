@@ -11,6 +11,7 @@
  * annotations follow zoom, rotation and crop boxes. Colours go through the dark engine.
  */
 import { getStroke } from "perfect-freehand";
+import type { PDFPageProxy } from "pdfjs-dist";
 import { isDarkActive, mapColor, onDarkModeChange } from "../dark/engine";
 import type { PageViewLike, ViewerController } from "../viewer/ViewerController";
 import { hits, mergeLineRects, newId, thinPoints, type Annotation, type Ink, type Marker, type MarkKind, type TextMark } from "./model";
@@ -57,6 +58,8 @@ export class AnnotationLayer {
   #down: { x: number; y: number; time: number } | null = null;
   #cleanups: Array<() => void> = [];
   #tool: Tool = "select";
+  /** While true, annotations are painted in their original colours (white-paper renders). */
+  #plain = false;
 
   constructor(
     private readonly controller: ViewerController,
@@ -302,13 +305,13 @@ export class AnnotationLayer {
       if (pass === "marks") {
         if (a.type === "marker") this.#stroke(ctx, view, a, false);
         else if (a.type === "highlight") {
-          ctx.fillStyle = mapColor(a.color);
+          ctx.fillStyle = this.#color(a.color);
           for (const r of a.rects) this.#fillRect(ctx, view, r, 0);
         }
       } else if (a.type === "ink") {
         this.#stroke(ctx, view, a, false);
       } else if (a.type === "underline" || a.type === "strike") {
-        ctx.fillStyle = mapColor(deepen(a.color));
+        ctx.fillStyle = this.#color(deepen(a.color));
         for (const r of a.rects) this.#line(ctx, view, r, a.type);
       }
     }
@@ -318,11 +321,17 @@ export class AnnotationLayer {
    * Draws a page area as a picture, the way it looks now (theme, annotations), at `scale` times
    * the on-screen size. `rect` is in page pixels of the current zoom.
    */
-  async renderRegion(page: number, rect: { left: number; top: number; width: number; height: number }, scale: number): Promise<HTMLCanvasElement | null> {
+  async renderRegion(
+    page: number,
+    rect: { left: number; top: number; width: number; height: number },
+    scale: number,
+    /** Draw on white paper with the original colours, from this page of an unhooked document. */
+    light?: PDFPageProxy,
+  ): Promise<HTMLCanvasElement | null> {
     const doc = this.controller.document;
     const view = this.controller.pageView(page);
     if (!doc || !view) return null;
-    const pdfPage = await doc.getPage(page);
+    const pdfPage = light ?? (await doc.getPage(page));
     const vp = view.viewport as unknown as { scale: number; rotation: number };
     const viewport = pdfPage.getViewport({ scale: vp.scale * scale, rotation: vp.rotation });
     const canvas = document.createElement("canvas");
@@ -334,10 +343,15 @@ export class AnnotationLayer {
     const fake: PageViewLike = { id: page, div: view.div, viewport: viewport as unknown as PageViewLike["viewport"] };
     const list = annotations.onPage(page);
     ctx.setTransform(1, 0, 0, 1, -rect.left * scale, -rect.top * scale);
-    ctx.globalCompositeOperation = isDarkActive() ? "screen" : "multiply";
-    this.#paint(ctx, fake, list, "marks");
-    ctx.globalCompositeOperation = "source-over";
-    this.#paint(ctx, fake, list, "ink");
+    this.#plain = Boolean(light);
+    try {
+      ctx.globalCompositeOperation = isDarkActive() && !light ? "screen" : "multiply";
+      this.#paint(ctx, fake, list, "marks");
+      ctx.globalCompositeOperation = "source-over";
+      this.#paint(ctx, fake, list, "ink");
+    } finally {
+      this.#plain = false;
+    }
     return canvas;
   }
 
@@ -362,8 +376,12 @@ export class AnnotationLayer {
       path.quadraticCurveTo(x0!, y0!, (x0! + x1!) / 2, (y0! + y1!) / 2);
     }
     path.closePath();
-    ctx.fillStyle = mapColor(a.color);
+    ctx.fillStyle = this.#color(a.color);
     ctx.fill(path);
+  }
+
+  #color(css: string): string {
+    return this.#plain ? css : mapColor(css);
   }
 
   #fillRect(ctx: CanvasRenderingContext2D, view: PageViewLike, [x1, y1, x2, y2]: [number, number, number, number], pad: number): void {
@@ -519,10 +537,21 @@ export class AnnotationLayer {
     this.#snipDim?.remove();
   }
 
-  /** Renders the snipped area at `scale` × its on-screen size. */
-  async renderSnip(scale: number): Promise<HTMLCanvasElement | null> {
+  /** Renders the snipped area at `scale` × its on-screen size (`light`: on white paper). */
+  async renderSnip(scale: number, light?: (page: number) => Promise<PDFPageProxy>): Promise<HTMLCanvasElement | null> {
     const rect = this.#snipRect();
-    return this.#snip && rect ? this.renderRegion(this.#snip.page, rect, scale) : null;
+    const snip = this.#snip;
+    if (!snip || !rect) return null;
+    return this.renderRegion(snip.page, rect, scale, light ? await light(snip.page) : undefined);
+  }
+
+  /** The snipped area: its page and its size in PDF points. */
+  snipArea(): { page: number; width: number; height: number } | null {
+    const rect = this.#snipRect();
+    const view = this.#snip ? this.controller.pageView(this.#snip.page) : null;
+    if (!rect || !view) return null;
+    const scale = (view.viewport as unknown as { scale: number }).scale;
+    return { page: this.#snip!.page, width: rect.width / scale, height: rect.height / scale };
   }
 
   // -------------------------------------------------------------------------------------------

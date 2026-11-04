@@ -68,7 +68,7 @@ export interface NotebookCard {
 }
 
 export interface LibrarySettings {
-  /** Show the GoodNotes notebooks card (otherwise the Formula sheets card takes its place). */
+  /** Show the GoodNotes notebooks card (next to the Formula sheets card). */
   goodnotes: boolean;
   notebooks: NotebookCard;
 }
@@ -79,6 +79,22 @@ export interface ReaderLayout {
   /** Paths of the open tabs, to reopen them next time. */
   openTabs: string[];
   activeTab: string;
+  /** Show a preview when hovering a link inside the document. */
+  linkPreviews: boolean;
+}
+
+export interface StudySettings {
+  /** Daily study goal in minutes (0 = no goal). */
+  goal: number;
+}
+
+export type SheetPaper = "a4" | "letter";
+
+export interface SheetSettings {
+  /** The formula sheet snips go to by default (its id, "" = none yet). */
+  last: string;
+  /** Paper for new sheets. */
+  paper: SheetPaper;
 }
 
 /** The annotation tools remember their last colour and size. */
@@ -100,7 +116,21 @@ export interface Settings {
   reader: ReaderLayout;
   library: LibrarySettings;
   annotate: AnnotateSettings;
+  study: StudySettings;
+  sheets: SheetSettings;
 }
+
+/** US Letter where it's the norm (US, Canada, Mexico, Philippines…), A4 elsewhere. */
+export function systemPaper(): SheetPaper {
+  try {
+    const region = new Intl.Locale(navigator.language).maximize().region ?? "";
+    return ["US", "CA", "MX", "PH", "CL", "CO", "VE", "GT", "PR"].includes(region) ? "letter" : "a4";
+  } catch {
+    return "a4";
+  }
+}
+
+export const STUDY_GOAL_LIMITS = { min: 0, max: 16 * 60 } as const;
 
 /** The system clock format: 24-hour unless the locale uses AM/PM. */
 export function systemUses24h(): boolean {
@@ -118,7 +148,9 @@ export const DEFAULT_SETTINGS: Settings = {
   version: 1,
   app: { appearance: "system", startScreen: "library", locale: "en", checkForUpdates: true, lastSeenVersion: "" },
   timer: { mode: "timer", countdown: 25, alarm: "07:30", clock24: systemUses24h(), askOnClose: true, focus: 50, shortBreak: 10, longBreak: 20, sessionsBeforeLong: 4, sound: true },
-  reader: { sidebarOpen: true, sidebarTab: "outline", openTabs: [], activeTab: "" },
+  reader: { sidebarOpen: true, sidebarTab: "outline", openTabs: [], activeTab: "", linkPreviews: true },
+  study: { goal: 120 },
+  sheets: { last: "", paper: systemPaper() },
   annotate: { inkColor: "#2f5bd8", inkWidth: 1.8, markerColor: "#ffe14d", markerWidth: 13, markColor: "#ffe14d", markKind: "highlight", noteColor: "#ffd84d" },
   library: { goodnotes: false, notebooks: { title: "", sort: "recent", count: 5, view: "list", hidden: [] } },
   reading: {
@@ -193,6 +225,12 @@ export function parseSettings(raw: unknown): Settings {
       sidebarTab: oneOf(reader.sidebarTab, ["outline", "bookmarks", "notes"], DEFAULT_SETTINGS.reader.sidebarTab),
       openTabs: Array.isArray(reader.openTabs) ? reader.openTabs.filter((p): p is string => typeof p === "string").slice(0, 30) : [],
       activeTab: typeof reader.activeTab === "string" ? reader.activeTab : "",
+      linkPreviews: bool(reader.linkPreviews, DEFAULT_SETTINGS.reader.linkPreviews),
+    },
+    study: { goal: int(obj(root.study).goal, STUDY_GOAL_LIMITS.min, STUDY_GOAL_LIMITS.max, DEFAULT_SETTINGS.study.goal) },
+    sheets: {
+      last: typeof obj(root.sheets).last === "string" && /^[a-z0-9-]{0,40}$/.test(obj(root.sheets).last as string) ? (obj(root.sheets).last as string) : "",
+      paper: oneOf(obj(root.sheets).paper, ["a4", "letter"], DEFAULT_SETTINGS.sheets.paper),
     },
     annotate: {
       inkColor: hex(an.inkColor, dan.inkColor),

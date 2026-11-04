@@ -42,7 +42,7 @@ const shotsAll = [
   { name: "reader-moon-menu", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], rightClick: '[aria-label="Dark mode"]' },
   { name: "settings-light", settings: { app: { appearance: "light", ...seen } }, keys: "Control+Comma", update: true },
   { name: "settings-library", settings: { app: { appearance: "light", ...seen }, library: gn }, keys: "Control+Comma", section: "Library and cloud" },
-  { name: "settings-timer-dark", settings: { app: { appearance: "dark", ...seen } }, keys: "Control+Comma", section: "Study timer" },
+  { name: "settings-reading-dark", settings: { app: { appearance: "dark", ...seen } }, keys: "Control+Comma", section: "Reading" },
   { name: "welcome-1", settings: { app: { appearance: "light" } }, welcome: 0 },
   { name: "welcome-3-dark", settings: { app: { appearance: "dark" } }, welcome: 2 },
   { name: "welcome-4", settings: { app: { appearance: "light" } }, welcome: 3 },
@@ -57,6 +57,15 @@ const shotsAll = [
   { name: "export-protected", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: true, exportFlow: "unlock", protection: { protected: true, openPassword: false, restrictions: { print: true, copy: true, edit: true, annotate: false }, removableWithOpenPassword: false } },
   { name: "annotate-steps", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: true, steps: ["v", "e", "Control+Equal", "Control+Equal", "Control+Minus"] },
   { name: "annotate-tabs", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Automatica — Lezione 12", "Analisi 2 — Trasformate"], annotate: true, steps: ["Control+1", "Control+2", "e", "Control+Equal", "draw"] },
+  { name: "stats-light", settings: { app: { appearance: "light", ...seen } }, click: '.sources .btn:has-text("Stats")' },
+  { name: "stats-dark", settings: { app: { appearance: "dark", ...seen } }, click: '.sources .btn:has-text("Stats")', hover: ".bars .hit >> nth=-2" },
+  { name: "library-today", settings: { app: { appearance: "light", ...seen } } },
+  { name: "link-preview", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Controlli — Appunti"], linkHover: 0 },
+  { name: "link-preview-dark", settings: { app: { appearance: "light", ...seen } }, open: ["Controlli — Appunti"], linkHover: 3 },
+  { name: "link-preview-toc", settings: { app: { appearance: "light", ...seen } }, open: ["Controlli — Appunti"], linkHover: "toc" },
+  { name: "sheet", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], sheetFlow: true },
+  { name: "sheet-light", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], sheetFlow: true },
+  { name: "library-sheets", settings: { app: { appearance: "light", ...seen }, sheets: { last: "" } }, seedSheets: true },
   { name: "whatsnew-light", settings: { app: { appearance: "light", lastSeenVersion: "1.0.5" } } },
 ];
 const shots = only ? shotsAll.filter((s) => only.includes(s.name)) : shotsAll;
@@ -74,7 +83,7 @@ for (const shot of shots) {
         : [],
     }),
   );
-  await page.addInitScript(`window.__PREVIEW__ = ${JSON.stringify({ settings: shot.settings, empty: shot.empty, protection: shot.protection })};\n${mock}`);
+  await page.addInitScript(`window.__PREVIEW__ = ${JSON.stringify({ settings: shot.settings, empty: shot.empty, protection: shot.protection, seedSheets: shot.seedSheets })};\n${mock}`);
   await page.goto(`${base}/index.html`);
   await page.waitForSelector(".screen", { timeout: 15000 });
   try {
@@ -179,6 +188,70 @@ for (const shot of shots) {
       await page.waitForTimeout(400);
     }
   }
+  if (shot.sheetFlow) {
+    await page.keyboard.press("Escape");
+    const text = page.locator(".layer:not([hidden]) .textLayer span").filter({ hasText: "Consider" }).first();
+    const b = await text.boundingBox();
+    const dragBox = async (x1, y1, x2, y2) => {
+      await page.keyboard.press("s");
+      await page.mouse.move(x1, y1);
+      await page.mouse.down();
+      for (let i = 1; i <= 8; i++) await page.mouse.move(x1 + ((x2 - x1) * i) / 8, y1 + ((y2 - y1) * i) / 8);
+      await page.mouse.up();
+      await page.waitForTimeout(300);
+    };
+    const regions = [
+      [b.x + 190, b.y + 40, b.x + 560, b.y + 92],
+      [b.x + 250, b.y + 180, b.x + 490, b.y + 236],
+      [b.x - 4, b.y + 292, b.x + 600, b.y + 316],
+    ];
+    for (const [i, r] of regions.entries()) {
+      await dragBox(...r);
+      await page.screenshot({ path: path.join(out, `${shot.name}-menu${i}.png`) });
+      await page.locator(".menu .split .primary").first().click();
+      await page.locator(".menu .status").waitFor({ timeout: 8000 }).catch(() => {});
+      console.log("status:", await page.locator(".menu .status").innerText().catch(() => "-"));
+      if (i < regions.length - 1) await page.keyboard.press("Escape");
+    }
+    await page.click('.menu button:has-text("Open sheet")');
+    await page.waitForTimeout(1200);
+    await page.screenshot({ path: path.join(out, `${shot.name}-1.png`) });
+    // A title before the second snip.
+    await page.locator(".sheet-page .item.snip").first().click();
+    await page.click('.bar .btn:has-text("Title")');
+    await page.keyboard.press("Control+a");
+    await page.keyboard.type("Laplace transform");
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(300);
+    // Drag the last snip to the top.
+    const items = page.locator(".sheet-page .item.snip");
+    const last = await items.last().boundingBox();
+    const first = await page.locator(".sheet-page .item").first().boundingBox();
+    await page.mouse.move(last.x + 30, last.y + 10);
+    await page.mouse.down();
+    for (let i = 1; i <= 12; i++) await page.mouse.move(last.x + 30, last.y + 10 + ((first.y - 4 - last.y - 10) * i) / 12);
+    await page.screenshot({ path: path.join(out, `${shot.name}-drag.png`) });
+    await page.mouse.up();
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: path.join(out, `${shot.name}-2.png`) });
+    console.log("order:", await page.locator(".sheet-page .item").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")?.slice(0, 30))));
+    // Free placement: drag the title to the right.
+    await page.click('.seg button:has-text("Free")');
+    await page.waitForTimeout(300);
+    const t = await page.locator(".sheet-page .item.title").first().boundingBox();
+    await page.mouse.move(t.x + 20, t.y + 8);
+    await page.mouse.down();
+    for (let i = 1; i <= 10; i++) await page.mouse.move(t.x + 20 + i * 18, t.y + 8 + i * 30);
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: path.join(out, `${shot.name}-3.png`) });
+    await page.click('.export .btn');
+    await page.click('.menu button:has-text("PDF")');
+    await page.waitForTimeout(600);
+    const req = await page.evaluate(() => window.__SHEET_EXPORT__);
+    fs.writeFileSync(path.join(out, `${shot.name}-export.json`), JSON.stringify(req, null, 1));
+    console.log("export items:", req?.items?.length, "pages:", req?.pages);
+  }
   if (shot.exportFlow) {
     await page.keyboard.press("Escape");
     await page.keyboard.press("Control+e");
@@ -215,6 +288,23 @@ for (const shot of shots) {
     }
     if (shot.section) await page.click(`nav button:has-text("${shot.section}")`);
     if (shot.click) await page.click(shot.click);
+    if (shot.hover) await page.hover(shot.hover);
+    if (shot.linkHover !== undefined) {
+      // Hover an internal link on page 2 (page 1 is the contents page: no previews there).
+      const page2 = page.locator('.layer:not([hidden]) .page[data-page-number="2"]');
+      await page2.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(1200);
+      const toc = page.locator('.layer:not([hidden]) .page[data-page-number="1"] [data-internal-link] a').first();
+      const links = page2.locator("[data-internal-link] a");
+      console.log("links on page 2:", await links.count(), "on page 1:", await page.locator('.layer:not([hidden]) .page[data-page-number="1"] [data-internal-link] a').count());
+      if (shot.linkHover === "toc") {
+        await page.evaluate(() => document.querySelector(".pdfViewer").parentElement.scrollTo(0, 0));
+        await page.waitForTimeout(600);
+        await toc.hover();
+      } else await links.nth(shot.linkHover).hover();
+      await page.waitForTimeout(1200);
+      console.log("preview shown:", await page.locator(".lumi-link-preview.ready").count());
+    }
     if (shot.rightClick) await page.click(shot.rightClick, { button: "right" });
     if (shot.after) {
       await page.click(shot.after);

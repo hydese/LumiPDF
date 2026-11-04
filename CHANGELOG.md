@@ -13,8 +13,20 @@ LumiPDF 2.0 is a full rewrite of LuminaPDF 1.x under a new name.
 - Library home screen: Continue reading with first-page previews and progress; folders keep
   their structure (browse subfolders, path bar); cloud drives (iCloud Drive, OneDrive, Google
   Drive, Dropbox) found automatically or picked by hand; GoodNotes notebooks card when turned on
-  (title, sorting, count, list or previews, hide notebooks), otherwise Formula sheets; title
-  search that ignores accents (Ctrl+K).
+  (title, sorting, count, list or previews, hide notebooks); title search that ignores accents
+  (Ctrl+K).
+- Formula sheets: "Add to sheet" in the snip menu saves the area on white paper (even in dark
+  mode) at high resolution, at its printed size. Sheets open as tabs: Auto layout (1–3 columns,
+  drag to reorder, resize, titles that never end a column alone) or Free placement (drag
+  anywhere, add pages); A4 or Letter; undo/redo; double-click a snip to open its source page.
+  Export as a print-ready PDF (pictures at up to 300 dpi) or a page as PNG. Stored in the app's
+  own folder, so sheets survive moving or deleting the PDFs.
+- Link previews: hovering an internal link (equation, figure, footnote, section) shows the target
+  spot cropped to the text column, in the reading theme; click to go there. Off on contents and
+  index pages; can be turned off in Settings → Reading.
+- Study stats: a Today card in the Library (time against the daily goal, streak, the week) and a
+  Stats screen with totals, current and best streak, a 7/30-day chart and the most studied
+  documents and folders. Study time is now also kept per document per day.
 - Tabs in the top bar. Background tabs sleep (PDF closed, place and a snapshot kept) and come
   back instantly on the same spot; Ctrl+Tab, Ctrl+1..9, Ctrl+W, middle-click, drag to reorder;
   optionally reopen last session's tabs.

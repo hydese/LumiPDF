@@ -25,6 +25,8 @@ const FILE_NAME: &str = "library.json";
 const MAX_BYTES: usize = 4 * 1024 * 1024;
 /// Documents remembered for "Continue reading", newest first.
 const MAX_DOCUMENTS: usize = 500;
+/// Days of per-document study time kept (the stats screen shows up to a year).
+const MAX_DOC_DAYS: usize = 400;
 /// A folder scan stops after this many PDFs and reports that it was cut short.
 const MAX_FILES_PER_FOLDER: usize = 3000;
 const MAX_DEPTH: usize = 8;
@@ -61,6 +63,9 @@ pub struct DocState {
     pub pages: u32,
     pub bookmarks: Vec<u32>,
     pub study_seconds: u64,
+    /// Study seconds on this document per local day ("YYYY-MM-DD"), for the stats screen.
+    /// Only recent days are kept.
+    pub study_days: BTreeMap<String, u64>,
 }
 
 impl Default for DocState {
@@ -73,6 +78,7 @@ impl Default for DocState {
             pages: 0,
             bookmarks: Vec::new(),
             study_seconds: 0,
+            study_days: BTreeMap::new(),
         }
     }
 }
@@ -331,7 +337,11 @@ impl LibraryData {
             let seconds = seconds.min(3600);
             doc.study_seconds += seconds;
             if let Some(day) = update.day.filter(|d| is_day(d)) {
-                *self.study_days.entry(day).or_default() += seconds;
+                *self.study_days.entry(day.clone()).or_default() += seconds;
+                *doc.study_days.entry(day).or_default() += seconds;
+                while doc.study_days.len() > MAX_DOC_DAYS {
+                    doc.study_days.pop_first();
+                }
             }
         }
         self.documents
@@ -655,6 +665,7 @@ mod tests {
         assert_eq!(a.bookmarks, vec![2, 5]);
         assert_eq!(a.study_seconds, 90);
         assert_eq!(data.study_days["2026-11-04"], 90);
+        assert_eq!(a.study_days["2026-11-04"], 90);
         assert_eq!(a.name, "a.pdf");
     }
 

@@ -17,7 +17,7 @@ tauri-build = { version = "2.7", features = [] }
 
 [dependencies]
 lopdf = "0.47.0"
-image = { version = "0.25.10", default-features = false, features = ["jpeg"] }
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
 rayon = "1.11"
 flate2 = "1"
 tauri = { version = "2.12", features = ["protocol-asset"] }

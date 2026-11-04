@@ -24,6 +24,8 @@ const MAX_TABS = 30;
 
 export interface Tab {
   id: number;
+  /** A PDF, or a formula sheet ("sheet:<id>" as its path). */
+  kind: "pdf" | "sheet";
   path: string;
   name: string;
   title: string;
@@ -52,6 +54,23 @@ export interface PasswordRequest {
 }
 
 let nextId = 1;
+const SHEET_PREFIX = "sheet:";
+
+function sheetTab(id: string, title: string): Tab {
+  return {
+    id: nextId++,
+    kind: "sheet",
+    path: `${SHEET_PREFIX}${id}`,
+    name: title,
+    title,
+    pdf: null,
+    place: { page: 1, zoom: "page-width", offset: 0 },
+    snapshot: null,
+    password: null,
+    bookmarks: [],
+    lastUsed: Date.now(),
+  };
+}
 
 class DocumentSession {
   /** Raw: tabs hold pdf.js objects, which must not be wrapped in reactive proxies. */
@@ -90,6 +109,7 @@ class DocumentSession {
       const known = library.doc(ref.path);
       const tab: Tab = {
         id: nextId++,
+        kind: "pdf",
         path: ref.path,
         name: ref.name,
         title: titleOf(ref.name),
@@ -130,14 +150,45 @@ class DocumentSession {
     for (const ref of await openPdfDialog()) await this.open(ref);
   }
 
+  /** Opens a formula sheet in a tab (or switches to it). */
+  async openSheet(id: string, title: string): Promise<void> {
+    const path = `${SHEET_PREFIX}${id}`;
+    const existing = this.tabs.find((t) => t.path === path);
+    if (existing) return this.activate(existing.id);
+    const tab = sheetTab(id, title);
+    await this.#leaveActive();
+    const index = this.active ? this.tabs.indexOf(this.active) + 1 : this.tabs.length;
+    this.tabs = [...this.tabs.slice(0, index), tab, ...this.tabs.slice(index)];
+    this.#show(tab);
+    this.#sleepExtras();
+  }
+
+  /** Keeps a sheet tab's title in step with the sheet. */
+  renameSheet(id: string, title: string): void {
+    const tab = this.tabs.find((t) => t.path === `${SHEET_PREFIX}${id}`);
+    if (tab && tab.title !== title) this.#patch(tab.id, { title, name: title });
+  }
+
+  /** The sheet shown in the active tab, if it is one. */
+  get activeSheet(): string | null {
+    const tab = this.active;
+    return tab?.kind === "sheet" ? tab.path.slice(SHEET_PREFIX.length) : null;
+  }
+
   /** Reopens the tabs from last time, asleep; only the active one loads. */
-  async restore(paths: string[], activePath: string): Promise<void> {
+  async restore(paths: string[], activePath: string, sheetTitles: Record<string, string> = {}): Promise<void> {
     const tabs: Tab[] = [];
     for (const path of paths.slice(0, MAX_TABS)) {
+      if (path.startsWith(SHEET_PREFIX)) {
+        const id = path.slice(SHEET_PREFIX.length);
+        if (id in sheetTitles) tabs.push(sheetTab(id, sheetTitles[id]!));
+        continue;
+      }
       const known = library.doc(path);
       if (!known?.file) continue;
       tabs.push({
         id: nextId++,
+        kind: "pdf",
         path,
         name: known.name,
         title: titleOf(known.name),
@@ -162,10 +213,10 @@ class DocumentSession {
     const tab = this.tabs.find((t) => t.id === id);
     if (!tab) return;
     navigation.go("reader");
-    if (tab.id === this.activeId && tab.pdf) return;
+    if (tab.id === this.activeId && (tab.pdf || tab.kind === "sheet")) return;
     await this.#leaveActive();
     this.#show(tab);
-    if (!tab.pdf) await this.#wake(tab);
+    if (!tab.pdf && tab.kind === "pdf") await this.#wake(tab);
     this.#sleepExtras();
   }
 
@@ -224,7 +275,7 @@ class DocumentSession {
   /** Called by the viewer whenever the page, zoom or find results change. */
   onViewerState(state: ViewerState): void {
     this.view = state;
-    if (!this.active || state.page === this.#savedPage) return;
+    if (!this.active || this.active.kind === "sheet" || state.page === this.#savedPage) return;
     if (this.#pageTimer) clearTimeout(this.#pageTimer);
     this.#pageTimer = setTimeout(() => void this.#flushPage(), SAVE_PAGE_DELAY_MS);
   }
@@ -317,7 +368,7 @@ class DocumentSession {
     this.#pageTimer = null;
     const tab = this.active;
     const page = this.view?.page;
-    if (!tab || !page || page === this.#savedPage) return;
+    if (!tab || tab.kind === "sheet" || !page || page === this.#savedPage) return;
     this.#savedPage = page;
     this.#patch(tab.id, { place: { ...tab.place, page } });
     await libraryUpdate(tab.path, { page }).catch(() => {});

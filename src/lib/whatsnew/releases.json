@@ -32,8 +32,18 @@
         },
         {
           "tag": "new",
-          "title": "Study timer",
-          "text": "Focus and break lengths you choose, with your study time and streak."
+          "title": "Formula sheets",
+          "text": "Snip a formula or figure and add it to a sheet for the exam. Snips line up in columns on their own, or place them freely; add titles, choose A4 or Letter, and export a PDF ready to print. Click a snip to jump back to its page."
+        },
+        {
+          "tag": "new",
+          "title": "Link previews",
+          "text": "Hover a link to an equation, figure or footnote to see it right there, in your reading theme, without losing your place."
+        },
+        {
+          "tag": "new",
+          "title": "Study timer and stats",
+          "text": "Timer, Pomodoro, alarm and stopwatch. See today against your daily goal, your streak, the last 7 or 30 days, and what you studied most."
         },
         {
           "tag": "fixed",

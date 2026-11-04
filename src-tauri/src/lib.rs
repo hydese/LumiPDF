@@ -13,6 +13,7 @@ mod export;
 mod library;
 mod pdf_export;
 mod settings;
+mod sheets;
 mod store;
 
 pub use error::AppError;
@@ -65,6 +66,13 @@ pub fn run() {
             export::save_png,
             export::export_pdf,
             export::pdf_protection,
+            sheets::sheets_list,
+            sheets::sheet_load,
+            sheets::sheet_save,
+            sheets::sheet_delete,
+            sheets::sheet_add_image,
+            sheets::sheet_image,
+            sheets::sheet_export_pdf,
         ])
         .build(tauri::generate_context!())
         .expect("LumiPDF failed to start")

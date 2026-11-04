@@ -1,0 +1,50 @@
+% Internal links for link previews: a contents page full of links (no previews there),
+% then references to equations, a figure and footnotes across pages.
+\documentclass[11pt,a4paper]{article}
+\usepackage{amsmath}
+\usepackage[hidelinks]{hyperref}
+\usepackage{lipsum}
+\begin{document}
+\tableofcontents
+\newpage
+\section{Laplace transform}
+The Laplace transform of $f$ is defined in \eqref{eq:laplace}; its linearity follows from
+\eqref{eq:linear}, and the final value theorem \eqref{eq:final} closes the section.\footnote{See also the table of transforms in Figure~\ref{fig:table}.}
+Stability is discussed in Section~\ref{sec:stab}.
+\lipsum[1-2]
+\newpage
+\section{Definitions}
+\begin{equation}\label{eq:laplace}
+  F(s) = \int_0^\infty f(t)\,e^{-st}\,dt
+\end{equation}
+\lipsum[3]
+\begin{equation}\label{eq:linear}
+  \mathcal{L}\{a f + b g\} = a F(s) + b G(s)
+\end{equation}
+\lipsum[4]
+\begin{equation}\label{eq:final}
+  \lim_{t\to\infty} f(t) = \lim_{s\to 0} s F(s)
+\end{equation}
+\newpage
+\section{Stability}\label{sec:stab}
+\lipsum[5]
+\begin{figure}[h]
+  \centering
+  \fbox{\parbox{0.6\textwidth}{\centering Table of common transforms\\[4pt] $1 \leftrightarrow 1/s$ \quad $e^{at} \leftrightarrow 1/(s-a)$}}
+  \caption{Common Laplace transforms}\label{fig:table}
+\end{figure}
+\lipsum[6]
+
+\section{Poles} \lipsum[7]
+\section{Zeros} \lipsum[8]
+\section{Bode plots} \lipsum[9]
+\section{Nyquist} \lipsum[10]
+\section{Root locus} \lipsum[11]
+\section{PID control} \lipsum[12]
+\section{State space} \lipsum[13]
+\section{Observers} \lipsum[14]
+\section{Discrete time} \lipsum[15]
+\section{Z transform} \lipsum[16]
+\section{Sampling} \lipsum[17]
+\section{Exercises} \lipsum[18]
+\end{document}

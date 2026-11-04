@@ -20,11 +20,13 @@
   import RingingDialog from "./lib/timer/ui/RingingDialog.svelte";
   import Dialog from "./lib/ui/Dialog.svelte";
   import { studyClock } from "./lib/timer/study.svelte";
+  import { sheets } from "./lib/sheets/sheets.svelte";
   import { updates } from "./lib/updates/updates.svelte";
   import { whatsNew } from "./lib/whatsnew/whatsnewState.svelte";
   import LibraryScreen from "./lib/screens/LibraryScreen.svelte";
   import ReaderScreen from "./lib/screens/ReaderScreen.svelte";
   import SettingsScreen from "./lib/screens/SettingsScreen.svelte";
+  import StatsScreen from "./lib/screens/StatsScreen.svelte";
   import PasswordDialog from "./lib/ui/PasswordDialog.svelte";
   import WhatsNewDialog from "./lib/whatsnew/WhatsNewDialog.svelte";
   import Welcome from "./lib/welcome/Welcome.svelte";
@@ -47,13 +49,17 @@
 
   /** Saves annotations and study time, then closes for real. */
   async function quitSaved() {
-    await Promise.allSettled([annotations.flush(), studyClock.flush()]);
+    await Promise.allSettled([annotations.flush(), studyClock.flush(), sheets.flush()]);
     quitApp();
   }
 
   function onKeydown(event: KeyboardEvent) {
     if (event.key === "Escape" && navigation.screen === "settings" && !event.defaultPrevented) {
       navigation.closeSettings();
+      return;
+    }
+    if (event.key === "Escape" && navigation.screen === "stats" && !event.defaultPrevented) {
+      navigation.go("library");
       return;
     }
     const typing = (event.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable='true']");
@@ -111,6 +117,7 @@
       case ",":
         return run(() => navigation.openSettings());
     }
+    if (key === "w" && navigation.screen === "reader" && session.active) return run(() => void session.close());
     if (!inReader) return;
     switch (key) {
       case "f":
@@ -160,12 +167,13 @@
       ready = true;
       whatsNew.onLaunch();
       if (settings.value.app.checkForUpdates) stops.push(updates.checkSoon());
-      await library.refresh();
+      await Promise.all([library.refresh(), sheets.refresh()]);
       const [pending] = await takePendingDocuments().catch(() => []);
       if (pending) {
         await session.open(pending);
       } else if (settings.value.app.startScreen === "last-document") {
-        await session.restore(settings.value.reader.openTabs, settings.value.reader.activeTab);
+        const titles = Object.fromEntries(sheets.list.map((x) => [x.id, x.title]));
+        await session.restore(settings.value.reader.openTabs, settings.value.reader.activeTab, titles);
       }
     })();
 
@@ -200,6 +208,8 @@
       {/if}
       {#if navigation.screen === "library"}
         <div class="layer"><LibraryScreen bind:searchInput bind:barActions /></div>
+      {:else if navigation.screen === "stats"}
+        <div class="layer"><StatsScreen bind:barActions /></div>
       {:else if navigation.screen === "settings"}
         <div class="layer"><SettingsScreen /></div>
       {/if}

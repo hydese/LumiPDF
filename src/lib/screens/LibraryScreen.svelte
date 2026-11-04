@@ -20,6 +20,8 @@
   import { CLOUD_TONE } from "../library/ui/cards";
   import { settings } from "../settings/store.svelte";
   import { navigation } from "../app/navigation.svelte";
+  import TodayCard from "../stats/ui/TodayCard.svelte";
+  import SheetsCard from "../sheets/ui/SheetsCard.svelte";
 
   interface Props {
     searchInput?: HTMLInputElement | null;
@@ -156,6 +158,7 @@
 
       {#if view}
         <div class="sources">
+          <TodayCard />
           {#each library.clouds as cloud (cloud.path)}
             <SourceCard icon="cloud" tone={CLOUD_TONE[cloud.kind as CloudKind]} title={t(`cloud.${cloud.kind}` as MessageKey)} subtitle={tn("cloud.count", cloud.files.length)}>
               {#snippet action()}
@@ -189,12 +192,9 @@
             </SourceCard>
           {/each}
 
+          <SheetsCard />
           {#if settings.value.library.goodnotes}
             <NotebooksCard folder={library.goodnotes} />
-          {:else}
-            <SourceCard icon="note" tone="warm" title={t("sheets.title")} subtitle={t("sheets.soon")}>
-              <p class="card-note">{t("sheets.text")}</p>
-            </SourceCard>
           {/if}
         </div>
       {/if}

@@ -18,7 +18,7 @@
     [`${D}Automatica\\Diagrammi di Bode.pdf`]: "cropbox.pdf",
     [`${D}Fisica 1\\Fisica 1 — Dinamica del punto.pdf`]: "object-streams.pdf",
     [`${D}Fisica 1\\Esame 2025-06.pdf`]: "inherited-mediabox.pdf",
-    ["C:\\Users\\Studente\\iCloudDrive\\Controlli — Appunti.pdf"]: "html-in-outline.pdf",
+    ["C:\\Users\\Studente\\iCloudDrive\\Controlli — Appunti.pdf"]: "latex-links.pdf",
     ["C:\\Users\\Studente\\iCloudDrive\\Tesi bozza.pdf"]: "broken-xref.pdf",
     ["C:\\Users\\Studente\\OneDrive\\GoodNotes\\Lezione 14 — Root locus.pdf"]: "raster-figures.pdf",
     ["C:\\Users\\Studente\\OneDrive\\GoodNotes\\Appunti Fisica.pdf"]: "plain-a4.pdf",
@@ -68,9 +68,14 @@
           pages,
           bookmarks: i === 0 ? [1] : [],
           studySeconds,
+          studyDays: studySeconds ? Object.fromEntries(Array.from({ length: 20 }, (_, k) => [day(k * (i + 1)), Math.round(studySeconds / (k + 2))])) : {},
           file: entry(path, i),
         })),
-    studyDays: empty ? {} : { [day(0)]: 7500, [day(1)]: 5400, [day(2)]: 3600, [day(3)]: 6000, [day(4)]: 2400, [day(5)]: 4200 },
+    studyDays: empty
+      ? {}
+      : Object.fromEntries(
+          [5100, 5400, 3600, 6000, 2400, 4200, 0, 7800, 3000, 2700, 9000, 6600, 1800, 0, 0, 4800, 5100, 3900, 6300, 7200, 2100, 3300, 5400, 0, 3600, 4500, 6000, 2400, 3000, 5700].map((s, i) => [day(i), s]),
+        ),
     cloudSuggestions: [
       { kind: "onedrive", path: "C:\\Users\\Studente\\OneDrive" },
       { kind: "gdrive", path: "G:\\Il mio Drive" },
@@ -78,6 +83,14 @@
   };
 
   const settings = scenario.settings || {};
+  const sheetStore = window.__SHEETS__ ?? (window.__SHEETS__ = {});
+  const sheetImages = window.__SHEET_IMAGES__ ?? (window.__SHEET_IMAGES__ = {});
+  if (scenario.seedSheets && !Object.keys(sheetStore).length) {
+    const now = Date.now();
+    for (const [id, title, n, ago] of [["s1", "Analisi 2 — esame", 14, 2], ["s2", "Automatica: stabilità", 6, 26], ["s3", "Fisica 1", 3, 300]]) {
+      sheetStore[id] = { version: 1, id, title, created: now, modified: now - ago * 3600000, paper: "a4", layout: "flow", columns: 2, pages: 1, items: Array.from({ length: n }, (_, i) => ({ id: `${id}-${i}`, type: "title", text: "x" })) };
+    }
+  }
   const handlers = {
     load_settings: () => settings,
     save_settings: () => null,
@@ -102,6 +115,29 @@
     },
     pdf_protection: () =>
       window.__PREVIEW__?.protection ?? { protected: false, openPassword: false, restrictions: { print: false, copy: false, edit: false, annotate: false }, removableWithOpenPassword: false },
+    sheets_list: () =>
+      Object.values(sheetStore)
+        .map((s) => ({ id: s.id, title: s.title, modified: s.modified, items: s.items.length }))
+        .sort((a, b) => b.modified - a.modified),
+    sheet_load: ({ id }) => sheetStore[id] ?? null,
+    sheet_save: ({ id, sheet }) => {
+      sheetStore[id] = JSON.parse(JSON.stringify(sheet));
+      return null;
+    },
+    sheet_delete: ({ id }) => {
+      delete sheetStore[id];
+      return null;
+    },
+    sheet_add_image: (bytes) => {
+      const name = Array.from({ length: 32 }, () => "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("") + ".png";
+      sheetImages[name] = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      return name;
+    },
+    sheet_image: ({ name }) => sheetImages[name]?.buffer ?? new ArrayBuffer(0),
+    sheet_export_pdf: ({ request }) => {
+      window.__SHEET_EXPORT__ = request;
+      return { path: "C:\\Users\\Studente\\Documents\\Formulario.pdf", name: "Formulario.pdf", size: 1000 };
+    },
     annotations_load: () => window.__SAVED_ANNOTATIONS__ ?? null,
     annotations_save: ({ data }) => {
       window.__SAVED_ANNOTATIONS__ = data;
