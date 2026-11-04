@@ -123,7 +123,7 @@
     </div>
   {:else if mode === "alarm"}
     <Ring progress={null} label={opts.alarm}>
-      <div class="clock-set" class:twelve={!opts.clock24}>
+      <div class="clock-set">
         {#if opts.clock24}
           <Stepper value={alarmH} min={0} max={23} step={1} wrap pad={2} label={t("timer.hours")} upLabel={t("timer.hourUp")} downLabel={t("timer.hourDown")} onChange={(h) => setAlarm(h, alarmM)} />
         {:else}
@@ -141,12 +141,12 @@
         {/if}
         <span class="big colon">:</span>
         <Stepper value={alarmM} min={0} max={59} step={1} wrap pad={2} label={t("timer.minutesShort")} upLabel={t("timer.minuteUp")} downLabel={t("timer.minuteDown")} onChange={(m) => setAlarm(alarmH, m)} />
-        {#if !opts.clock24}
-          <button class="ampm" title={t("timer.ampm")} aria-label={t("timer.ampm")} onclick={() => setAlarm((alarmH + 12) % 24, alarmM)}>
-            {alarmH < 12 ? t("timer.am") : t("timer.pm")}
-          </button>
-        {/if}
       </div>
+      {#if !opts.clock24}
+        <button class="ampm" title={t("timer.ampm")} aria-label={t("timer.ampm")} onclick={() => setAlarm((alarmH + 12) % 24, alarmM)}>
+          {alarmH < 12 ? t("timer.am") : t("timer.pm")}
+        </button>
+      {/if}
     </Ring>
     <div class="format" role="radiogroup" aria-label={t("timer.format")}>
       <button role="radio" aria-checked={opts.clock24} onclick={() => set("clock24", true)}>{t("timer.format24")}</button>
@@ -269,25 +269,21 @@
     display: flex;
     align-items: center;
   }
-  .clock-set.twelve :global(input.big) {
-    font-size: 32px;
-  }
-  .clock-set.twelve .colon {
-    font-size: 32px;
-  }
+  /* AM/PM: a quiet word under the time; click to switch. */
   .ampm {
-    margin-left: 4px;
-    height: 26px;
-    padding: 0 7px;
+    margin-top: 2px;
+    padding: 1px 8px;
     border: none;
-    border-radius: 7px;
-    background: var(--field);
-    color: var(--text);
+    border-radius: 6px;
+    background: none;
+    color: var(--text-muted);
     font-size: 12px;
     font-weight: 600;
+    letter-spacing: 0.06em;
   }
   .ampm:hover {
-    background: var(--pressed);
+    background: var(--hover);
+    color: var(--text);
   }
   .format {
     display: flex;
