@@ -7,7 +7,7 @@ import type { TimerMode } from "../settings/schema";
 import { alarm } from "./alarm.svelte";
 import { chrono } from "./chrono.svelte";
 import { countdown } from "./countdown.svelte";
-import { formatClock, formatStopwatch } from "./format";
+import { formatAlarm, formatClock, formatStopwatch } from "./format";
 import { pomodoro } from "./pomodoro.svelte";
 
 export interface PillInfo {
@@ -33,7 +33,7 @@ class Timers {
         colour: pomodoro.phase === "focus" ? "var(--timer)" : "var(--ok)",
       };
     if (chrono.active) return { mode: "chrono", text: formatStopwatch(chrono.elapsedMs).replace(/\.\d$/, ""), progress: null, running: chrono.running, colour: "var(--text)" };
-    if (alarm.armed) return { mode: "alarm", text: settings.value.timer.alarm, progress: null, running: true, colour: "var(--text)" };
+    if (alarm.armed) return { mode: "alarm", text: formatAlarm(settings.value.timer.alarm, settings.value.timer.clock24), progress: null, running: true, colour: "var(--text)" };
     return null;
   });
 

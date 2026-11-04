@@ -6,7 +6,6 @@
   import { platform } from "../platform/window";
   import { settings } from "../settings/store.svelte";
   import type { StartScreen, TimerSettings } from "../settings/schema";
-  import { TIMER_LIMITS } from "../settings/schema";
   import { navigation, type SettingsSection } from "../app/navigation.svelte";
   import { updates, RELEASES_PAGE } from "../updates/updates.svelte";
   import { library } from "../library/library.svelte";
@@ -19,7 +18,6 @@
   import AppMark from "../ui/AppMark.svelte";
   import ReadingSettingsPanel from "../ui/ReadingSettingsPanel.svelte";
   import AppearancePicker from "../ui/AppearancePicker.svelte";
-  import DurationField from "../timer/ui/DurationField.svelte";
 
   const GITHUB = "https://github.com/hydese/LumiPDF";
   const AUTHOR = "https://github.com/hydese";
@@ -29,7 +27,6 @@
     { id: "appearance", icon: "sun", color: "#7a5af5" },
     { id: "reading", icon: "moon", color: "#1d1d1f" },
     { id: "library", icon: "cloud", color: "#2f9be8" },
-    { id: "timer", icon: "timer", color: "#f08a4b" },
     { id: "shortcuts", icon: "keyboard", color: "#8e8e93" },
     { id: "about", icon: "info", color: "#8e8e93" },
   ];
@@ -175,6 +172,19 @@
             </select>
           </label>
         </section>
+
+        <section class="card list">
+          <h3 class="group">{t("settings.group.timer")}</h3>
+          <label class="row">
+            <span class="label"><span>{t("timer.sound")}</span></span>
+            <input type="checkbox" class="switch" checked={s.timer.sound} onchange={(e) => setTimer("sound", e.currentTarget.checked)} />
+          </label>
+          <label class="row">
+            <span class="label"><span>{t("settings.timer.askOnClose")}</span><span class="hint">{t("settings.timer.askOnCloseHint")}</span></span>
+            <input type="checkbox" class="switch" checked={s.timer.askOnClose} onchange={(e) => setTimer("askOnClose", e.currentTarget.checked)} />
+          </label>
+          <p class="hint pad top">{t("timer.studyNote")}</p>
+</section>
       {:else if section === "appearance"}
         <section class="card">
           <div class="label"><span>{t("settings.appearance.app")}</span><span class="hint">{t("settings.appearance.hint")}</span></div>
@@ -280,39 +290,6 @@
             {/if}
           {/if}
         </section>
-      {:else if section === "timer"}
-        <section class="card">
-          <div class="label"><span>{t("settings.timer.countdown")}</span></div>
-          <div class="durations">
-            <DurationField label={t("timer.mode.timer")} value={s.timer.countdown} onChange={(m) => setTimer("countdown", m)} />
-          </div>
-          <div class="label"><span>{t("settings.timer.pomodoro")}</span></div>
-          <div class="durations">
-            <DurationField label={t("timer.focus")} value={s.timer.focus} onChange={(m) => setTimer("focus", m)} />
-            <DurationField label={t("timer.shortBreak")} value={s.timer.shortBreak} onChange={(m) => setTimer("shortBreak", m)} />
-            <DurationField label={t("timer.longBreak")} value={s.timer.longBreak} onChange={(m) => setTimer("longBreak", m)} />
-          </div>
-          <p class="hint">{t("timer.setHint")}</p>
-        </section>
-        <section class="card list">
-          <label class="row">
-            <span class="label"><span>{t("timer.sessions")}</span></span>
-            <select class="select" value={s.timer.sessionsBeforeLong} onchange={(e) => setTimer("sessionsBeforeLong", Number(e.currentTarget.value))}>
-              {#each Array.from({ length: TIMER_LIMITS.maxSessions }, (_, i) => i + 1) as n (n)}
-                <option value={n}>{n}</option>
-              {/each}
-            </select>
-          </label>
-          <label class="row">
-            <span class="label"><span>{t("timer.sound")}</span></span>
-            <input type="checkbox" class="switch" checked={s.timer.sound} onchange={(e) => setTimer("sound", e.currentTarget.checked)} />
-          </label>
-          <label class="row">
-            <span class="label"><span>{t("settings.timer.askOnClose")}</span><span class="hint">{t("settings.timer.askOnCloseHint")}</span></span>
-            <input type="checkbox" class="switch" checked={s.timer.askOnClose} onchange={(e) => setTimer("askOnClose", e.currentTarget.checked)} />
-          </label>
-        </section>
-        <p class="hint">{t("timer.studyNote")}</p>
       {:else if section === "shortcuts"}
         <section class="card list">
           {#each SHORTCUTS as [label, keys] (label)}
@@ -482,6 +459,9 @@
   .select.text {
     width: 220px;
   }
+  .hint.pad.top {
+    padding-top: 2px;
+  }
   .hint.pad {
     padding: 0 18px 10px;
   }
@@ -528,11 +508,6 @@
     display: flex;
     flex-direction: column;
     gap: 3px;
-  }
-  .durations {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 160px));
-    gap: 12px;
   }
   kbd {
     font-family: inherit;

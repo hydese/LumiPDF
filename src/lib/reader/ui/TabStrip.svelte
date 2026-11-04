@@ -1,8 +1,7 @@
 <script lang="ts">
   /** Document tabs in the top bar. Middle-click closes; drag to reorder. */
   import { t } from "../../i18n";
-  import { formatShortcut } from "../../platform/shortcuts";
-  import { platform } from "../../platform/window";
+  import { navigation } from "../../app/navigation.svelte";
   import { session } from "../session.svelte";
   import Icon from "../../ui/Icon.svelte";
 
@@ -59,7 +58,7 @@
       </button>
     </div>
   {/each}
-  <button class="new" aria-label={t("tabs.new", { shortcut: formatShortcut("mod+o", platform) })} title={t("tabs.new", { shortcut: formatShortcut("mod+o", platform) })} onclick={() => session.openWithDialog()}>
+  <button class="new" aria-label={t("tabs.new")} title={t("tabs.new")} onclick={() => navigation.go("library")}>
     <Icon name="plus" size={14} stroke={2.2} />
   </button>
 </div>

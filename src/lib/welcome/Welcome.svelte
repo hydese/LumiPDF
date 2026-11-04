@@ -9,11 +9,9 @@
   import { library } from "../library/library.svelte";
   import { CLOUD_KINDS } from "../ipc/library";
   import type { WelcomeStep } from "../whatsnew/whatsnew";
-  import { timers } from "../timer/timers.svelte";
   import TitleBar from "../ui/TitleBar.svelte";
   import AppMark from "../ui/AppMark.svelte";
   import AppearancePicker from "../ui/AppearancePicker.svelte";
-  import DurationField from "../timer/ui/DurationField.svelte";
   import Icon from "../ui/Icon.svelte";
 
   interface Props {
@@ -29,10 +27,6 @@
   function next() {
     if (last) onDone();
     else index++;
-  }
-  function setMinutes(key: "countdown" | "focus" | "shortBreak" | "longBreak", m: number) {
-    settings.update((x) => (x.timer[key] = m));
-    timers.syncWithSettings();
   }
 </script>
 
@@ -80,8 +74,12 @@
                 </button>
               {/each}
             </div>
+            <div class="callout">
+              <span class="moon"><Icon name="moon" size={18} stroke={2} /></span>
+              <span><strong>{t("welcome.reading.calloutTitle")}</strong> {t("welcome.reading.calloutText")}</span>
+            </div>
             <label class="row">
-              <span class="label"><span>{t("welcome.reading.dark")}</span><span class="hint">{t("welcome.reading.darkHint")}</span></span>
+              <span class="label"><span>{t("welcome.reading.dark")}</span></span>
               <input type="checkbox" class="switch" checked={s.reading.darkEnabled} onchange={(e) => settings.update((x) => (x.reading.darkEnabled = e.currentTarget.checked))} />
             </label>
           {:else if step === "library"}
@@ -114,15 +112,6 @@
                 <span class="label"><span>{t("welcome.library.goodnotes")}</span><span class="hint">{t("welcome.library.goodnotesHint")}</span></span>
                 <input type="checkbox" class="switch" checked={s.library.goodnotes} onchange={(e) => settings.update((x) => (x.library.goodnotes = e.currentTarget.checked))} />
               </label>
-            </div>
-          {:else if step === "timer"}
-            <h1 id="welcome-title">{t("welcome.timer.title")}</h1>
-            <p>{t("welcome.timer.text")}</p>
-            <div class="durations">
-              <DurationField label={t("timer.mode.timer")} value={s.timer.countdown} onChange={(m) => setMinutes("countdown", m)} />
-              <DurationField label={t("timer.focus")} value={s.timer.focus} onChange={(m) => setMinutes("focus", m)} />
-              <DurationField label={t("timer.shortBreak")} value={s.timer.shortBreak} onChange={(m) => setMinutes("shortBreak", m)} />
-              <DurationField label={t("timer.longBreak")} value={s.timer.longBreak} onChange={(m) => setMinutes("longBreak", m)} />
             </div>
           {/if}
         </div>
@@ -316,12 +305,30 @@
   .row > :global(svg) {
     color: var(--ok);
   }
-  .durations {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
+  .callout {
     width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--radius-l);
+    background: var(--accent-soft);
+    color: var(--text);
     text-align: left;
+    line-height: 1.45;
+  }
+  .callout strong {
+    color: var(--accent-text);
+  }
+  .moon {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: 17px;
+    background: var(--accent);
+    color: var(--on-accent);
+    display: grid;
+    place-items: center;
   }
   footer {
     display: flex;

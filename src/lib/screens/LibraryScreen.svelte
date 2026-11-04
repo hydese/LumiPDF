@@ -117,7 +117,10 @@
           <h1>{t("library.title")}</h1>
           {#if !isEmpty && view}<p>{summary}</p>{/if}
         </div>
-        <button class="btn" onclick={() => library.addFolder("folder")}><Icon name="plus" size={14} stroke={2} />{t("library.addFolder")}</button>
+        <div class="heading-actions">
+          <button class="btn" title={t("nav.openTitle", { shortcut: openShortcut })} onclick={() => session.openWithDialog()}><Icon name="open" size={14} />{t("library.openFile")}</button>
+          <button class="btn" onclick={() => library.addFolder("folder")}><Icon name="plus" size={14} stroke={2} />{t("library.addFolder")}</button>
+        </div>
       </div>
 
       {#if library.error}
@@ -340,6 +343,10 @@
   .heading p {
     margin: 4px 0 0;
     color: var(--text-muted);
+  }
+  .heading-actions {
+    display: flex;
+    gap: 8px;
   }
   .block {
     display: flex;

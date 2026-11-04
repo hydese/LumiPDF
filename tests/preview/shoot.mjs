@@ -46,7 +46,7 @@ const shotsAll = [
   { name: "welcome-1", settings: { app: { appearance: "light" } }, welcome: 0 },
   { name: "welcome-3-dark", settings: { app: { appearance: "dark" } }, welcome: 2 },
   { name: "welcome-4", settings: { app: { appearance: "light" } }, welcome: 3 },
-  { name: "welcome-5", settings: { app: { appearance: "light" } }, welcome: 4 },
+  { name: "timer-alarm-12h", settings: { app: { appearance: "dark", ...seen }, timer: { mode: "alarm", clock24: false } }, click: '[aria-label="Study timer"]' },
   { name: "whatsnew-light", settings: { app: { appearance: "light", lastSeenVersion: "1.0.5" } } },
 ];
 const shots = shotsAll;

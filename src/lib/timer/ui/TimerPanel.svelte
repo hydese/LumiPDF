@@ -63,7 +63,7 @@
           value={opts.countdown}
           min={TIMER_LIMITS.minMinutes}
           max={TIMER_LIMITS.maxMinutes}
-          step={5}
+          step={1}
           label={t("timer.minutesLabel", { label: t("timer.mode.timer") })}
           upLabel={t("timer.more", { label: t("timer.mode.timer") })}
           downLabel={t("timer.less", { label: t("timer.mode.timer") })}
@@ -123,12 +123,35 @@
     </div>
   {:else if mode === "alarm"}
     <Ring progress={null} label={opts.alarm}>
-      <div class="clock-set">
-        <Stepper value={alarmH} min={0} max={23} step={1} wrap pad={2} label={t("timer.hours")} upLabel={t("timer.hourUp")} downLabel={t("timer.hourDown")} onChange={(h) => setAlarm(h, alarmM)} />
+      <div class="clock-set" class:twelve={!opts.clock24}>
+        {#if opts.clock24}
+          <Stepper value={alarmH} min={0} max={23} step={1} wrap pad={2} label={t("timer.hours")} upLabel={t("timer.hourUp")} downLabel={t("timer.hourDown")} onChange={(h) => setAlarm(h, alarmM)} />
+        {:else}
+          <Stepper
+            value={alarmH % 12 || 12}
+            min={1}
+            max={12}
+            step={1}
+            wrap
+            label={t("timer.hours")}
+            upLabel={t("timer.hourUp")}
+            downLabel={t("timer.hourDown")}
+            onChange={(h) => setAlarm((h % 12) + (alarmH >= 12 ? 12 : 0), alarmM)}
+          />
+        {/if}
         <span class="big colon">:</span>
-        <Stepper value={alarmM} min={0} max={59} step={5} wrap pad={2} label={t("timer.minutesShort")} upLabel={t("timer.minuteUp")} downLabel={t("timer.minuteDown")} onChange={(m) => setAlarm(alarmH, m)} />
+        <Stepper value={alarmM} min={0} max={59} step={1} wrap pad={2} label={t("timer.minutesShort")} upLabel={t("timer.minuteUp")} downLabel={t("timer.minuteDown")} onChange={(m) => setAlarm(alarmH, m)} />
+        {#if !opts.clock24}
+          <button class="ampm" title={t("timer.ampm")} aria-label={t("timer.ampm")} onclick={() => setAlarm((alarmH + 12) % 24, alarmM)}>
+            {alarmH < 12 ? t("timer.am") : t("timer.pm")}
+          </button>
+        {/if}
       </div>
     </Ring>
+    <div class="format" role="radiogroup" aria-label={t("timer.format")}>
+      <button role="radio" aria-checked={opts.clock24} onclick={() => set("clock24", true)}>{t("timer.format24")}</button>
+      <button role="radio" aria-checked={!opts.clock24} onclick={() => set("clock24", false)}>{t("timer.format12")}</button>
+    </div>
     <p class="alarm-status">{alarm.armed ? t("timer.alarmIn", { time: formatDuration(alarm.remainingMs / 1000 + 59) }) : t("timer.alarmIdle")}</p>
     <div class="controls">
       <button class="main" class:off={alarm.armed} data-autofocus onclick={() => alarm.toggle()}>
@@ -138,7 +161,7 @@
     <p class="note">{t("timer.alarmNote")}</p>
   {:else}
     <Ring progress={null} label={formatStopwatch(chrono.elapsedMs)}>
-      <span class="big">{formatStopwatch(chrono.elapsedMs)}</span>
+      <span class="big stopwatch">{formatStopwatch(chrono.elapsedMs)}</span>
       <span class="small">{t("timer.mode.chrono")}</span>
     </Ring>
     <div class="controls">
@@ -245,6 +268,53 @@
   .clock-set {
     display: flex;
     align-items: center;
+  }
+  .clock-set.twelve :global(input.big) {
+    font-size: 32px;
+  }
+  .clock-set.twelve .colon {
+    font-size: 32px;
+  }
+  .ampm {
+    margin-left: 4px;
+    height: 26px;
+    padding: 0 7px;
+    border: none;
+    border-radius: 7px;
+    background: var(--field);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .ampm:hover {
+    background: var(--pressed);
+  }
+  .format {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    margin-top: -6px;
+    border-radius: 8px;
+    background: var(--segment);
+  }
+  .format button {
+    height: 24px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .format button[aria-checked="true"] {
+    background: var(--segment-on);
+    color: var(--text);
+    font-weight: 600;
+    box-shadow: var(--segment-shadow);
+  }
+  /* The stopwatch has more digits than the circle fits at the big size. */
+  .panel :global(.big.stopwatch) {
+    font-size: 30px;
   }
   .colon {
     margin: 0 -2px 4px;

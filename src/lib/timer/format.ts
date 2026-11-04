@@ -17,6 +17,13 @@ export function formatStopwatch(ms: number): string {
   return `${h ? `${h}:` : ""}${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${tenths % 10}`;
 }
 
+/** Alarm time for display: "07:30" or "7:30 AM". `hhmm` is stored 24-hour. */
+export function formatAlarm(hhmm: string, clock24: boolean, am = "AM", pm = "PM"): string {
+  if (clock24) return hhmm;
+  const [h = 0, m = 0] = hhmm.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? am : pm}`;
+}
+
 /** Milliseconds from `now` until the next time the clock shows "HH:MM" (today or tomorrow). */
 export function msUntil(hhmm: string, now: Date): number {
   const [h, m] = hhmm.split(":").map(Number);

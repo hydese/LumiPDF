@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { READING_THRESHOLD_S, studyStep } from "../../src/lib/timer/study.svelte";
-import { formatClock, formatStopwatch, msUntil } from "../../src/lib/timer/format";
+import { formatAlarm, formatClock, formatStopwatch, msUntil } from "../../src/lib/timer/format";
 
 describe("study time rules", () => {
   const run = (ticks: Array<{ timing: boolean; reading: boolean }>, step = 15) => {
@@ -40,6 +40,14 @@ describe("clock formats", () => {
     expect(formatClock(61_001)).toBe("01:02");
     expect(formatClock(3_725_000)).toBe("1:02:05");
     expect(formatStopwatch(754_560)).toBe("12:34.5");
+  });
+
+  it("shows the alarm in 24 or 12 hour format", () => {
+    expect(formatAlarm("07:30", true)).toBe("07:30");
+    expect(formatAlarm("07:30", false)).toBe("7:30 AM");
+    expect(formatAlarm("00:05", false)).toBe("12:05 AM");
+    expect(formatAlarm("12:00", false)).toBe("12:00 PM");
+    expect(formatAlarm("19:45", false)).toBe("7:45 PM");
   });
 
   it("finds the next alarm time", () => {

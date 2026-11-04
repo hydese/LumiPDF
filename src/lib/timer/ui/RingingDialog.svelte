@@ -3,6 +3,7 @@
   import { t } from "../../i18n";
   import { settings } from "../../settings/store.svelte";
   import { ringer } from "../ringer.svelte";
+  import { formatAlarm } from "../format";
   import Dialog from "../../ui/Dialog.svelte";
   import Icon from "../../ui/Icon.svelte";
 
@@ -14,7 +15,7 @@
     <span class="icon"><Icon name={isAlarm ? "bell" : "timer"} size={26} stroke={1.8} /></span>
     <h2 id="ring-title">{isAlarm ? t("timer.alarmUp") : t("timer.timeUp")}</h2>
     <p>
-      {isAlarm ? t("timer.alarmUpText", { time: settings.value.timer.alarm }) : t("timer.timeUpText", { minutes: settings.value.timer.countdown })}
+      {isAlarm ? t("timer.alarmUpText", { time: formatAlarm(settings.value.timer.alarm, settings.value.timer.clock24, t("timer.am"), t("timer.pm")) }) : t("timer.timeUpText", { minutes: settings.value.timer.countdown })}
     </p>
     <div class="actions">
       <button class="btn" onclick={() => ringer.snooze()}>{t("timer.snooze")}</button>

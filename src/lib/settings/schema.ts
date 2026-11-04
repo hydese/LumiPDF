@@ -41,8 +41,10 @@ export interface TimerSettings {
   mode: TimerMode;
   /** Timer (simple countdown) length, minutes. */
   countdown: number;
-  /** Alarm time, "HH:MM" local. */
+  /** Alarm time, "HH:MM" local (always stored 24-hour). */
   alarm: string;
+  /** Show and set the alarm as 24-hour time (otherwise 12-hour with AM/PM). */
+  clock24: boolean;
   /** Ask before closing LumiPDF while a timer, alarm or stopwatch is running. */
   askOnClose: boolean;
   /** Pomodoro lengths, minutes. */
@@ -88,12 +90,22 @@ export interface Settings {
   library: LibrarySettings;
 }
 
-export const TIMER_LIMITS = { minMinutes: 1, maxMinutes: 180, step: 5, minSessions: 1, maxSessions: 12 } as const;
+/** The system clock format: 24-hour unless the locale uses AM/PM. */
+export function systemUses24h(): boolean {
+  try {
+    const cycle = new Intl.DateTimeFormat(undefined, { hour: "numeric" }).resolvedOptions().hourCycle;
+    return cycle === "h23" || cycle === "h24";
+  } catch {
+    return true;
+  }
+}
+
+export const TIMER_LIMITS = { minMinutes: 1, maxMinutes: 180, step: 1, minSessions: 1, maxSessions: 12 } as const;
 
 export const DEFAULT_SETTINGS: Settings = {
   version: 1,
   app: { appearance: "system", startScreen: "library", locale: "en", checkForUpdates: true, lastSeenVersion: "" },
-  timer: { mode: "timer", countdown: 25, alarm: "07:30", askOnClose: true, focus: 50, shortBreak: 10, longBreak: 20, sessionsBeforeLong: 4, sound: true },
+  timer: { mode: "timer", countdown: 25, alarm: "07:30", clock24: systemUses24h(), askOnClose: true, focus: 50, shortBreak: 10, longBreak: 20, sessionsBeforeLong: 4, sound: true },
   reader: { sidebarOpen: true, sidebarTab: "outline", openTabs: [], activeTab: "" },
   library: { goodnotes: false, notebooks: { title: "", sort: "recent", count: 5, view: "list", hidden: [] } },
   reading: {
@@ -151,6 +163,7 @@ export function parseSettings(raw: unknown): Settings {
       mode: oneOf(timer.mode, ["timer", "pomodoro", "alarm", "chrono"], dt.mode),
       countdown: int(timer.countdown, lo, hi, dt.countdown),
       alarm: typeof timer.alarm === "string" && TIME.test(timer.alarm) ? timer.alarm : dt.alarm,
+      clock24: bool(timer.clock24, dt.clock24),
       askOnClose: bool(timer.askOnClose, dt.askOnClose),
       focus: int(timer.focus, lo, hi, dt.focus),
       shortBreak: int(timer.shortBreak, lo, hi, dt.shortBreak),

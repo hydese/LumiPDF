@@ -52,7 +52,7 @@
     inputmode="numeric"
     maxlength="3"
     aria-label={label}
-    style:width="{Math.max(2, shown.length) + 0.6}ch"
+    style:width="{Math.max(pad || 1, shown.length) + 0.5}ch"
     onfocus={(e) => e.currentTarget.select()}
     oninput={(e) => (draft = e.currentTarget.value.replace(/\D/g, ""))}
     onblur={commit}
