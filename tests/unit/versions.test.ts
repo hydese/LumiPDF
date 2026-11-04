@@ -32,7 +32,7 @@ describe("what's new", () => {
   });
 
   it("shows the welcome on a fresh install, notes once after an update", () => {
-    expect(whatsNewOnLaunch("2.0.0", "")).toEqual({ welcome: ["language", "usage", "appearance", "reading", "library"], show: null, remember: false });
+    expect(whatsNewOnLaunch("2.0.0", "")).toEqual({ welcome: ["language", "usage", "appearance", "reading", "library", "updates"], show: null, remember: false });
     expect(whatsNewOnLaunch("2.0.0", "2.0.0").show).toBeNull();
     expect(whatsNewOnLaunch("2.0.0", "1.0.5").show?.version).toBe("2.0.0");
     expect(whatsNewOnLaunch("2.0.0", "1.0.5").welcome).toEqual([]);
@@ -74,5 +74,11 @@ describe("update check", () => {
     const list = [rel("v2.0.0-beta.2", { prerelease: true }), rel("v1.0.5")];
     expect(pickUpdate(list, "2.0.0-beta.1")?.version).toBe("2.0.0-beta.2");
     expect(pickUpdate(list, "2.0.0")).toBeNull();
+  });
+
+  it("offers prereleases on the beta channel", () => {
+    const list = [rel("v2.0.1"), rel("v2.1.0-beta.1", { prerelease: true })];
+    expect(pickUpdate(list, "2.0.0", true)?.version).toBe("2.1.0-beta.1");
+    expect(pickUpdate(list, "2.0.0", false)?.version).toBe("2.0.1");
   });
 });

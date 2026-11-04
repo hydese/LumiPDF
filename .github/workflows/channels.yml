@@ -1,0 +1,49 @@
+# When a release is published, points the in-app updater at it:
+#   beta.json   every published release (betas and stable ones)
+#   stable.json only stable releases (not pre-releases)
+# Both live on the "updates" release (marked pre-release, so it is never shown as "Latest").
+name: Update channels
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release to point the channels at (e.g. v2.0.0)
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-channels
+  cancel-in-progress: false
+
+jobs:
+  channels:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+    steps:
+      - name: Skip the channel release itself
+        if: env.TAG == 'updates'
+        run: exit 0
+      - name: Point the channels at ${{ env.TAG }}
+        if: env.TAG != 'updates'
+        run: |
+          gh release download "$TAG" --pattern latest.json --dir rel
+          pre=$(gh release view "$TAG" --json isPrerelease --jq .isPrerelease)
+          if ! gh release view updates >/dev/null 2>&1; then
+            gh release create updates --prerelease --title "Update channels" \
+              --notes "Used by LumiPDF to find updates. Please don't delete it."
+          fi
+          cp rel/latest.json beta.json
+          gh release upload updates beta.json --clobber
+          if [ "$pre" = "false" ]; then
+            cp rel/latest.json stable.json
+            gh release upload updates stable.json --clobber
+          fi
+          echo "Channels now point to $TAG (pre-release: $pre)"

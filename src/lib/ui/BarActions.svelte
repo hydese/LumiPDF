@@ -11,6 +11,7 @@
   import { readingMode } from "../dark/readingMode.svelte";
   import { updates } from "../updates/updates.svelte";
   import { timers } from "../timer/timers.svelte";
+  import { settings } from "../settings/store.svelte";
   import { studyTools } from "../app/studyTools.svelte";
   import TimerPanel from "../timer/ui/TimerPanel.svelte";
   import ReadingSettingsPanel from "./ReadingSettingsPanel.svelte";
@@ -39,7 +40,12 @@
 
 {@render before?.()}
 
-{#if updates.available}
+{#if updates.install === "ready"}
+  <button class="update-pill" title={t("update.restartTitle", { version: updates.available?.version ?? "" })} onclick={() => updates.installNow()}>
+    <Icon name="update" size={13} stroke={2.2} />
+    {t("update.restart")}
+  </button>
+{:else if updates.available && !(settings.value.app.updateMode === "auto" && updates.signed)}
   {@const title = t("update.title", { version: updates.available.version })}
   {#if compactUpdate}
     <IconButton icon="update" label={title} onclick={() => navigation.openSettings("general")}>

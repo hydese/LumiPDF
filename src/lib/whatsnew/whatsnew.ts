@@ -5,8 +5,8 @@ import data from "./releases.json";
 import { compareVersions, releaseOf } from "../app/semver";
 
 export type ChangeTag = "new" | "better" | "fixed";
-export type WelcomeStep = "language" | "usage" | "appearance" | "reading" | "library";
-export const WELCOME_STEPS: WelcomeStep[] = ["language", "usage", "appearance", "reading", "library"];
+export type WelcomeStep = "language" | "usage" | "appearance" | "reading" | "library" | "updates";
+export const WELCOME_STEPS: WelcomeStep[] = ["language", "usage", "appearance", "reading", "library", "updates"];
 
 export interface ReleaseNotes {
   version: string;

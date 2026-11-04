@@ -5,7 +5,7 @@
   import { formatShortcut } from "../platform/shortcuts";
   import { platform } from "../platform/window";
   import { settings } from "../settings/store.svelte";
-  import type { StartScreen, TimerSettings } from "../settings/schema";
+  import type { StartScreen, TimerSettings, UpdateMode } from "../settings/schema";
   import { navigation, type SettingsSection } from "../app/navigation.svelte";
   import { updates, RELEASES_PAGE } from "../updates/updates.svelte";
   import { library } from "../library/library.svelte";
@@ -80,7 +80,11 @@
     const current = updates.current;
     switch (updates.status) {
       case "available":
-        return t("settings.update.availableDetail", { current });
+        if (updates.install === "downloading") return t("settings.update.downloading", { percent: Math.round((updates.progress ?? 0) * 100) });
+        if (updates.install === "ready") return s.app.updateMode === "auto" ? t("settings.update.readyAuto") : t("settings.update.ready");
+        if (updates.install === "installing") return t("settings.update.installing");
+        if (updates.install === "failed") return t("settings.update.failed", { reason: updates.installError ?? "" });
+        return updates.signed ? t("settings.update.availableSigned", { current }) : t("settings.update.availableDetail", { current });
       case "up-to-date":
         return t("settings.update.upToDateDetail", { current });
       case "error":
@@ -132,10 +136,22 @@
               <span>{updateDetail}</span>
             </div>
             {#if updates.status === "available" && updates.available}
-              <button class="btn primary" onclick={() => openExternal(updates.available!.url)}>
-                <Icon name="update" size={14} stroke={2.2} />
-                {t("settings.update.download")}
-              </button>
+              {#if updates.signed}
+                {#if updates.install === "ready"}
+                  <button class="btn primary" onclick={() => updates.installNow()}><Icon name="update" size={14} stroke={2.2} />{t("settings.update.restart")}</button>
+                {:else if updates.install === "downloading" || updates.install === "installing"}
+                  <span class="progress" role="progressbar" aria-valuenow={Math.round((updates.progress ?? 0) * 100)} aria-valuemin={0} aria-valuemax={100}>
+                    <span style:width="{(updates.progress ?? 0.05) * 100}%"></span>
+                  </span>
+                {:else}
+                  <button class="btn primary" onclick={() => updates.installNow()}><Icon name="update" size={14} stroke={2.2} />{t("settings.update.install")}</button>
+                {/if}
+              {:else}
+                <button class="btn primary" onclick={() => openExternal(updates.available!.url)}>
+                  <Icon name="update" size={14} stroke={2.2} />
+                  {t("settings.update.download")}
+                </button>
+              {/if}
             {/if}
           </div>
           {#if updates.status === "available" && notesLines.length}
@@ -156,6 +172,28 @@
               </span>
             </span>
             <input type="checkbox" class="switch" checked={s.app.checkForUpdates} onchange={(e) => settings.update((x) => (x.app.checkForUpdates = e.currentTarget.checked))} />
+          </label>
+          <label class="row">
+            <span class="label">
+              <span>{t("settings.update.mode")}</span>
+              <span class="hint">{updates.installable ? t("settings.update.modeHint") : t("settings.update.modePortable")}</span>
+            </span>
+            <select class="select" value={s.app.updateMode} onchange={(e) => settings.update((x) => (x.app.updateMode = e.currentTarget.value as UpdateMode))}>
+              <option value="auto">{t("settings.update.modeAuto")}</option>
+              <option value="ask">{t("settings.update.modeAsk")}</option>
+            </select>
+          </label>
+          <label class="row">
+            <span class="label"><span>{t("settings.update.beta")}</span><span class="hint">{t("settings.update.betaHint")}</span></span>
+            <input
+              type="checkbox"
+              class="switch"
+              checked={s.app.betaUpdates}
+              onchange={(e) => {
+                settings.update((x) => (x.app.betaUpdates = e.currentTarget.checked));
+                void updates.check();
+              }}
+            />
           </label>
         </section>
 
@@ -216,6 +254,10 @@
         </section>
         <section class="card list">
           <h3 class="group">{t("settings.group.reader")}</h3>
+          <label class="row">
+            <span class="label"><span>{t("settings.textClarity")}</span><span class="hint">{t("settings.textClarity.hint")}</span></span>
+            <input type="checkbox" class="switch" checked={s.reading.textClarity} onchange={(e) => settings.update((x) => (x.reading.textClarity = e.currentTarget.checked))} />
+          </label>
           <label class="row">
             <span class="label"><span>{t("settings.linkPreviews")}</span><span class="hint">{t("settings.linkPreviews.hint")}</span></span>
             <input type="checkbox" class="switch" checked={s.reader.linkPreviews} onchange={(e) => settings.update((x) => (x.reader.linkPreviews = e.currentTarget.checked))} />
@@ -354,6 +396,20 @@
 </div>
 
 <style>
+  .progress {
+    width: 120px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--track);
+    overflow: hidden;
+  }
+  .progress span {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent);
+    transition: width 0.2s ease;
+  }
   .study-tools .main .label > span:first-child {
     font-weight: 600;
   }

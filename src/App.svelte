@@ -61,6 +61,8 @@
   /** Saves annotations and study time, then closes for real. */
   async function quitSaved() {
     await Promise.allSettled([annotations.flush(), studyClock.flush(), sheets.flush()]);
+    // Automatic updates: a downloaded update installs as LumiPDF closes.
+    if (updates.installOnQuit) await updates.installNow();
     quitApp();
   }
 
@@ -176,6 +178,7 @@
         ),
       );
       ready = true;
+      updates.beforeInstall = () => Promise.allSettled([annotations.flush(), studyClock.flush(), sheets.flush()]);
       whatsNew.onLaunch();
       if (settings.value.app.checkForUpdates) stops.push(updates.checkSoon());
       await Promise.all([library.refresh(), sheets.refresh()]);

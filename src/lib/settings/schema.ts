@@ -9,6 +9,8 @@ export type AutoThemeMode = "off" | "system" | "schedule";
 export interface ReadingSettings {
   /** Dark mode on/off when auto theme is off. */
   darkEnabled: boolean;
+  /** Slightly bolder text and at least 1 px lines (low-resolution screens). */
+  textClarity: boolean;
   theme: ThemeId;
   tuning: DarkTuning;
   auto: {
@@ -19,6 +21,7 @@ export interface ReadingSettings {
   };
 }
 
+export type UpdateMode = "auto" | "ask";
 export type Appearance = "system" | "light" | "dark";
 export type StartScreen = "library" | "last-document";
 export type SidebarTab = "outline" | "bookmarks" | "notes";
@@ -30,6 +33,11 @@ export interface AppSettings {
   /** Interface language. Only "en" exists today; the setting is here for future locales. */
   locale: string;
   checkForUpdates: boolean;
+  /** Installed copies: "auto" downloads updates quietly and installs them when LumiPDF closes;
+   * "ask" shows them and waits for a click. */
+  updateMode: UpdateMode;
+  /** Get test versions (pre-releases) before everyone else. */
+  betaUpdates: boolean;
   /** The version whose "What's new" the user has seen; "" on a fresh install. */
   lastSeenVersion: string;
 }
@@ -157,7 +165,7 @@ export const TIMER_LIMITS = { minMinutes: 1, maxMinutes: 180, step: 1, minSessio
 
 export const DEFAULT_SETTINGS: Settings = {
   version: 1,
-  app: { appearance: "system", startScreen: "library", locale: "en", checkForUpdates: true, lastSeenVersion: "" },
+  app: { appearance: "system", startScreen: "library", locale: "en", checkForUpdates: true, updateMode: "ask", betaUpdates: false, lastSeenVersion: "" },
   timer: { mode: "timer", countdown: 25, alarm: "07:30", clock24: systemUses24h(), askOnClose: true, focus: 50, shortBreak: 10, longBreak: 20, sessionsBeforeLong: 4, sound: true },
   reader: { sidebarOpen: true, sidebarTab: "outline", openTabs: [], activeTab: "", linkPreviews: true },
   study: { goal: 120, tools: true, timer: true, stats: true, sheets: true, hintDismissed: false },
@@ -166,6 +174,7 @@ export const DEFAULT_SETTINGS: Settings = {
   library: { goodnotes: false, notebooks: { title: "", sort: "recent", count: 5, view: "list", hidden: [] } },
   reading: {
     darkEnabled: true,
+    textClarity: false,
     theme: "lumina-black",
     tuning: DEFAULT_TUNING,
     auto: { mode: "off", darkFrom: "19:00", darkUntil: "07:00" },
@@ -217,6 +226,8 @@ export function parseSettings(raw: unknown): Settings {
       startScreen: oneOf(app.startScreen, ["library", "last-document"], da.startScreen),
       locale: typeof app.locale === "string" && /^[a-z]{2}(-[A-Z]{2})?$/.test(app.locale) ? app.locale : da.locale,
       checkForUpdates: bool(app.checkForUpdates, da.checkForUpdates),
+      updateMode: oneOf(app.updateMode, ["auto", "ask"], da.updateMode),
+      betaUpdates: bool(app.betaUpdates, da.betaUpdates),
       lastSeenVersion: typeof app.lastSeenVersion === "string" && app.lastSeenVersion.length < 40 ? app.lastSeenVersion : da.lastSeenVersion,
     },
     timer: {
@@ -273,6 +284,7 @@ export function parseSettings(raw: unknown): Settings {
     },
     reading: {
       darkEnabled: typeof reading.darkEnabled === "boolean" ? reading.darkEnabled : d.darkEnabled,
+      textClarity: bool(reading.textClarity, d.textClarity),
       theme,
       tuning: clampTuning(obj(reading.tuning) as Partial<DarkTuning>),
       auto: {

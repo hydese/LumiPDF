@@ -2,22 +2,34 @@
 
 A lightweight PDF reader for long study sessions, with a dark mode that keeps text as crisp as the original page.
 
-> **Status:** LumiPDF 2.0 is being rewritten on the `v2` branch. There is no release to download yet.
-> LumiPDF 2.0 replaces LuminaPDF 1.x.
+> **Status:** LumiPDF 2.0 is in testing on the `v2` branch. It replaces LuminaPDF 1.x.
+> Windows 10 and 11 first; macOS (Apple Silicon) follows in 2.1.
 
-## What it will do
+## Features
 
-- **Dark mode that doesn't blur.** Colours are changed while the page is drawn, not afterwards, so text, formulas and diagrams stay sharp. Scans and handwritten notes get a dark paper look; photos keep their colours.
-- **Reading themes** for different hours of the day, with automatic switching.
-- **A library** of the PDFs you read, with thumbnails, folders and search.
-- **Study tools:** annotations, a formula sheet builder for exams, and study time stats.
-- **Offline compression and export**, without uploading your files anywhere.
+- **Dark mode that doesn't blur.** Colours are changed while the page is drawn, not afterwards, so text, formulas and diagrams stay sharp. Five reading themes, adjustable brightness, contrast and text weight, and automatic switching by time or system setting.
+- **Library.** Continue reading where you left off, your folders (with subfolders), iCloud Drive, OneDrive, Google Drive and Dropbox, optional GoodNotes backups, and title search.
+- **Tabs.** Many documents open at once; background tabs sleep to stay light and come back on the same spot.
+- **Annotations.** Highlight, underline and strike text, pen and highlighter (any colour), sticky notes, comments, eraser, undo/redo. Stored next to the app by the PDF's own ID; the PDF itself is never modified.
+- **Link previews.** Hover a link to an equation, figure or footnote to see it without leaving your page.
+- **Snip.** Copy any area or save it as a PNG.
+- **Export.** A new PDF with your annotations as real PDF annotations, optional compression, and password protection kept (or removed, only with the password).
+- **Study tools** (optional): timer, Pomodoro, alarm and stopwatch; study time, daily goal and streaks; formula sheets built from your snips and exported ready to print. Turn them off for a plain PDF reader.
+- **Updates** installed in the app (automatically or when you choose), with an optional beta channel.
+- **Private and offline.** Your files never leave your computer. The only network access is the update check (GitHub).
 
-Windows 10 and 11 first, macOS after.
+## Download
+
+Releases are on the [Releases page](https://github.com/hydese/LumiPDF/releases):
+
+- `LumiPDF_x.y.z_x64-setup.exe`: installer, updates itself.
+- `LumiPDF_x.y.z_x64-portable.zip`: a single exe that runs without installing.
+
+Windows may warn about an unknown publisher until code signing is in place (see [Code signing](#code-signing)).
 
 ## Building from source
 
-Requirements: [Node.js](https://nodejs.org) 20+, [Rust](https://rustup.rs) (stable), and the
+Requirements: [Node.js](https://nodejs.org) 22+, [Rust](https://rustup.rs) (stable), and the
 [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your system.
 
 ```sh
@@ -33,21 +45,42 @@ npm run check                          # type check (Svelte + TypeScript)
 npm test                               # frontend unit tests
 cargo test --manifest-path src-tauri/Cargo.toml
 npm run bench                          # open and render every test PDF in Chromium
+node tests/preview/shoot.mjs           # screenshots of the app with sample data
 ```
 
-The bench writes PNGs and `tests/bench/out/report.html`. PDFs placed in `tests/private/`
-are included in the bench but never committed.
+The bench writes PNGs and `tests/bench/out/report.html`; the viewer must stay pixel-identical to
+plain pdf.js. PDFs placed in `tests/private/` are included in the bench but never committed.
+
+## Releasing
+
+1. Update `version` in `package.json` and add its entry to `src/lib/whatsnew/releases.json`
+   (shown in the app after updating, and used as the release notes).
+2. Push a tag `vX.Y.Z` (or `vX.Y.Z-beta.N` for a beta). The **Release** workflow builds the signed
+   installer and portable zip and saves a **draft** release.
+3. Check the draft and publish it. The **Update channels** workflow then points the in-app updater
+   at it (betas reach only users with "Beta versions" on).
+
+The workflow needs the updater key as repository secrets `TAURI_SIGNING_PRIVATE_KEY` and
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Losing the key means installed copies can no longer update.
+
+## Code signing
+
+Free code signing provided by [SignPath.io](https://signpath.io), certificate by
+[SignPath Foundation](https://signpath.org) (application in progress). Until then builds are
+unsigned. See [CODE_SIGNING.md](CODE_SIGNING.md) for the signing policy.
 
 ## Project layout
 
 | Path | Contents |
 | --- | --- |
 | `src/` | Frontend (Svelte 5 + TypeScript) |
-| `src/lib/` | Frontend modules: i18n, platform helpers, typed calls into Rust |
-| `src-tauri/` | Backend (Rust, Tauri 2) |
+| `src/lib/` | Frontend modules: viewer, dark engine, annotations, sheets, stats, i18n… |
+| `src-tauri/` | Backend (Rust, Tauri 2): files, library, export, sheets, updater |
 | `tests/unit/` | Frontend unit tests (Vitest) |
 | `tests/bench/` | Rendering bench (Playwright) |
+| `tests/preview/` | App screenshots with a mocked backend |
 | `tests/fixtures/` | Test PDFs, regenerated by `scripts/make-fixtures.py` |
+| `.github/workflows/` | CI, releases and update channels |
 
 ## License
 

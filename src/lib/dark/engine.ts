@@ -39,6 +39,25 @@ export function setDarkMode(config: { theme: ThemeId; tuning: DarkTuning } | nul
   for (const listener of listeners) listener();
 }
 
+/**
+ * Text clarity (light and dark): text gets a hairline outline in its own colour (a little more
+ * weight on low-resolution screens) and lines are never thinner than one screen pixel.
+ * Off by default; when off nothing is changed.
+ */
+let clarity = false;
+/** Extra text weight, in screen pixels. */
+const CLARITY_TEXT_PX = 0.3;
+
+export function setTextClarity(on: boolean): void {
+  if (clarity === on) return;
+  clarity = on;
+  for (const listener of listeners) listener();
+}
+
+export function isTextClarity(): boolean {
+  return clarity;
+}
+
 export function onDarkModeChange(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
@@ -197,7 +216,23 @@ export function patchContext(ctx: CanvasRenderingContext2D): CanvasRenderingCont
     });
   }
 
-  const { createLinearGradient, createRadialGradient, fillText, drawImage, putImageData, createPattern, clip } = proto;
+  const { createLinearGradient, createRadialGradient, fillText, drawImage, putImageData, createPattern, clip, stroke } = proto;
+
+  // Text clarity: no line thinner than one screen pixel.
+  ctx.stroke = function (this: CanvasRenderingContext2D, ...args: unknown[]) {
+    if (clarity && !maskContexts.has(ctx)) {
+      const t = ctx.getTransform();
+      const scale = Math.sqrt(Math.abs(t.a * t.d - t.b * t.c)) || 1;
+      const width = ctx.lineWidth;
+      if (width * scale < 1) {
+        ctx.lineWidth = 1 / scale;
+        (stroke as (...a: unknown[]) => void).apply(ctx, args);
+        ctx.lineWidth = width;
+        return;
+      }
+    }
+    (stroke as (...a: unknown[]) => void).apply(ctx, args);
+  } as typeof ctx.stroke;
 
   ctx.clip = function (this: CanvasRenderingContext2D, ...args: unknown[]) {
     const path = args[0];
@@ -219,13 +254,14 @@ export function patchContext(ctx: CanvasRenderingContext2D): CanvasRenderingCont
   ctx.fillText = (text: string, x: number, y: number, maxWidth?: number) => {
     maxWidth === undefined ? fillText.call(ctx, text, x, y) : fillText.call(ctx, text, x, y, maxWidth);
     const m = mapping(ctx);
-    if (!m || m.tuning.textWeight <= 0) return;
+    const weight = (m ? m.tuning.textWeight : 0) + (clarity && !maskContexts.has(ctx) ? CLARITY_TEXT_PX : 0);
+    if (weight <= 0) return;
     const t = ctx.getTransform();
     const scale = Math.hypot(t.a, t.b) || 1;
     const { lineWidth, lineJoin } = ctx;
     const stroke = strokeStyleProp.get!.call(ctx);
     strokeStyleProp.set!.call(ctx, fillStyleProp.get!.call(ctx));
-    ctx.lineWidth = m.tuning.textWeight / scale;
+    ctx.lineWidth = weight / scale;
     ctx.lineJoin = "round";
     ctx.strokeText(text, x, y);
     ctx.lineWidth = lineWidth;

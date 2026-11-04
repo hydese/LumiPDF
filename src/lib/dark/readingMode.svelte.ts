@@ -6,7 +6,7 @@
  */
 import { settings } from "../settings/store.svelte";
 import { autoDarkWanted } from "./auto";
-import { setDarkMode } from "./engine";
+import { setTextClarity, setDarkMode } from "./engine";
 
 const RECHECK_MS = 30_000;
 
@@ -40,6 +40,7 @@ class ReadingMode {
         const { theme, tuning } = settings.value.reading;
         setDarkMode(this.isDark ? { theme, tuning: $state.snapshot(tuning) } : null);
       });
+      $effect(() => setTextClarity(settings.value.reading.textClarity));
     });
 
     return () => {

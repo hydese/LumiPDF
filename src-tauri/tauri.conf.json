@@ -77,6 +77,18 @@
         "role": "Viewer",
         "mimeType": "application/pdf"
       }
-    ]
+    ],
+    "createUpdaterArtifacts": false
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJENTdBMDUwRkNDMzdDNTkKUldSWmZNUDhVS0JYTFl1SFhHVjZGYWJySHlsVkg0RGcrVFZEaWpZYVB0SjM4MzBuT1hNS2dYNkwK",
+      "endpoints": [
+        "https://github.com/hydese/LumiPDF/releases/download/updates/stable.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

@@ -37,6 +37,14 @@ LumiPDF 2.0 is a full rewrite of LuminaPDF 1.x under a new name.
   custom colours. Custom colours are drawn exactly as picked, also on dark pages (preset colours
   still adapt to them).
 - Hand tool (G): drag to scroll, no text selection; links and notes still work.
+- In-app updates (installed version): signed updates from GitHub releases, installed
+  automatically when LumiPDF closes or when you choose (welcome step and Settings → General);
+  optional beta channel. The portable version keeps the download link. Release workflow builds
+  signed installers and a portable .zip into a draft release; publishing updates the channels.
+- Text clarity (Settings → Reading, off by default): slightly bolder text and lines at least one
+  pixel wide, for screens at 100% scaling.
+- The eraser end of a stylus erases; an eraser stroke always deletes what it went over, however
+  it ends.
 - Formula sheets: smart guides in Free layout (snap to page centre, margins and other items;
   hold Alt to place freely); selected-item actions moved to the sheet's top bar.
 - Study stats: "Reset study stats" (keeps documents, progress, bookmarks and the goal).

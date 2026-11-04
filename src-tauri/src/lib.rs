@@ -15,6 +15,7 @@ mod pdf_export;
 mod settings;
 mod sheets;
 mod store;
+mod updater;
 
 pub use error::AppError;
 
@@ -34,6 +35,8 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updater::PendingUpdate::default())
         .manage(documents::PendingDocuments::default())
         .setup(|app| {
             library::init(app.handle());
@@ -50,6 +53,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
+            updater::update_installable,
+            updater::update_check,
+            updater::update_download,
+            updater::update_install,
             documents::open_pdf_dialog,
             documents::take_pending_documents,
             settings::load_settings,

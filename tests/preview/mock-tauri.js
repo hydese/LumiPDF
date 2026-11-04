@@ -123,6 +123,10 @@
     },
     pdf_protection: () =>
       window.__PREVIEW__?.protection ?? { protected: false, openPassword: false, restrictions: { print: false, copy: false, edit: false, annotate: false }, removableWithOpenPassword: false },
+    update_installable: () => scenario.installed !== false,
+    update_check: () => (scenario.update ? { version: "2.0.1", notes: "Fixes" } : null),
+    update_download: () => null,
+    update_install: () => null,
     sheets_list: () =>
       Object.values(sheetStore)
         .map((s) => ({ id: s.id, title: s.title, modified: s.modified, items: s.items.length }))

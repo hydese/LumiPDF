@@ -76,6 +76,10 @@ const shotsAll = [
   { name: "settings-study-tools", settings: { app: { appearance: "light", ...seen } }, keys: "Control+Comma" },
   { name: "library-reading-only", settings: { app: { appearance: "light", ...seen }, study: { tools: false } } },
   { name: "reader-reading-only", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false }, study: { tools: false } }, open: ["Analisi 2 — Trasformate"], annotate: "snip" },
+  { name: "welcome-updates", settings: { app: { appearance: "light" } }, welcome: 5 },
+  { name: "settings-updates-auto", settings: { app: { appearance: "light", ...seen, updateMode: "auto" } }, keys: "Control+Comma", update: true },
+  { name: "clarity-off", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"] },
+  { name: "clarity-on", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false, textClarity: true } }, open: ["Analisi 2 — Trasformate"] },
   { name: "whatsnew-light", settings: { app: { appearance: "light", lastSeenVersion: "1.0.5" } } },
 ];
 const shots = only ? shotsAll.filter((s) => only.includes(s.name)) : shotsAll;
@@ -93,7 +97,7 @@ for (const shot of shots) {
         : [],
     }),
   );
-  await page.addInitScript(`window.__PREVIEW__ = ${JSON.stringify({ settings: shot.settings, empty: shot.empty, protection: shot.protection, seedSheets: shot.seedSheets })};\n${mock}`);
+  await page.addInitScript(`window.__PREVIEW__ = ${JSON.stringify({ settings: shot.settings, empty: shot.empty, protection: shot.protection, seedSheets: shot.seedSheets, update: shot.update })};\n${mock}`);
   await page.goto(`${base}/index.html`);
   await page.waitForSelector(".screen", { timeout: 15000 });
   try {

@@ -71,6 +71,26 @@
               </button>
             </div>
             <p class="later">{t("welcome.usage.later")}</p>
+          {:else if step === "updates"}
+            <h1 id="welcome-title">{t("welcome.updates.title")}</h1>
+            <p>{t("welcome.updates.text")}</p>
+            <div class="usage" role="radiogroup" aria-label={t("welcome.updates.title")}>
+              <button role="radio" aria-checked={s.app.updateMode === "auto"} onclick={() => settings.update((x) => (x.app.updateMode = "auto"))}>
+                <span class="usage-icon study"><Icon name="update" size={22} stroke={1.8} /></span>
+                <strong>{t("welcome.updates.auto")}</strong>
+                <span>{t("welcome.updates.autoText")}</span>
+              </button>
+              <button role="radio" aria-checked={s.app.updateMode === "ask"} onclick={() => settings.update((x) => (x.app.updateMode = "ask"))}>
+                <span class="usage-icon read"><Icon name="bell" size={22} stroke={1.8} /></span>
+                <strong>{t("welcome.updates.ask")}</strong>
+                <span>{t("welcome.updates.askText")}</span>
+              </button>
+            </div>
+            <label class="row beta">
+              <span class="label"><span>{t("welcome.updates.beta")}</span><span class="hint">{t("welcome.updates.betaHint")}</span></span>
+              <input type="checkbox" class="switch" checked={s.app.betaUpdates} onchange={(e) => settings.update((x) => (x.app.betaUpdates = e.currentTarget.checked))} />
+            </label>
+            <p class="later">{t("welcome.updates.later")}</p>
           {:else if step === "appearance"}
             <h1 id="welcome-title">{t("welcome.appearance.title")}</h1>
             <p>{t("welcome.appearance.text")}</p>
@@ -229,6 +249,10 @@
   .usage-icon.read {
     background: var(--segment);
     color: var(--text);
+  }
+  .beta {
+    width: 100%;
+    text-align: left;
   }
   .later {
     font-size: 12.5px;

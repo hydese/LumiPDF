@@ -1,0 +1,135 @@
+# Builds a release from a version tag (v2.0.0, v2.1.0-beta.1, …) and saves it as a DRAFT on
+# GitHub. Nothing is public until a person publishes the draft; publishing runs channels.yml,
+# which points the in-app updater at it.
+#
+# Needs two repository secrets (Settings → Secrets and variables → Actions):
+#   TAURI_SIGNING_PRIVATE_KEY           the updater private key (contents of the .key file)
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to build (must already exist, e.g. v2.0.0)
+        required: true
+      macos:
+        description: Also build the macOS app
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  windows:
+    name: Windows (signed for the updater)
+    runs-on: windows-latest
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: Check the signing key is there
+        shell: bash
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::Add the TAURI_SIGNING_PRIVATE_KEY secret (see the top of release.yml)"; exit 1
+          fi
+      - run: npx tauri build --bundles nsis --config src-tauri/tauri.release.conf.json
+      - name: Collect files
+        shell: pwsh
+        run: |
+          $v = (Get-Content package.json | ConvertFrom-Json).version
+          New-Item -ItemType Directory out | Out-Null
+          Copy-Item src-tauri/target/release/bundle/nsis/*-setup.exe out/
+          Copy-Item src-tauri/target/release/bundle/nsis/*-setup.exe.sig out/
+          New-Item -ItemType Directory portable | Out-Null
+          Copy-Item src-tauri/target/release/lumipdf.exe portable/LumiPDF.exe
+          Compress-Archive -Path portable/LumiPDF.exe -DestinationPath "out/LumiPDF_${v}_x64-portable.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-windows
+          path: out/*
+
+  macos:
+    name: macOS (Apple Silicon, unsigned by Apple)
+    if: inputs.macos
+    runs-on: macos-latest
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - run: npx tauri build --bundles app --config src-tauri/tauri.release.conf.json
+      - name: Collect files
+        run: |
+          v=$(node -p "require('./package.json').version")
+          mkdir out
+          b=src-tauri/target/release/bundle/macos
+          cp "$b/LumiPDF.app.tar.gz" "out/LumiPDF_${v}_aarch64.app.tar.gz"
+          cp "$b/LumiPDF.app.tar.gz.sig" "out/LumiPDF_${v}_aarch64.app.tar.gz.sig"
+          ditto -c -k --keepParent "$b/LumiPDF.app" "out/LumiPDF_${v}_aarch64.app.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-macos
+          path: out/*
+
+  draft:
+    name: Draft release
+    needs: [windows, macos]
+    if: always() && needs.windows.result == 'success' && needs.macos.result != 'failure'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/download-artifact@v8
+        with:
+          path: built
+          merge-multiple: true
+      - run: node scripts/release-manifest.mjs "$TAG" built meta
+      - name: Create the draft (or refresh its files)
+        run: |
+          v="${TAG#v}"
+          pre=""; case "$v" in *-*) pre="--prerelease";; esac
+          files=$(ls built/* | grep -v '\.sig$')
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" $files meta/latest.json --clobber
+          else
+            gh release create "$TAG" $files meta/latest.json --draft $pre --verify-tag \
+              --title "LumiPDF $v" --notes-file meta/release-notes.md
+          fi
