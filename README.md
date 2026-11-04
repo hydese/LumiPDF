@@ -9,8 +9,8 @@ A real dark mode that keeps every formula sharp, your notes on the page, and eve
 
 [![Download for Windows](https://img.shields.io/badge/Download-Windows%2010%20%26%2011-3d6bf0?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/hydese/LumiPDF/releases/latest)
 
-[![Latest version](https://img.shields.io/github/v/release/hydese/LumiPDF?label=version&color=3d6bf0)](https://github.com/hydese/LumiPDF/releases)
-[![Downloads](https://img.shields.io/github/downloads/hydese/LumiPDF/total?color=3d6bf0)](https://github.com/hydese/LumiPDF/releases)
+[![Latest version](https://img.shields.io/github/v/release/hydese/LumiPDF?label=version&color=3d6bf0&sort=semver&cacheSeconds=3600)](https://github.com/hydese/LumiPDF/releases)
+[![Downloads](https://img.shields.io/github/downloads/hydese/LumiPDF/total?color=3d6bf0&cacheSeconds=3600)](https://github.com/hydese/LumiPDF/releases)
 [![License: GPL v3](https://img.shields.io/badge/license-GPL%20v3-3d6bf0)](LICENSE)
 
 <br />
