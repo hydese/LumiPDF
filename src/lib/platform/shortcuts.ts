@@ -30,3 +30,30 @@ export function formatShortcut(shortcut: string, platform: Platform): string {
   const win: Record<string, string> = { mod: "Ctrl", shift: "Shift", alt: "Alt", ctrl: "Ctrl" };
   return parts.map((p) => win[p] ?? p.toUpperCase()).join("+");
 }
+
+/**
+ * Shortcuts that differ by platform. On macOS ⌘Tab switches apps and F11 shows the desktop, so
+ * tabs use ⌃Tab (as in Safari) and full screen uses ⌃⌘F (the system's own).
+ */
+export function platformShortcut(name: "nextTab" | "prevTab" | "fullscreen", platform: Platform): string {
+  const mac = platform === "macos";
+  switch (name) {
+    case "nextTab":
+      return mac ? "ctrl+tab" : "mod+tab";
+    case "prevTab":
+      return mac ? "ctrl+shift+tab" : "mod+shift+tab";
+    case "fullscreen":
+      return mac ? "ctrl+mod+f" : "f11";
+  }
+}
+
+/** True for the full-screen shortcut: F11, or ⌃⌘F on macOS. */
+export function isFullscreenKey(event: KeyLike & { key: string }, platform: Platform): boolean {
+  if (event.key === "F11") return true;
+  return platform === "macos" && event.ctrlKey && event.metaKey && event.key.toLowerCase() === "f";
+}
+
+/** True for tab switching: Ctrl+Tab everywhere (⌘Tab is taken by macOS). */
+export function isTabCycleKey(event: KeyLike & { key: string }, platform: Platform): boolean {
+  return event.key === "Tab" && (event.ctrlKey || (platform !== "macos" && isPrimaryModifier(event, platform)));
+}

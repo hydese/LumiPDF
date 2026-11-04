@@ -11,6 +11,7 @@ mod documents;
 mod error;
 mod export;
 mod library;
+mod menu;
 mod pdf_export;
 mod settings;
 mod sheets;
@@ -19,7 +20,7 @@ mod updater;
 
 pub use error::AppError;
 
-use tauri::{DragDropEvent, Manager, WindowEvent};
+use tauri::{DragDropEvent, Emitter, Manager, WindowEvent};
 
 pub fn run() {
     tauri::Builder::default()
@@ -38,7 +39,13 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(updater::PendingUpdate::default())
         .manage(documents::PendingDocuments::default())
+        // macOS: LumiPDF's own menu (menu.rs) instead of Tauri's default one.
+        .enable_macos_default_menu(false)
+        .on_menu_event(|app, event| {
+            let _ = app.emit(menu::MENU_EVENT, event.id().0.clone());
+        })
         .setup(|app| {
+            menu::install(app.handle(), &menu::MenuLabels::default())?;
             library::init(app.handle());
             let paths = documents::paths_from_args(std::env::args());
             let docs = documents::grant_all(app.handle(), &paths);
@@ -53,6 +60,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
+            menu::set_menu,
             updater::update_installable,
             updater::update_check,
             updater::update_download,
@@ -85,11 +93,14 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("LumiPDF failed to start")
         .run(|_app, _event| {
-            // macOS delivers Finder "Open With" as an event instead of arguments.
+            // macOS delivers Finder "Open With" as an event instead of arguments. At launch it
+            // comes before the frontend listens, so it is also queued for take_pending_documents
+            // (the frontend takes the queue once, at startup).
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Opened { urls } = _event {
                 let paths: Vec<_> = urls.iter().filter_map(|u| u.to_file_path().ok()).collect();
                 let docs = documents::grant_all(_app, &paths);
+                documents::queue_pending(_app, docs.clone());
                 documents::emit_opened(_app, docs);
             }
         });

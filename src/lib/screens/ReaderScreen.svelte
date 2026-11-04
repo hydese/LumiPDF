@@ -5,7 +5,7 @@
    */
   import { untrack } from "svelte";
   import { t } from "../i18n";
-  import { formatShortcut } from "../platform/shortcuts";
+  import { formatShortcut, platformShortcut } from "../platform/shortcuts";
   import { platform } from "../platform/window";
   import { settings } from "../settings/store.svelte";
   import { readingMode } from "../dark/readingMode.svelte";
@@ -276,7 +276,7 @@
           <IconButton
             icon={fullscreen.on ? "shrink" : "expand"}
             label={fullscreen.on ? t("fullscreen.exit") : t("fullscreen.enter")}
-            title={t(fullscreen.on ? "fullscreen.exitTitle" : "fullscreen.enterTitle")}
+            title={t(fullscreen.on ? "fullscreen.exitTitle" : "fullscreen.enterTitle", { shortcut: formatShortcut(platformShortcut("fullscreen", platform), platform) })}
             pressed={fullscreen.on}
             onclick={() => fullscreen.toggle()}
           />

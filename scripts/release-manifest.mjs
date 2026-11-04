@@ -2,7 +2,8 @@
  * Builds the files a GitHub release needs from the built installers:
  *  - latest.json: the updater manifest (version, notes, and per platform the download URL and
  *    the installer's signature), which the in-app updater reads;
- *  - release-notes.md: the release text, from src/lib/whatsnew/releases.json.
+ *  - release-notes.md: the release text, from src/lib/whatsnew/releases.json;
+ *  - title.txt: the release title ("title" in releases.json, else "LumiPDF <version>").
  *
  * Usage: node scripts/release-manifest.mjs <tag> <dir with the built files> <out dir>
  */
@@ -51,7 +52,8 @@ const TAG = { new: "New", better: "Better", fixed: "Fixed" };
 const notes = entry.items.map((i) => `- **${TAG[i.tag] ?? i.tag}: ${i.title}.** ${i.text}`).join("\n");
 
 const sha256 = (file) => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
-const checksums = [setup, ...(mac ? [mac.replace(/\.tar\.gz$/, ".zip")] : [])]
+const dmg = find((n) => n.endsWith(".dmg"));
+const checksums = [setup, ...(dmg ? [dmg] : [])]
   .filter((f) => fs.existsSync(f))
   .map((f) => `- \`${path.basename(f)}\`: \`${sha256(f)}\``)
   .join("\n");
@@ -65,7 +67,13 @@ fs.writeFileSync(
   path.join(out, "release-notes.md"),
   `${notes}\n\n**Download:** the Windows installer (\`-setup.exe\`); LumiPDF then updates itself. ` +
     `The installer isn't code-signed yet: if Windows says "Windows protected your PC", choose **More info → Run anyway**.` +
-    (mac ? " macOS: `.app.zip` (Apple Silicon)." : "") +
-    `\n\n**SHA-256** (check with \`Get-FileHash\` in PowerShell):\n${checksums}\n`,
+    (dmg
+      ? "\n\n**macOS** (Apple Silicon, macOS 13 or later): the `.dmg`. Open it and drag LumiPDF into Applications. " +
+        "LumiPDF isn't signed by Apple, so the first time macOS says it can't verify it: click **Done**, then open " +
+        "**System Settings → Privacy & Security**, scroll down and click **Open Anyway** (on macOS 13–14 you can " +
+        "also right-click the app → **Open**)."
+      : "") +
+    `\n\n**SHA-256** (check with \`Get-FileHash\` in PowerShell${dmg ? ", or \`shasum -a 256\` in the Mac Terminal" : ""}):\n${checksums}\n`,
 );
+fs.writeFileSync(path.join(out, "title.txt"), entry.title ?? `LumiPDF ${version}`);
 console.log(`latest.json for ${version}: ${Object.keys(platforms).join(", ")}`);

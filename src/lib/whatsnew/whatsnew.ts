@@ -22,6 +22,8 @@ export interface NoteItem {
 
 export interface ReleaseNotes {
   version: string;
+  /** Optional GitHub release title (default "LumiPDF <version>"). */
+  title?: string;
   /** "YYYY-MM-DD", filled in when the version is released. */
   date: string;
   items: NoteItem[];
@@ -39,9 +41,10 @@ export function localized(item: NoteItem, locale: string): { title: string; text
   return item.tr?.[locale] ?? item.tr?.[locale.split("-")[0]!] ?? { title: item.title, text: item.text };
 }
 
+/** The notes for `version`: its own entry (a beta can have one), else its release's. */
 export function notesFor(version: string): ReleaseNotes | null {
   const release = releaseOf(version);
-  return RELEASES.find((r) => r.version === release) ?? null;
+  return RELEASES.find((r) => r.version === version) ?? RELEASES.find((r) => r.version === release) ?? null;
 }
 
 /**

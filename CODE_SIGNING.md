@@ -8,8 +8,15 @@ programme for open-source projects once LumiPDF qualifies.
 Updates installed from inside the app are always verified: every installer is signed with the
 project's updater key, and LumiPDF refuses an update whose signature doesn't match.
 
-The macOS app (from 2.1) is not signed by Apple. After moving it to Applications, open it once with
-right-click → **Open**, or run `xattr -dr com.apple.quarantine /Applications/LumiPDF.app`.
+The macOS app (from 2.1) is not signed with an Apple Developer ID; it is ad-hoc signed by the
+**Release** workflow, which Apple Silicon needs to run it. After moving it to Applications:
+
+- macOS 15 and later: open it, click **Done** when macOS says it can't verify it, then
+  **System Settings → Privacy & Security → Open Anyway** (once).
+- macOS 13–14: right-click the app → **Open** (once).
+- Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/LumiPDF.app`.
+
+In-app updates on the Mac are checked with the same updater key as on Windows.
 
 When certificate signing is in place:
 

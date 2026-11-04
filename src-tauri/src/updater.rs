@@ -63,7 +63,7 @@ pub fn installed() -> bool {
         return false;
     };
     if cfg!(target_os = "macos") {
-        return exe.to_string_lossy().contains(".app/Contents/MacOS");
+        return mac_can_update(&exe.to_string_lossy());
     }
     if cfg!(target_os = "windows") {
         // The NSIS installer puts its uninstaller next to the program.
@@ -72,6 +72,13 @@ pub fn installed() -> bool {
             .is_some_and(|dir| dir.join("uninstall.exe").exists());
     }
     false
+}
+
+/// macOS: an app bundle that can replace itself. Not when it runs straight from the .dmg
+/// (/Volumes, read-only) or from a translocated copy (macOS runs a downloaded app that wasn't
+/// moved to Applications from a hidden read-only folder); those open the download page instead.
+fn mac_can_update(exe: &str) -> bool {
+    exe.contains(".app/Contents/MacOS") && !exe.starts_with("/Volumes/") && !exe.contains("/AppTranslocation/")
 }
 
 #[tauri::command]
@@ -176,4 +183,18 @@ pub fn update_install<R: Runtime>(
         .install(bytes)
         .map_err(|e| AppError::InvalidInput(format!("The update couldn't be installed: {e}")))?;
     app.restart();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mac_updates_only_from_a_writable_app() {
+        assert!(mac_can_update("/Applications/LumiPDF.app/Contents/MacOS/lumipdf"));
+        assert!(mac_can_update("/Users/me/Applications/LumiPDF.app/Contents/MacOS/lumipdf"));
+        assert!(!mac_can_update("/Volumes/LumiPDF/LumiPDF.app/Contents/MacOS/lumipdf"));
+        assert!(!mac_can_update("/private/var/folders/x/T/AppTranslocation/ABC/d/LumiPDF.app/Contents/MacOS/lumipdf"));
+        assert!(!mac_can_update("/Users/me/lumipdf"));
+    }
 }

@@ -113,15 +113,19 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
-      - run: npx tauri build --bundles app --config src-tauri/tauri.release.conf.json
+      # Ad-hoc signed (bundle.macOS.signingIdentity "-"): Apple Silicon needs a signature to run,
+      # but it isn't an Apple Developer ID, so Gatekeeper asks once (see CODE_SIGNING.md).
+      - run: npx tauri build --bundles app,dmg --config src-tauri/tauri.release.conf.json
       - name: Collect files
         run: |
           v=$(node -p "require('./package.json').version")
           mkdir out
-          b=src-tauri/target/release/bundle/macos
-          cp "$b/LumiPDF.app.tar.gz" "out/LumiPDF_${v}_aarch64.app.tar.gz"
-          cp "$b/LumiPDF.app.tar.gz.sig" "out/LumiPDF_${v}_aarch64.app.tar.gz.sig"
-          ditto -c -k --keepParent "$b/LumiPDF.app" "out/LumiPDF_${v}_aarch64.app.zip"
+          b=src-tauri/target/release/bundle
+          # The .dmg is the download; the .app.tar.gz (+ signature) is what the in-app updater uses.
+          cp "$b"/dmg/*.dmg "out/LumiPDF_${v}_aarch64.dmg"
+          cp "$b/macos/LumiPDF.app.tar.gz" "out/LumiPDF_${v}_aarch64.app.tar.gz"
+          cp "$b/macos/LumiPDF.app.tar.gz.sig" "out/LumiPDF_${v}_aarch64.app.tar.gz.sig"
+          codesign --verify --deep --strict "$b/macos/LumiPDF.app" && echo "Ad-hoc signature OK"
       - uses: actions/upload-artifact@v7
         with:
           name: release-macos
@@ -159,5 +163,5 @@ jobs:
             gh release upload "$TAG" $files meta/latest.json --clobber
           else
             gh release create "$TAG" $files meta/latest.json --draft $pre --verify-tag \
-              --title "LumiPDF $v" --notes-file meta/release-notes.md
+              --title "$(cat meta/title.txt)" --notes-file meta/release-notes.md
           fi

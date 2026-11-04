@@ -67,7 +67,8 @@
       }
     },
     "macOS": {
-      "minimumSystemVersion": "13.0"
+      "minimumSystemVersion": "13.0",
+      "signingIdentity": "-"
     },
     "fileAssociations": [
       {

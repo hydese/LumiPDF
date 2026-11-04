@@ -114,7 +114,7 @@ class DocumentSession {
         name: ref.name,
         title: titleOf(ref.name),
         pdf,
-        place: { page: known?.page ?? 1, zoom: "page-width", offset: 0 },
+        place: { page: known?.page || 1, zoom: "page-width", offset: 0 },
         snapshot: null,
         password,
         bookmarks: known?.bookmarks ?? [],

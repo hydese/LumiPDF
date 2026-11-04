@@ -192,7 +192,16 @@ fn is_cloud_only(meta: &fs::Metadata) -> bool {
     meta.file_attributes() & (OFFLINE | RECALL_ON_OPEN | RECALL_ON_DATA_ACCESS) != 0
 }
 
-#[cfg(not(windows))]
+/// macOS 14+: iCloud files that aren't downloaded are "dataless" (SF_DATALESS); reading them
+/// downloads them.
+#[cfg(target_os = "macos")]
+fn is_cloud_only(meta: &fs::Metadata) -> bool {
+    use std::os::macos::fs::MetadataExt;
+    const SF_DATALESS: u32 = 0x4000_0000;
+    meta.st_flags() & SF_DATALESS != 0
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
 fn is_cloud_only(_meta: &fs::Metadata) -> bool {
     false
 }
@@ -237,7 +246,23 @@ pub fn scan_folder(root: &Path) -> (Vec<FileEntry>, bool) {
         };
         for entry in entries.flatten() {
             let name = entry.file_name();
-            if name.to_string_lossy().starts_with('.') {
+            let name = name.to_string_lossy();
+            if name.starts_with('.') {
+                // macOS 13 keeps iCloud files that aren't downloaded as ".name.pdf.icloud".
+                if let Some(real) = cloud::icloud_placeholder_name(&name) {
+                    let path = dir.join(real);
+                    if is_pdf_name(&path) && found.len() < MAX_FILES_PER_FOLDER {
+                        let modified = entry.metadata().map(|m| ms(m.modified())).unwrap_or(0);
+                        found.push(FileEntry {
+                            path: path.to_string_lossy().into_owned(),
+                            name: real.to_owned(),
+                            size: 0,
+                            modified,
+                            cloud_only: true,
+                            dir: relative_dir(root, &path),
+                        });
+                    }
+                }
                 continue;
             }
             let Ok(file_type) = entry.file_type() else {
@@ -540,15 +565,18 @@ pub fn library_remove_folder<R: Runtime>(
     save(&app, &data)
 }
 
-/// Opens a document that is already in the library.
+/// Opens a document that is already in the library (downloading an iCloud placeholder first).
 #[tauri::command]
-pub fn library_open<R: Runtime>(
-    app: AppHandle<R>,
-    library: State<'_, Library>,
-    path: String,
-) -> Result<DocumentRef, AppError> {
+pub async fn library_open<R: Runtime>(app: AppHandle<R>, path: String) -> Result<DocumentRef, AppError> {
+    {
+        let path = PathBuf::from(&path);
+        tauri::async_runtime::spawn_blocking(move || cloud::download_icloud_placeholder(&path))
+            .await
+            .map_err(|e| AppError::InvalidInput(e.to_string()))?;
+    }
     let normalized = normalize(Path::new(&path))
         .ok_or_else(|| AppError::InvalidInput(format!("File not found: {path}")))?;
+    let library = app.state::<Library>();
     if !lock(&library)?.knows(&normalized) {
         return Err(AppError::InvalidInput(
             "This file is not in your library".into(),
@@ -642,6 +670,17 @@ mod tests {
         names.sort();
         assert_eq!(names, [("", "a.pdf"), ("sub", "b.PDF")]);
         assert!(!truncated);
+    }
+
+    #[test]
+    fn lists_icloud_placeholders_as_cloud_only() {
+        let dir = tempfile::tempdir().unwrap();
+        touch(&dir.path().join("sub/.Lezione 3.pdf.icloud"));
+        touch(&dir.path().join(".notes.txt.icloud"));
+        let (files, _) = scan_folder(dir.path());
+        assert_eq!(files.len(), 1);
+        assert_eq!((files[0].dir.as_str(), files[0].name.as_str(), files[0].cloud_only), ("sub", "Lezione 3.pdf", true));
+        assert!(files[0].path.ends_with("Lezione 3.pdf"));
     }
 
     #[test]

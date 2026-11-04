@@ -2,7 +2,7 @@
   import { formatWhen, t, tn, type MessageKey } from "../i18n";
   import { CLOUD_KINDS } from "../ipc/library";
   import { AVAILABLE_LOCALES, languageName } from "../i18n";
-  import { formatShortcut } from "../platform/shortcuts";
+  import { formatShortcut, platformShortcut } from "../platform/shortcuts";
   import { platform } from "../platform/window";
   import { settings } from "../settings/store.svelte";
   import type { StartScreen, TimerSettings, UpdateMode } from "../settings/schema";
@@ -53,10 +53,10 @@
     ["settings.shortcuts.export", "mod+e"],
     ["settings.shortcuts.undo", "mod+z"],
     ["settings.shortcuts.redo", "mod+shift+z"],
-    ["settings.shortcuts.nextTab", "mod+tab"],
-    ["settings.shortcuts.prevTab", "mod+shift+tab"],
+    ["settings.shortcuts.nextTab", platformShortcut("nextTab", platform)],
+    ["settings.shortcuts.prevTab", platformShortcut("prevTab", platform)],
     ["settings.shortcuts.close", "mod+w"],
-    ["settings.shortcuts.fullscreen", "f11"],
+    ["settings.shortcuts.fullscreen", platformShortcut("fullscreen", platform)],
   ];
 
   function setTimer(key: keyof TimerSettings, value: number | boolean) {
@@ -227,7 +227,7 @@
           <label class="row">
             <span class="label">
               <span>{t("settings.update.mode")}</span>
-              <span class="hint">{updates.installable ? t("settings.update.modeHint") : t("settings.update.modePortable")}</span>
+              <span class="hint">{updates.installable ? t("settings.update.modeHint") : t(platform === "macos" ? "settings.update.modeMoveToApps" : "settings.update.modePortable")}</span>
             </span>
             <select class="select" value={s.app.updateMode} onchange={(e) => settings.update((x) => (x.app.updateMode = e.currentTarget.value as UpdateMode))}>
               <option value="auto">{t("settings.update.modeAuto")}</option>

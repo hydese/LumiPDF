@@ -2,6 +2,94 @@
   "$comment": "What's new after an update. Add an entry for every version you release, newest first. The app shows the entry for its own version once, on the first launch after updating; the GitHub release notes are generated from it. A test fails if the version in package.json has no entry. Tags: new, better, fixed. Optional \"welcome\": [\"language\" | \"usage\" | \"appearance\" | \"reading\" | \"library\" | \"updates\"] shows those welcome steps again after updating, when a change needs the user to choose something.",
   "releases": [
     {
+      "version": "2.1.0-beta.1",
+      "date": "2026-11-04",
+      "title": "LumiPDF 2.1.0 Beta 1 – macOS",
+      "items": [
+        {
+          "tag": "new",
+          "title": "LumiPDF on the Mac",
+          "text": "The first Mac version, for Apple Silicon Macs with macOS 13 or later: everything in 2.0, with the Mac's own window buttons, ⌘ shortcuts and a menu bar in your language.",
+          "tr": {
+            "it": {
+              "title": "LumiPDF su Mac",
+              "text": "La prima versione per Mac, per i Mac con Apple Silicon e macOS 13 o successivo: tutto quello che c’è nella 2.0, con i pulsanti della finestra del Mac, le scorciatoie con ⌘ e una barra dei menu nella tua lingua."
+            },
+            "pt-BR": {
+              "title": "LumiPDF no Mac",
+              "text": "A primeira versão para Mac, para Macs com Apple Silicon e macOS 13 ou posterior: tudo da 2.0, com os botões de janela do Mac, atalhos com ⌘ e uma barra de menus no seu idioma."
+            },
+            "fr": {
+              "title": "LumiPDF sur Mac",
+              "text": "La première version pour Mac, pour les Mac Apple Silicon sous macOS 13 ou ultérieur : tout ce qu’il y a dans la 2.0, avec les boutons de fenêtre du Mac, les raccourcis ⌘ et une barre des menus dans votre langue."
+            },
+            "de": {
+              "title": "LumiPDF auf dem Mac",
+              "text": "Die erste Mac-Version, für Macs mit Apple Silicon und macOS 13 oder neuer: alles aus 2.0, mit den Fenstertasten des Mac, ⌘-Kurzbefehlen und einer Menüleiste in deiner Sprache."
+            },
+            "es": {
+              "title": "LumiPDF en el Mac",
+              "text": "La primera versión para Mac, para Mac con Apple Silicon y macOS 13 o posterior: todo lo de la 2.0, con los botones de ventana del Mac, atajos con ⌘ y una barra de menús en tu idioma."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "iCloud Drive files",
+          "text": "PDFs that are only in iCloud show up in the library and download when you open them.",
+          "tr": {
+            "it": {
+              "title": "File di iCloud Drive",
+              "text": "I PDF che sono solo su iCloud compaiono nella libreria e vengono scaricati quando li apri."
+            },
+            "pt-BR": {
+              "title": "Arquivos do iCloud Drive",
+              "text": "Os PDFs que estão só no iCloud aparecem na biblioteca e são baixados quando você os abre."
+            },
+            "fr": {
+              "title": "Fichiers iCloud Drive",
+              "text": "Les PDF qui ne sont que dans iCloud apparaissent dans la bibliothèque et se téléchargent quand vous les ouvrez."
+            },
+            "de": {
+              "title": "iCloud-Drive-Dateien",
+              "text": "PDFs, die nur in iCloud liegen, erscheinen in der Bibliothek und werden beim Öffnen heruntergeladen."
+            },
+            "es": {
+              "title": "Archivos de iCloud Drive",
+              "text": "Los PDF que solo están en iCloud aparecen en la biblioteca y se descargan al abrirlos."
+            }
+          }
+        },
+        {
+          "tag": "better",
+          "title": "Tabs and full screen on the Mac",
+          "text": "Switch tabs with ⌃Tab and go full screen with ⌃⌘F or the green window button.",
+          "tr": {
+            "it": {
+              "title": "Schede e schermo intero su Mac",
+              "text": "Cambia scheda con ⌃Tab e passa a schermo intero con ⌃⌘F o il pulsante verde della finestra."
+            },
+            "pt-BR": {
+              "title": "Abas e tela cheia no Mac",
+              "text": "Troque de aba com ⌃Tab e entre em tela cheia com ⌃⌘F ou o botão verde da janela."
+            },
+            "fr": {
+              "title": "Onglets et plein écran sur Mac",
+              "text": "Changez d’onglet avec ⌃Tab et passez en plein écran avec ⌃⌘F ou le bouton vert de la fenêtre."
+            },
+            "de": {
+              "title": "Tabs und Vollbild auf dem Mac",
+              "text": "Wechsle Tabs mit ⌃Tab und geh mit ⌃⌘F oder der grünen Fenstertaste in den Vollbildmodus."
+            },
+            "es": {
+              "title": "Pestañas y pantalla completa en el Mac",
+              "text": "Cambia de pestaña con ⌃Tab y pasa a pantalla completa con ⌃⌘F o el botón verde de la ventana."
+            }
+          }
+        }
+      ]
+    },
+    {
       "version": "2.0.0",
       "date": "2026-11-04",
       "welcome": [

@@ -99,12 +99,17 @@ const shotsAll = [
   { name: "settings-de", settings: { app: { appearance: "light", ...seen, locale: "de" } }, keys: "Control+Comma" },
   { name: "settings-es", settings: { app: { appearance: "dark", ...seen, locale: "es" } }, keys: "Control+Comma" },
   { name: "settings-about-fr", settings: { app: { appearance: "light", ...seen, locale: "fr" } }, keys: "Control+Comma", section: "À propos" },
-  { name: "reader-pt", settings: { app: { appearance: "light", ...seen, locale: "pt-BR" }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: true },
+  { name: "reader-pt", settings: { app: { appearance: "light", ...seen, locale: "pt-BR" }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], keys: "h" },
   { name: "stats-fr", settings: { app: { appearance: "light", ...seen, locale: "fr" } }, click: '.sources .btn:has-text("Statistiques")' },
   { name: "export-de", settings: { app: { appearance: "light", ...seen, locale: "de" }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], keys: "Control+e" },
   { name: "timer-pt", settings: { app: { appearance: "dark", ...seen, locale: "pt-BR" }, timer: { mode: "chrono" } }, click: '[aria-label="Timer de estudo"]' },
   { name: "timer-de", settings: { app: { appearance: "light", ...seen, locale: "de" }, timer: { mode: "alarm" } }, click: '[aria-label="Lern-Timer"]' },
   { name: "timer-es", settings: { app: { appearance: "light", ...seen, locale: "es" }, timer: { mode: "pomodoro" } }, click: '[aria-label="Temporizador de estudio"]' },
+  // macOS look.
+  { name: "mac-library", mac: true, settings: { app: { appearance: "light", ...seen, locale: "en" } } },
+  { name: "mac-reader-dark", mac: true, settings: { app: { appearance: "dark", ...seen, locale: "it" } }, open: ["Analisi 2 — Trasformate", "Fisica 1"] },
+  { name: "mac-shortcuts", mac: true, settings: { app: { appearance: "light", ...seen, locale: "en" } }, keys: "Meta+Comma", section: "Shortcuts" },
+  { name: "mac-welcome", mac: true, settings: { app: { appearance: "light", locale: "pt-BR" } }, welcome: 0 },
   // For the README (scripts/readme-images.mjs): no update banner, the same page in light and dark.
   { name: "readme-library-light", settings: { app: { appearance: "light", ...seen } }, settle: true },
   { name: "readme-library-dark", settings: { app: { appearance: "dark", ...seen } }, settle: true },
@@ -116,7 +121,12 @@ const shots = only ? shotsAll.filter((s) => only.includes(s.name)) : shotsAll;
 
 for (const shot of shots) {
   if (only && !only.includes(shot.name)) continue;
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor });
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+    deviceScaleFactor,
+    // "mac": the app as on macOS (traffic-light space, ⌘ shortcuts).
+    ...(shot.mac ? { userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15" } : {}),
+  });
   const page = await context.newPage();
   page.on("pageerror", (e) => console.error(`[${shot.name}]`, e.message));
   page.on("console", (m) => m.type() === "error" && console.error(`[${shot.name}] console:`, m.text()));

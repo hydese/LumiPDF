@@ -5,7 +5,9 @@
    */
   import { onMount } from "svelte";
   import { detectLocale, setLocale, t } from "./lib/i18n";
-  import { isPrimaryModifier } from "./lib/platform/shortcuts";
+  import { isFullscreenKey, isPrimaryModifier, isTabCycleKey } from "./lib/platform/shortcuts";
+  import { onMenu, setMenuLanguage, type MenuAction } from "./lib/ipc/menu";
+  import { openExternal } from "./lib/ipc/system";
     import { onDocumentsOpened, takePendingDocuments } from "./lib/ipc/documents";
   import { settings } from "./lib/settings/store.svelte";
   import { readingMode } from "./lib/dark/readingMode.svelte";
@@ -42,7 +44,11 @@
   let barActions = $state<BarActions | null>(null);
   const locale = $derived(settings.value.app.locale);
 
-  $effect(() => setLocale(locale));
+  $effect(() => {
+    setLocale(locale);
+    // macOS: the menu bar follows the language too.
+    if (platform === "macos" && ready) void setMenuLanguage().catch(() => {});
+  });
   $effect(() => {
     void settings.value.timer;
     timers.syncWithSettings();
@@ -59,6 +65,50 @@
     }
   });
 
+  /** Closing the window or ⌘Q: ask first if a timer would be lost, else save and quit. */
+  function requestQuit() {
+    if (settings.value.timer.askOnClose && timers.busy) askClose = true;
+    else void quitSaved();
+  }
+
+  /** macOS menu bar items (the same actions as the keyboard shortcuts). */
+  function onMenuAction(action: MenuAction) {
+    const inReader = navigation.screen === "reader" && session.current !== null;
+    const typing = (document.activeElement as HTMLElement | null)?.closest?.("input, textarea, [contenteditable='true']");
+    switch (action) {
+      case "settings":
+        return navigation.openSettings();
+      case "quit":
+        return requestQuit();
+      case "open":
+        return void session.openWithDialog();
+      case "close-tab":
+        if (navigation.screen === "reader" && session.active) void session.close();
+        return;
+      case "export":
+        if (inReader) exportOpen = true;
+        return;
+      case "find":
+        if (!inReader) return;
+        findOpen = true;
+        queueMicrotask(() => {
+          findInput?.focus();
+          findInput?.select();
+        });
+        return;
+      case "undo":
+      case "redo":
+        // In a text field the field's own undo; elsewhere the annotations'.
+        if (typing) document.execCommand(action);
+        else if (inReader) action === "undo" ? annotations.undo() : annotations.redo();
+        return;
+      case "fullscreen":
+        return void fullscreen.toggle();
+      case "github":
+        return void openExternal("https://github.com/hydese/LumiPDF");
+    }
+  }
+
   /** Saves annotations and study time, then closes for real. */
   async function quitSaved() {
     await Promise.allSettled([annotations.flush(), studyClock.flush(), sheets.flush()]);
@@ -68,7 +118,7 @@
   }
 
   function onKeydown(event: KeyboardEvent) {
-    if (event.key === "F11") {
+    if (isFullscreenKey(event, platform)) {
       event.preventDefault();
       void fullscreen.toggle();
       return;
@@ -101,6 +151,11 @@
         return;
       }
     }
+    if (isTabCycleKey(event, platform) && session.tabs.length) {
+      event.preventDefault();
+      session.cycle(event.shiftKey ? -1 : 1);
+      return;
+    }
     if (!isPrimaryModifier(event, platform) || event.altKey) return;
     if (reading && !typing) {
       const k = event.key.toLowerCase();
@@ -119,9 +174,6 @@
       action();
     };
 
-    if (key === "tab" && session.tabs.length) {
-      return run(() => session.cycle(event.shiftKey ? -1 : 1));
-    }
     if (!event.shiftKey && /^[1-9]$/.test(key) && session.tabs.length) {
       return run(() => session.activateIndex(Number(key)));
     }
@@ -184,10 +236,7 @@
       stops.push(
         guardClose(
           () => true,
-          () => {
-            if (settings.value.timer.askOnClose && timers.busy) askClose = true;
-            else void quitSaved();
-          },
+          requestQuit,
         ),
       );
       ready = true;
@@ -214,8 +263,10 @@
       }
     };
     window.addEventListener("focus", onFocus);
+    const unlistenMenu = platform === "macos" ? onMenu(onMenuAction) : null;
 
     return () => {
+      void unlistenMenu?.then((stop) => stop());
       for (const stop of stops) stop();
       window.removeEventListener("focus", onFocus);
       void unlisten.then((stop) => stop());

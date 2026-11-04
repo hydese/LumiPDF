@@ -101,6 +101,39 @@ fn cloud_storage(home: &Path, prefix: &str) -> Vec<PathBuf> {
     found
 }
 
+/// The real name behind a macOS 13 iCloud placeholder: ".Lesson 1.pdf.icloud" → "Lesson 1.pdf".
+pub fn icloud_placeholder_name(file_name: &str) -> Option<&str> {
+    let real = file_name.strip_prefix('.')?.strip_suffix(".icloud")?;
+    (!real.is_empty() && !real.starts_with('.')).then_some(real)
+}
+
+/// macOS 13: if `path` is only an iCloud placeholder, asks iCloud to download it and waits (up
+/// to a minute) for the real file. Does nothing when the file is already there, and elsewhere.
+pub fn download_icloud_placeholder(path: &Path) {
+    #[cfg(target_os = "macos")]
+    {
+        let (Some(dir), Some(name)) = (path.parent(), path.file_name()) else {
+            return;
+        };
+        let placeholder = dir.join(format!(".{}.icloud", name.to_string_lossy()));
+        if path.exists() || !placeholder.exists() {
+            return;
+        }
+        let _ = std::process::Command::new("/usr/bin/brctl")
+            .arg("download")
+            .arg(path)
+            .status();
+        for _ in 0..120 {
+            if path.exists() {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = path;
+}
+
 /// Dropbox writes its folder location to info.json: {"personal": {"path": "..."}}.
 fn dropbox_info(path: &Path) -> Option<PathBuf> {
     let json: serde_json::Value = serde_json::from_str(&fs::read_to_string(path).ok()?).ok()?;
@@ -115,6 +148,14 @@ mod tests {
 
     fn no_env(_: &str) -> Option<String> {
         None
+    }
+
+    #[test]
+    fn reads_icloud_placeholder_names() {
+        assert_eq!(icloud_placeholder_name(".Lezione 1.pdf.icloud"), Some("Lezione 1.pdf"));
+        assert_eq!(icloud_placeholder_name(".DS_Store"), None);
+        assert_eq!(icloud_placeholder_name("a.pdf.icloud"), None);
+        assert_eq!(icloud_placeholder_name("..icloud"), None);
     }
 
     #[test]
