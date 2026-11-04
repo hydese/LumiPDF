@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { formatDate, t } from "../i18n";
+  import { currentLocale, formatDate, t } from "../i18n";
   import { openExternal } from "../ipc/system";
   import { RELEASES_PAGE } from "../updates/updates.svelte";
   import AppMark from "../ui/AppMark.svelte";
   import Dialog from "../ui/Dialog.svelte";
-  import type { ReleaseNotes } from "./whatsnew";
+  import { localized, type ReleaseNotes } from "./whatsnew";
 
   interface Props {
     notes: ReleaseNotes;
@@ -31,11 +31,12 @@
   </div>
   <ul>
     {#each notes.items as item, i (i)}
+      {@const text = localized(item, currentLocale())}
       <li>
         <span class="tag {item.tag}">{t(`whatsnew.tag.${item.tag}`)}</span>
         <span class="text">
-          <span class="title">{item.title}</span>
-          <span class="detail">{item.text}</span>
+          <span class="title">{text.title}</span>
+          <span class="detail">{text.text}</span>
         </span>
       </li>
     {/each}

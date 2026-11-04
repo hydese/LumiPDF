@@ -204,7 +204,8 @@
   .modes {
     align-self: stretch;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    /* Wide enough for the longest name in each language ("Temporizador", "Cronômetro"). */
+    grid-template-columns: repeat(4, auto);
     gap: 2px;
     padding: 3px;
     border-radius: 9px;
@@ -213,6 +214,8 @@
   .modes button {
     position: relative;
     height: 28px;
+    padding: 0 8px;
+    white-space: nowrap;
     border: none;
     border-radius: 7px;
     background: transparent;

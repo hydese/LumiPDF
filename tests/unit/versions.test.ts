@@ -32,15 +32,25 @@ describe("what's new", () => {
   });
 
   it("shows the welcome on a fresh install, notes once after an update", () => {
-    expect(whatsNewOnLaunch("2.0.0", "")).toEqual({ welcome: ["language", "usage", "appearance", "reading", "library", "updates"], show: null, remember: false });
+    const all = ["language", "usage", "appearance", "reading", "library", "updates"];
+    // 2.0.0 asks for the whole welcome plus its "what's new" page: new users get the tour too.
+    const fresh = whatsNewOnLaunch("2.0.0", "");
+    expect(fresh.welcome).toEqual([...all, "whatsnew"]);
+    expect(fresh.show?.version).toBe("2.0.0");
     expect(whatsNewOnLaunch("2.0.0", "2.0.0").show).toBeNull();
-    expect(whatsNewOnLaunch("2.0.0", "1.0.5").show?.version).toBe("2.0.0");
-    expect(whatsNewOnLaunch("2.0.0", "1.0.5").welcome).toEqual([]);
+    // From 1.x or a beta: the same welcome, with the 2.0.0 notes on its last page.
+    for (const from of ["1.0.5", "2.0.0-beta.2"]) {
+      const plan = whatsNewOnLaunch("2.0.0", from);
+      expect(plan.show?.version).toBe("2.0.0");
+      expect(plan.welcome).toEqual([...all, "whatsnew"]);
+    }
     expect(whatsNewOnLaunch("2.0.0-beta.9", "2.0.0-beta.8")).toEqual({ welcome: [], show: null, remember: true });
     // A prerelease with its own entry shows its notes and the welcome steps it asks for.
     const beta2 = whatsNewOnLaunch("2.0.0-beta.2", "2.0.0-beta.1");
     expect(beta2.show?.version).toBe("2.0.0-beta.2");
-    expect(beta2.welcome).toEqual(["language", "usage", "appearance", "reading", "library", "updates"]);
+    expect(beta2.welcome).toEqual(all);
+    // A later version without welcome steps only shows its notes.
+    expect(whatsNewOnLaunch("2.0.1", "2.0.0").welcome).toEqual([]);
   });
 });
 

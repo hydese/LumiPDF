@@ -4,7 +4,7 @@
    * keyboard shortcuts. Screens own their own layout.
    */
   import { onMount } from "svelte";
-  import { setLocale, t } from "./lib/i18n";
+  import { detectLocale, setLocale, t } from "./lib/i18n";
   import { isPrimaryModifier } from "./lib/platform/shortcuts";
     import { onDocumentsOpened, takePendingDocuments } from "./lib/ipc/documents";
   import { settings } from "./lib/settings/store.svelte";
@@ -175,6 +175,8 @@
     void (async () => {
       // Settings first, so the first screen is already in the right theme and language.
       await settings.load();
+      // First start: the Windows language, if LumiPDF speaks it (changeable in the welcome).
+      if (!settings.value.app.locale) settings.update((s) => (s.app.locale = detectLocale()));
       setLocale(settings.value.app.locale);
       stops.push(appearance.start(), readingMode.start(), studyClock.start());
       timers.syncWithSettings();
@@ -190,7 +192,7 @@
       );
       ready = true;
       updates.beforeInstall = () => Promise.allSettled([annotations.flush(), studyClock.flush(), sheets.flush()]);
-      updates.adoptBeta();
+      updates.syncBeta(settings.value.app.lastSeenVersion);
       whatsNew.onLaunch();
       if (settings.value.app.checkForUpdates) stops.push(updates.checkSoon());
       await Promise.all([library.refresh(), sheets.refresh()]);
@@ -273,7 +275,7 @@
       </Dialog>
     {/if}
     {#if whatsNew.welcome}
-      <Welcome steps={whatsNew.welcome} onDone={() => whatsNew.finishWelcome()} />
+      <Welcome steps={whatsNew.welcome} notes={whatsNew.welcomeNotes} onDone={() => whatsNew.finishWelcome()} />
     {/if}
     {#if whatsNew.notes}
       <WhatsNewDialog notes={whatsNew.notes} previousVersion={whatsNew.previousVersion} onClose={() => whatsNew.dismiss()} />

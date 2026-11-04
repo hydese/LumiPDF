@@ -14,6 +14,7 @@
  */
 import { compareVersions, parseVersion } from "../app/semver";
 import { settings } from "../settings/store.svelte";
+import { errorText } from "../i18n/errors";
 import { updateCheck, updateDownload, updateInstall, updateInstallable } from "../ipc/updater";
 
 const RELEASES_API = "https://api.github.com/repos/hydese/LumiPDF/releases?per_page=15";
@@ -112,7 +113,7 @@ class Updates {
     let error: string | null = null;
     const meta = await updateCheck(channel).catch((err) => {
       console.warn("LumiPDF: signed update check failed", err);
-      error = err instanceof Error ? err.message : String((err as { message?: string })?.message ?? err);
+      error = errorText(err);
       return null;
     });
     this.signed = meta !== null;
@@ -137,7 +138,7 @@ class Updates {
       return true;
     } catch (err) {
       this.install = "failed";
-      this.installError = err instanceof Error ? err.message : String((err as { message?: string })?.message ?? err);
+      this.installError = errorText(err);
       return false;
     }
   }
@@ -151,7 +152,7 @@ class Updates {
       await updateInstall();
     } catch (err) {
       this.install = "failed";
-      this.installError = err instanceof Error ? err.message : String((err as { message?: string })?.message ?? err);
+      this.installError = errorText(err);
     }
   }
 
@@ -187,14 +188,27 @@ class Updates {
   }
 
   /**
-   * Installing a beta puts you on the beta channel (once: if you turn it off later, it stays
-   * off), so testers get the next beta without looking for the hidden switch.
+   * Runs once at startup, before the launch notes (lastSeen is the version used last time).
+   * - A beta build puts you on the beta channel (once: if you turn it off later, it stays off),
+   *   so testers get the next beta without looking for the hidden switch.
+   * - The first stable build after a beta moves you back to stable and hides the switch again
+   *   (testers unlock it with the 7 taps on the version in Settings → About).
    */
-  adoptBeta(): void {
-    if (this.isBeta && !settings.value.app.betaUnlocked) {
+  syncBeta(lastSeen: string): void {
+    if (this.isBeta) {
+      if (!settings.value.app.betaUnlocked) {
+        settings.update((s) => {
+          s.app.betaUnlocked = true;
+          s.app.betaUpdates = true;
+        });
+      }
+      return;
+    }
+    const fromBeta = lastSeen !== "" && (parseVersion(lastSeen)?.pre.length ?? 0) > 0;
+    if (fromBeta && (settings.value.app.betaUpdates || settings.value.app.betaUnlocked)) {
       settings.update((s) => {
-        s.app.betaUnlocked = true;
-        s.app.betaUpdates = true;
+        s.app.betaUnlocked = false;
+        s.app.betaUpdates = false;
       });
     }
   }

@@ -3,57 +3,394 @@
   "releases": [
     {
       "version": "2.0.0",
-      "date": "",
+      "date": "2026-11-04",
+      "welcome": [
+        "language",
+        "usage",
+        "appearance",
+        "reading",
+        "library",
+        "updates",
+        "whatsnew"
+      ],
       "items": [
         {
           "tag": "new",
           "title": "LumiPDF 2.0",
-          "text": "LuminaPDF, rewritten from scratch and renamed: lighter, faster and sharper."
+          "text": "LuminaPDF, rewritten from scratch and renamed: lighter, faster and sharper.",
+          "tr": {
+            "it": {
+              "title": "LumiPDF 2.0",
+              "text": "LuminaPDF, riscritto da zero e con un nuovo nome: più leggero, più veloce e più nitido."
+            },
+            "pt-BR": {
+              "title": "LumiPDF 2.0",
+              "text": "O LuminaPDF, reescrito do zero e com um novo nome: mais leve, mais rápido e mais nítido."
+            },
+            "fr": {
+              "title": "LumiPDF 2.0",
+              "text": "LuminaPDF, réécrit de zéro et renommé : plus léger, plus rapide et plus net."
+            },
+            "de": {
+              "title": "LumiPDF 2.0",
+              "text": "LuminaPDF, von Grund auf neu geschrieben und umbenannt: leichter, schneller und schärfer."
+            },
+            "es": {
+              "title": "LumiPDF 2.0",
+              "text": "LuminaPDF, reescrito desde cero y con nuevo nombre: más ligero, más rápido y más nítido."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "Six languages",
+          "text": "English, Italiano, Português (Brasil), Français, Deutsch and Español. LumiPDF starts in your Windows language; change it any time in Settings.",
+          "tr": {
+            "it": {
+              "title": "Sei lingue",
+              "text": "English, Italiano, Português (Brasil), Français, Deutsch ed Español. LumiPDF parte nella lingua di Windows; puoi cambiarla quando vuoi nelle Impostazioni."
+            },
+            "pt-BR": {
+              "title": "Seis idiomas",
+              "text": "English, Italiano, Português (Brasil), Français, Deutsch e Español. O LumiPDF começa no idioma do seu Windows; mude quando quiser nas Configurações."
+            },
+            "fr": {
+              "title": "Six langues",
+              "text": "English, Italiano, Português (Brasil), Français, Deutsch et Español. LumiPDF démarre dans la langue de Windows ; changez-la à tout moment dans les Réglages."
+            },
+            "de": {
+              "title": "Sechs Sprachen",
+              "text": "English, Italiano, Português (Brasil), Français, Deutsch und Español. LumiPDF startet in deiner Windows-Sprache; ändern kannst du sie jederzeit in den Einstellungen."
+            },
+            "es": {
+              "title": "Seis idiomas",
+              "text": "English, Italiano, Português (Brasil), Français, Deutsch y Español. LumiPDF empieza en el idioma de tu Windows; cámbialo cuando quieras en Ajustes."
+            }
+          }
         },
         {
           "tag": "new",
           "title": "A library on the home screen",
-          "text": "Pick up where you left off, add your folders, iCloud Drive and GoodNotes backups, and search by title."
+          "text": "Pick up where you left off, add your folders (sorted A–Z, Z–A or by last opened), iCloud Drive, OneDrive, Google Drive, Dropbox and GoodNotes backups, and search by title.",
+          "tr": {
+            "it": {
+              "title": "Una libreria nella schermata iniziale",
+              "text": "Riprendi da dove avevi lasciato, aggiungi le tue cartelle (ordinate A–Z, Z–A o per ultima apertura), iCloud Drive, OneDrive, Google Drive, Dropbox e i backup di GoodNotes, e cerca per titolo."
+            },
+            "pt-BR": {
+              "title": "Uma biblioteca na tela inicial",
+              "text": "Continue de onde parou, adicione suas pastas (ordenadas de A–Z, Z–A ou pela última abertura), iCloud Drive, OneDrive, Google Drive, Dropbox e backups do GoodNotes, e busque pelo título."
+            },
+            "fr": {
+              "title": "Une bibliothèque sur l’écran d’accueil",
+              "text": "Reprenez là où vous vous étiez arrêté, ajoutez vos dossiers (triés A–Z, Z–A ou par dernière ouverture), iCloud Drive, OneDrive, Google Drive, Dropbox et les sauvegardes GoodNotes, et cherchez par titre."
+            },
+            "de": {
+              "title": "Eine Bibliothek als Startbildschirm",
+              "text": "Mach da weiter, wo du aufgehört hast, füge deine Ordner (sortiert A–Z, Z–A oder nach zuletzt geöffnet), iCloud Drive, OneDrive, Google Drive, Dropbox und GoodNotes-Backups hinzu und suche nach Titeln."
+            },
+            "es": {
+              "title": "Una biblioteca en la pantalla de inicio",
+              "text": "Sigue donde lo dejaste, añade tus carpetas (ordenadas A–Z, Z–A o por última apertura), iCloud Drive, OneDrive, Google Drive, Dropbox y las copias de GoodNotes, y busca por título."
+            }
+          }
         },
         {
           "tag": "better",
           "title": "Crisp dark mode",
-          "text": "Pages are recoloured while they are drawn, so text stays as sharp as the original in all five reading themes."
+          "text": "Pages are recoloured while they are drawn, so text stays as sharp as the original in all five reading themes.",
+          "tr": {
+            "it": {
+              "title": "Modalità scura nitida",
+              "text": "Le pagine vengono ricolorate mentre vengono disegnate, così il testo resta nitido come l’originale in tutti e cinque i temi di lettura."
+            },
+            "pt-BR": {
+              "title": "Modo escuro nítido",
+              "text": "As páginas são recoloridas enquanto são desenhadas, então o texto fica tão nítido quanto o original nos cinco temas de leitura."
+            },
+            "fr": {
+              "title": "Un mode sombre net",
+              "text": "Les pages sont recolorées pendant qu’elles sont dessinées : le texte reste aussi net que l’original dans les cinq thèmes de lecture."
+            },
+            "de": {
+              "title": "Gestochen scharfer Dunkelmodus",
+              "text": "Seiten werden beim Zeichnen umgefärbt, so bleibt der Text in allen fünf Lesethemen so scharf wie im Original."
+            },
+            "es": {
+              "title": "Modo oscuro nítido",
+              "text": "Las páginas se recolorean mientras se dibujan, así que el texto queda tan nítido como el original en los cinco temas de lectura."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "Tabs",
+          "text": "Keep many documents open at once. Tabs in the background rest to keep your computer fast, and come back on the same page.",
+          "tr": {
+            "it": {
+              "title": "Schede",
+              "text": "Tieni aperti tanti documenti insieme. Le schede in secondo piano si mettono a riposo per non rallentare il computer, e tornano alla stessa pagina."
+            },
+            "pt-BR": {
+              "title": "Abas",
+              "text": "Mantenha vários documentos abertos ao mesmo tempo. As abas em segundo plano descansam para deixar o computador rápido e voltam na mesma página."
+            },
+            "fr": {
+              "title": "Onglets",
+              "text": "Gardez plusieurs documents ouverts à la fois. Les onglets en arrière-plan se mettent en veille pour garder l’ordinateur rapide, et reviennent à la même page."
+            },
+            "de": {
+              "title": "Tabs",
+              "text": "Halte viele Dokumente gleichzeitig offen. Tabs im Hintergrund ruhen, damit dein Computer schnell bleibt, und öffnen sich wieder auf derselben Seite."
+            },
+            "es": {
+              "title": "Pestañas",
+              "text": "Ten muchos documentos abiertos a la vez. Las pestañas en segundo plano descansan para que el ordenador vaya rápido, y vuelven a la misma página."
+            }
+          }
         },
         {
           "tag": "new",
           "title": "Mark up as you study",
-          "text": "Highlight, underline or strike text, write with a smooth pen, use the highlighter and sticky notes you can drag anywhere. Snip any area to copy it or save it as a PNG. Everything is listed in the Notes tab."
-        },
-        {
-          "tag": "new",
-          "title": "Export and compress",
-          "text": "Save a copy with your annotations built in, and make big PDFs smaller: a 50 MB scanned notebook becomes 9 MB at Recommended. Password-protected PDFs keep their protection, or you can unlock the copy for good if you have the password. The original is never changed."
-        },
-        {
-          "tag": "new",
-          "title": "Formula sheets",
-          "text": "Snip a formula or figure and add it to a sheet for the exam. Snips line up in columns on their own, or place them freely; add titles, choose A4 or Letter, and export a PDF ready to print. Click a snip to jump back to its page."
+          "text": "Highlight, underline or strike text, write with a smooth pen, use the highlighter in any colour and sticky notes you can drag anywhere. Everything is listed in the Notes tab.",
+          "tr": {
+            "it": {
+              "title": "Annota mentre studi",
+              "text": "Evidenzia, sottolinea o barra il testo, scrivi con una penna fluida, usa l’evidenziatore di qualsiasi colore e note adesive da spostare dove vuoi. Tutto è elencato nella scheda Note."
+            },
+            "pt-BR": {
+              "title": "Anote enquanto estuda",
+              "text": "Destaque, sublinhe ou risque o texto, escreva com uma caneta suave, use o marca-texto em qualquer cor e notas adesivas que você arrasta para onde quiser. Tudo fica listado na aba Notas."
+            },
+            "fr": {
+              "title": "Annotez en étudiant",
+              "text": "Surlignez, soulignez ou barrez du texte, écrivez avec un stylo fluide, utilisez le surligneur dans toutes les couleurs et des notes adhésives à déplacer partout. Tout est listé dans l’onglet Notes."
+            },
+            "de": {
+              "title": "Markieren beim Lernen",
+              "text": "Markiere, unterstreiche oder streiche Text durch, schreib mit einem flüssigen Stift, nutze den Textmarker in jeder Farbe und Haftnotizen, die du überallhin ziehen kannst. Alles steht im Tab Notizen."
+            },
+            "es": {
+              "title": "Anota mientras estudias",
+              "text": "Resalta, subraya o tacha texto, escribe con un bolígrafo suave, usa el rotulador en cualquier color y notas adhesivas que puedes arrastrar a cualquier sitio. Todo aparece en la pestaña Notas."
+            }
+          }
         },
         {
           "tag": "new",
           "title": "Link previews",
-          "text": "Hover a link to an equation, figure or footnote to see it right there, in your reading theme, without losing your place."
+          "text": "Hover a link to an equation, figure or footnote to see it right there, in your reading theme, without losing your place.",
+          "tr": {
+            "it": {
+              "title": "Anteprima dei link",
+              "text": "Passa sopra un link a un’equazione, una figura o una nota per vederla subito, nel tuo tema di lettura, senza perdere il segno."
+            },
+            "pt-BR": {
+              "title": "Prévia de links",
+              "text": "Passe o mouse sobre um link para uma equação, figura ou nota de rodapé para vê-la ali mesmo, no seu tema de leitura, sem perder o lugar."
+            },
+            "fr": {
+              "title": "Aperçu des liens",
+              "text": "Survolez un lien vers une équation, une figure ou une note pour la voir sur place, dans votre thème de lecture, sans perdre votre page."
+            },
+            "de": {
+              "title": "Link-Vorschau",
+              "text": "Fahr über einen Link zu einer Gleichung, Abbildung oder Fußnote und sieh sie direkt dort, in deinem Lesethema, ohne deine Stelle zu verlieren."
+            },
+            "es": {
+              "title": "Vista previa de enlaces",
+              "text": "Pasa el ratón por un enlace a una ecuación, figura o nota al pie para verla ahí mismo, en tu tema de lectura, sin perder el sitio."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "Snips and formula sheets",
+          "text": "Snip any area to copy it or save it as a picture, or add it to a sheet for the exam. Snips line up in columns on their own, or place them freely; add titles, choose A4 or Letter, and export a PDF ready to print.",
+          "tr": {
+            "it": {
+              "title": "Ritagli e formulari",
+              "text": "Ritaglia qualsiasi area per copiarla o salvarla come immagine, oppure aggiungila a un formulario per l’esame. I ritagli si mettono in colonna da soli, o li sistemi tu dove vuoi; aggiungi titoli, scegli A4 o Letter ed esporta un PDF pronto da stampare."
+            },
+            "pt-BR": {
+              "title": "Recortes e folhas de fórmulas",
+              "text": "Recorte qualquer área para copiá-la ou salvá-la como imagem, ou adicione-a a uma folha para a prova. Os recortes se alinham em colunas sozinhos, ou você os coloca onde quiser; adicione títulos, escolha A4 ou Carta e exporte um PDF pronto para imprimir."
+            },
+            "fr": {
+              "title": "Captures et fiches de formules",
+              "text": "Capturez n’importe quelle zone pour la copier ou l’enregistrer en image, ou ajoutez-la à une fiche pour l’examen. Les captures s’alignent toutes seules en colonnes, ou placez-les librement ; ajoutez des titres, choisissez A4 ou Lettre US et exportez un PDF prêt à imprimer."
+            },
+            "de": {
+              "title": "Ausschnitte und Formelblätter",
+              "text": "Schneide einen beliebigen Bereich aus, um ihn zu kopieren oder als Bild zu speichern, oder füge ihn einem Blatt für die Prüfung hinzu. Ausschnitte reihen sich von selbst in Spalten oder du platzierst sie frei; füge Titel hinzu, wähle A4 oder US Letter und exportiere ein druckfertiges PDF."
+            },
+            "es": {
+              "title": "Recortes y hojas de fórmulas",
+              "text": "Recorta cualquier zona para copiarla o guardarla como imagen, o añádela a una hoja para el examen. Los recortes se colocan solos en columnas, o los pones donde quieras; añade títulos, elige A4 o Carta y exporta un PDF listo para imprimir."
+            }
+          }
         },
         {
           "tag": "new",
           "title": "Study timer and stats",
-          "text": "Timer, Pomodoro, alarm and stopwatch. See today against your daily goal, your streak, the last 7 or 30 days, and what you studied most. Only reading? Turn study tools off in Settings → General for a plain PDF reader."
+          "text": "Timer, Pomodoro, alarm and stopwatch. See today against your daily goal, your streak, the last 7 or 30 days, and what you studied most. Only reading? Choose Just reading and they're gone.",
+          "tr": {
+            "it": {
+              "title": "Timer e statistiche di studio",
+              "text": "Timer, Pomodoro, sveglia e cronometro. Vedi la giornata rispetto al tuo obiettivo, la tua serie, gli ultimi 7 o 30 giorni e cosa hai studiato di più. Vuoi solo leggere? Scegli Solo per leggere e spariscono."
+            },
+            "pt-BR": {
+              "title": "Timer e estatísticas de estudo",
+              "text": "Timer, Pomodoro, alarme e cronômetro. Veja o dia de hoje em relação à sua meta, sua sequência, os últimos 7 ou 30 dias e o que você mais estudou. Só quer ler? Escolha Só ler e eles somem."
+            },
+            "fr": {
+              "title": "Minuteur et statistiques d’étude",
+              "text": "Minuteur, Pomodoro, alarme et chronomètre. Voyez votre journée par rapport à votre objectif, votre série, les 7 ou 30 derniers jours et ce que vous avez le plus étudié. Juste lire ? Choisissez Juste lire et tout disparaît."
+            },
+            "de": {
+              "title": "Lern-Timer und Statistik",
+              "text": "Timer, Pomodoro, Wecker und Stoppuhr. Sieh deinen Tag im Vergleich zum Tagesziel, deine Serie, die letzten 7 oder 30 Tage und was du am meisten gelernt hast. Nur lesen? Wähl Nur lesen und alles verschwindet."
+            },
+            "es": {
+              "title": "Temporizador y estadísticas de estudio",
+              "text": "Temporizador, Pomodoro, alarma y cronómetro. Mira tu día frente a tu objetivo, tu racha, los últimos 7 o 30 días y lo que más has estudiado. ¿Solo quieres leer? Elige Solo leer y desaparecen."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "Export and compress",
+          "text": "Save a copy with your annotations built in, and make big PDFs smaller: a 50 MB scanned notebook becomes 9 MB at Recommended. Protected PDFs keep their protection, or you can unlock the copy if you have the password. The original is never changed.",
+          "tr": {
+            "it": {
+              "title": "Esporta e comprimi",
+              "text": "Salva una copia con le annotazioni incluse e rimpicciolisci i PDF grandi: un quaderno scansionato da 50 MB diventa di 9 MB con Consigliata. I PDF protetti mantengono la protezione, oppure puoi sbloccare la copia se hai la password. L’originale non viene mai modificato."
+            },
+            "pt-BR": {
+              "title": "Exporte e comprima",
+              "text": "Salve uma cópia com suas anotações incluídas e deixe PDFs grandes menores: um caderno escaneado de 50 MB vira 9 MB na opção Recomendada. PDFs protegidos mantêm a proteção, ou você pode desbloquear a cópia se tiver a senha. O original nunca é alterado."
+            },
+            "fr": {
+              "title": "Exporter et compresser",
+              "text": "Enregistrez une copie avec vos annotations intégrées et allégez les gros PDF : un cahier scanné de 50 Mo passe à 9 Mo en Recommandée. Les PDF protégés gardent leur protection, ou vous pouvez déverrouiller la copie si vous avez le mot de passe. L’original n’est jamais modifié."
+            },
+            "de": {
+              "title": "Exportieren und komprimieren",
+              "text": "Speichere eine Kopie mit deinen Anmerkungen und mach große PDFs kleiner: Ein gescanntes Heft mit 50 MB wird mit Empfohlen 9 MB groß. Geschützte PDFs behalten ihren Schutz, oder du entsperrst die Kopie, wenn du das Passwort hast. Das Original wird nie verändert."
+            },
+            "es": {
+              "title": "Exportar y comprimir",
+              "text": "Guarda una copia con tus anotaciones incluidas y haz más pequeños los PDF grandes: un cuaderno escaneado de 50 MB se queda en 9 MB con Recomendada. Los PDF protegidos conservan su protección, o puedes desbloquear la copia si tienes la contraseña. El original nunca se modifica."
+            }
+          }
+        },
+        {
+          "tag": "better",
+          "title": "Hand tool and full screen",
+          "text": "LumiPDF opens with the hand tool, so you can drag pages around right away. Press F11 for full screen.",
+          "tr": {
+            "it": {
+              "title": "Strumento mano e schermo intero",
+              "text": "LumiPDF si apre con lo strumento mano, così puoi trascinare le pagine da subito. Premi F11 per lo schermo intero."
+            },
+            "pt-BR": {
+              "title": "Ferramenta mão e tela cheia",
+              "text": "O LumiPDF abre com a ferramenta mão, então você já pode arrastar as páginas. Pressione F11 para tela cheia."
+            },
+            "fr": {
+              "title": "Outil main et plein écran",
+              "text": "LumiPDF s’ouvre avec l’outil main : faites glisser les pages tout de suite. Appuyez sur F11 pour le plein écran."
+            },
+            "de": {
+              "title": "Hand-Werkzeug und Vollbild",
+              "text": "LumiPDF startet mit dem Hand-Werkzeug, damit du die Seiten sofort ziehen kannst. Drück F11 für Vollbild."
+            },
+            "es": {
+              "title": "Herramienta mano y pantalla completa",
+              "text": "LumiPDF se abre con la herramienta mano, así que puedes arrastrar las páginas desde el primer momento. Pulsa F11 para pantalla completa."
+            }
+          }
         },
         {
           "tag": "new",
           "title": "Updates in the app",
-          "text": "LumiPDF installs new versions itself, automatically when you close it or when you choose."
+          "text": "LumiPDF installs new versions itself, automatically when you close it or when you choose.",
+          "tr": {
+            "it": {
+              "title": "Aggiornamenti nell’app",
+              "text": "LumiPDF installa da solo le nuove versioni, automaticamente quando lo chiudi o quando decidi tu."
+            },
+            "pt-BR": {
+              "title": "Atualizações no app",
+              "text": "O LumiPDF instala as novas versões sozinho, automaticamente quando você o fecha ou quando você escolher."
+            },
+            "fr": {
+              "title": "Mises à jour dans l’app",
+              "text": "LumiPDF installe lui-même les nouvelles versions, automatiquement à la fermeture ou quand vous le décidez."
+            },
+            "de": {
+              "title": "Updates in der App",
+              "text": "LumiPDF installiert neue Versionen selbst, automatisch beim Schließen oder wann du willst."
+            },
+            "es": {
+              "title": "Actualizaciones en la app",
+              "text": "LumiPDF instala las nuevas versiones él solo, automáticamente al cerrarlo o cuando tú decidas."
+            }
+          }
+        },
+        {
+          "tag": "better",
+          "title": "Free and open source",
+          "text": "LumiPDF is now under the GNU GPL v3: free for everyone, and changed versions must stay open too.",
+          "tr": {
+            "it": {
+              "title": "Libero e open source",
+              "text": "LumiPDF ora è sotto licenza GNU GPL v3: gratuito per tutti, e anche le versioni modificate devono restare aperte."
+            },
+            "pt-BR": {
+              "title": "Livre e de código aberto",
+              "text": "O LumiPDF agora está sob a GNU GPL v3: gratuito para todos, e as versões modificadas também precisam continuar abertas."
+            },
+            "fr": {
+              "title": "Libre et open source",
+              "text": "LumiPDF est désormais sous GNU GPL v3 : gratuit pour tous, et les versions modifiées doivent rester ouvertes elles aussi."
+            },
+            "de": {
+              "title": "Frei und Open Source",
+              "text": "LumiPDF steht jetzt unter der GNU GPL v3: kostenlos für alle, und veränderte Versionen müssen ebenfalls offen bleiben."
+            },
+            "es": {
+              "title": "Libre y de código abierto",
+              "text": "LumiPDF ahora tiene licencia GNU GPL v3: gratis para todos, y las versiones modificadas también deben seguir siendo abiertas."
+            }
+          }
         },
         {
           "tag": "fixed",
           "title": "PDFs that wouldn't open",
-          "text": "Protected and damaged PDFs that 1.x refused now open normally."
+          "text": "Protected and damaged PDFs that 1.x refused now open normally.",
+          "tr": {
+            "it": {
+              "title": "PDF che non si aprivano",
+              "text": "I PDF protetti o danneggiati che la 1.x rifiutava ora si aprono normalmente."
+            },
+            "pt-BR": {
+              "title": "PDFs que não abriam",
+              "text": "PDFs protegidos e danificados que a 1.x recusava agora abrem normalmente."
+            },
+            "fr": {
+              "title": "Des PDF qui ne s’ouvraient pas",
+              "text": "Les PDF protégés ou endommagés que la 1.x refusait s’ouvrent maintenant normalement."
+            },
+            "de": {
+              "title": "PDFs, die sich nicht öffnen ließen",
+              "text": "Geschützte und beschädigte PDFs, die 1.x abgelehnt hat, öffnen sich jetzt ganz normal."
+            },
+            "es": {
+              "title": "PDF que no se abrían",
+              "text": "Los PDF protegidos y dañados que la 1.x rechazaba ahora se abren con normalidad."
+            }
+          }
         }
       ]
     },

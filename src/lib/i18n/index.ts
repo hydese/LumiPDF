@@ -7,13 +7,19 @@
  * with Intl.PluralRules through `tn`. Dates and numbers are formatted for the active locale.
  */
 import en from "./locales/en.json";
+import it from "./locales/it.json";
+import ptBR from "./locales/pt-BR.json";
+import fr from "./locales/fr.json";
+import de from "./locales/de.json";
+import es from "./locales/es.json";
 
 export type MessageKey = keyof typeof en;
 type PluralBase<K> = K extends `${infer B}.other` ? B : never;
 export type PluralKey = PluralBase<MessageKey>;
 type Params = Record<string, string | number>;
 
-const catalogs: Record<string, Partial<Record<MessageKey, string>>> = { en };
+/** In the order the language menus list them. */
+const catalogs: Record<string, Partial<Record<MessageKey, string>>> = { en, it, "pt-BR": ptBR, fr, de, es };
 let locale = "en";
 let active: Partial<Record<MessageKey, string>> = en;
 let plurals = new Intl.PluralRules("en");
@@ -29,6 +35,27 @@ export function setLocale(code: string): void {
 
 export function currentLocale(): string {
   return locale;
+}
+
+/**
+ * The best locale for the system languages (navigator.languages follows the Windows display
+ * language): an exact match first, then the same language in another country ("pt-PT" → "pt-BR",
+ * "es-MX" → "es"), else English.
+ */
+export function detectLocale(languages: readonly string[] = typeof navigator === "undefined" ? [] : navigator.languages): string {
+  for (const lang of languages) {
+    if (lang in catalogs) return lang;
+    const base = lang.split("-")[0]!.toLowerCase();
+    const match = AVAILABLE_LOCALES.find((code) => code.split("-")[0] === base);
+    if (match) return match;
+  }
+  return "en";
+}
+
+/** A language's own name, as its speakers write it: "Italiano", "Português (Brasil)". */
+export function languageName(code: string): string {
+  const name = new Intl.DisplayNames([code], { type: "language" }).of(code) ?? code;
+  return name.charAt(0).toLocaleUpperCase(code) + name.slice(1);
 }
 
 function fill(template: string, params: Params): string {

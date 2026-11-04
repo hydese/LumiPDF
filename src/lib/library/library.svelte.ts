@@ -15,6 +15,7 @@ import {
   type LibraryView,
 } from "../ipc/library";
 import { matchesQuery, titleOf } from "./titles";
+import { errorText } from "../i18n/errors";
 
 const CONTINUE_READING = 8;
 const SEARCH_RESULTS = 60;
@@ -136,9 +137,7 @@ export function levelOf(folder: FolderView, dir: string): { subfolders: Subfolde
   return { subfolders, files };
 }
 
-export function message(err: unknown): string {
-  if (err && typeof err === "object" && "message" in err) return String((err as { message: unknown }).message);
-  return String(err);
-}
+/** A readable message for an error, in the user's language. */
+export const message = errorText;
 
 export const library = new LibraryStore();

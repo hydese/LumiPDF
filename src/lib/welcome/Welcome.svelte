@@ -3,12 +3,12 @@
    * The welcome: a few choices on the first launch (or the steps an update asks for again).
    * Every choice is saved as soon as it is made, so closing early loses nothing.
    */
-  import { t, AVAILABLE_LOCALES, type MessageKey } from "../i18n";
+  import { t, currentLocale, languageName, AVAILABLE_LOCALES, type MessageKey } from "../i18n";
   import { settings } from "../settings/store.svelte";
   import { READING_THEMES } from "../dark/themes";
   import { library } from "../library/library.svelte";
   import { CLOUD_KINDS } from "../ipc/library";
-  import type { WelcomeStep } from "../whatsnew/whatsnew";
+  import { localized, type ReleaseNotes, type WelcomeStep } from "../whatsnew/whatsnew";
   import TitleBar from "../ui/TitleBar.svelte";
   import AppMark from "../ui/AppMark.svelte";
   import AppearancePicker from "../ui/AppearancePicker.svelte";
@@ -17,9 +17,11 @@
 
   interface Props {
     steps: WelcomeStep[];
+    /** For the "whatsnew" page. */
+    notes?: ReleaseNotes | null;
     onDone: () => void;
   }
-  let { steps, onDone }: Props = $props();
+  let { steps, notes = null, onDone }: Props = $props();
   let index = $state(0);
   const step = $derived(steps[index]!);
   const last = $derived(index === steps.length - 1);
@@ -51,7 +53,7 @@
               <span>{t("welcome.language.label")}</span>
               <select class="select" value={s.app.locale} onchange={(e) => settings.update((x) => (x.app.locale = e.currentTarget.value))}>
                 {#each AVAILABLE_LOCALES as code (code)}
-                  <option value={code}>{new Intl.DisplayNames([code], { type: "language" }).of(code)}</option>
+                  <option value={code}>{languageName(code)}</option>
                 {/each}
               </select>
             </label>
@@ -115,6 +117,22 @@
               <span class="label"><span>{t("welcome.reading.dark")}</span></span>
               <input type="checkbox" class="switch" checked={s.reading.darkEnabled} onchange={(e) => settings.update((x) => (x.reading.darkEnabled = e.currentTarget.checked))} />
             </label>
+          {:else if step === "whatsnew" && notes}
+            <AppMark size={56} />
+            <h1 id="welcome-title">{t("welcome.whatsnew.title", { version: notes.version })}</h1>
+            <p>{t("welcome.whatsnew.text")}</p>
+            <ul class="changes" tabindex="-1">
+              {#each notes.items as item, i (i)}
+                {@const text = localized(item, currentLocale())}
+                <li>
+                  <span class="tag {item.tag}">{t(`whatsnew.tag.${item.tag}`)}</span>
+                  <span class="change">
+                    <strong>{text.title}</strong>
+                    <span>{text.text}</span>
+                  </span>
+                </li>
+              {/each}
+            </ul>
           {:else if step === "library"}
             <h1 id="welcome-title">{t("welcome.library.title")}</h1>
             <p>{t("welcome.library.text")}</p>
@@ -245,6 +263,62 @@
   .usage-icon.read {
     background: var(--segment);
     color: var(--text);
+  }
+  .changes {
+    width: 100%;
+    max-height: min(46vh, 420px);
+    overflow-y: auto;
+    margin: 0;
+    padding: 4px 6px 4px 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    text-align: left;
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+    padding-bottom: 24px;
+  }
+  .changes li {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .change {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    line-height: 1.45;
+  }
+  .change strong {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .change span {
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .tag {
+    flex-shrink: 0;
+    min-width: 46px;
+    height: 20px;
+    padding: 0 7px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    display: grid;
+    place-items: center;
+  }
+  .tag.new {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+  .tag.better {
+    background: var(--green-soft);
+    color: var(--green-text);
+  }
+  .tag.fixed {
+    background: var(--orange-soft);
+    color: var(--orange-text);
   }
   .later {
     font-size: 12.5px;

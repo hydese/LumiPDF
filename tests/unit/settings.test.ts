@@ -28,7 +28,7 @@ describe("settings", () => {
   it("validates app preferences", () => {
     const s = parseSettings({ app: { appearance: "dark", locale: "../../x", lastSeenVersion: "2.0.0" } });
     expect(s.app.appearance).toBe("dark");
-    expect(s.app.locale).toBe("en");
+    expect(s.app.locale).toBe("");
     expect(s.app.lastSeenVersion).toBe("2.0.0");
   });
 });

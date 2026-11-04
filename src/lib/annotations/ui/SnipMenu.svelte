@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { errorText } from "../../i18n/errors";
   /** Shown under a snipped area: add it to a formula sheet, copy it, or save it as a PNG. */
   import { t } from "../../i18n";
   import Icon from "../../ui/Icon.svelte";
@@ -33,7 +34,7 @@
         if (status) onClose();
       }, 2600);
     } catch (err) {
-      status = t("snip.failed", { reason: err instanceof Error ? err.message : String((err as { message?: string })?.message ?? err) });
+      status = t("snip.failed", { reason: errorText(err) });
     } finally {
       busy = false;
     }
@@ -50,7 +51,7 @@
       status = done;
       setTimeout(onClose, 900);
     } catch (err) {
-      status = t("snip.failed", { reason: err instanceof Error ? err.message : String((err as { message?: string })?.message ?? err) });
+      status = t("snip.failed", { reason: errorText(err) });
     } finally {
       busy = false;
     }

@@ -30,7 +30,8 @@ export interface AppSettings {
   /** Light or dark interface (the reading theme for pages is separate). */
   appearance: Appearance;
   startScreen: StartScreen;
-  /** Interface language. Only "en" exists today; the setting is here for future locales. */
+  /** Interface language ("en", "it", "pt-BR"…). Empty until the first start, which picks the
+   * Windows language when LumiPDF has it (see detectLocale). */
   locale: string;
   checkForUpdates: boolean;
   /** Installed copies: "auto" downloads updates quietly and installs them when LumiPDF closes;
@@ -171,7 +172,7 @@ export const TIMER_LIMITS = { minMinutes: 1, maxMinutes: 180, step: 1, minSessio
 
 export const DEFAULT_SETTINGS: Settings = {
   version: 1,
-  app: { appearance: "system", startScreen: "library", locale: "en", checkForUpdates: true, updateMode: "ask", betaUpdates: false, betaUnlocked: false, lastSeenVersion: "" },
+  app: { appearance: "system", startScreen: "library", locale: "", checkForUpdates: true, updateMode: "ask", betaUpdates: false, betaUnlocked: false, lastSeenVersion: "" },
   timer: { mode: "timer", countdown: 25, alarm: "07:30", clock24: systemUses24h(), askOnClose: true, focus: 50, shortBreak: 10, longBreak: 20, sessionsBeforeLong: 4, sound: true },
   reader: { sidebarOpen: true, sidebarTab: "outline", openTabs: [], activeTab: "", linkPreviews: true },
   study: { goal: 120, tools: true, timer: true, stats: true, sheets: true, hintDismissed: false },
@@ -230,7 +231,7 @@ export function parseSettings(raw: unknown): Settings {
     app: {
       appearance: oneOf(app.appearance, ["system", "light", "dark"], da.appearance),
       startScreen: oneOf(app.startScreen, ["library", "last-document"], da.startScreen),
-      locale: typeof app.locale === "string" && /^[a-z]{2}(-[A-Z]{2})?$/.test(app.locale) ? app.locale : da.locale,
+      locale: typeof app.locale === "string" && /^([a-z]{2}(-[A-Z]{2})?)?$/.test(app.locale) ? app.locale : da.locale,
       checkForUpdates: bool(app.checkForUpdates, da.checkForUpdates),
       updateMode: oneOf(app.updateMode, ["auto", "ask"], da.updateMode),
       betaUpdates: bool(app.betaUpdates, da.betaUpdates),

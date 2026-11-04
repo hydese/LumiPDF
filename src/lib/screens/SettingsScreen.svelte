@@ -1,7 +1,7 @@
 <script lang="ts">
   import { formatWhen, t, tn, type MessageKey } from "../i18n";
   import { CLOUD_KINDS } from "../ipc/library";
-  import { AVAILABLE_LOCALES } from "../i18n";
+  import { AVAILABLE_LOCALES, languageName } from "../i18n";
   import { formatShortcut } from "../platform/shortcuts";
   import { platform } from "../platform/window";
   import { settings } from "../settings/store.svelte";
@@ -268,7 +268,7 @@
             <span class="label"><span>{t("settings.language")}</span><span class="hint">{t("settings.language.hint")}</span></span>
             <select class="select" value={s.app.locale} onchange={(e) => settings.update((x) => (x.app.locale = e.currentTarget.value))}>
               {#each AVAILABLE_LOCALES as code (code)}
-                <option value={code}>{new Intl.DisplayNames([code], { type: "language" }).of(code)}</option>
+                <option value={code}>{languageName(code)}</option>
               {/each}
             </select>
           </label>
@@ -430,7 +430,6 @@
           <p>{t("settings.about.text")}</p>
           <div class="about-actions">
             <button class="btn" onclick={() => whatsNew.showCurrent()}>{t("settings.about.showWhatsNew")}</button>
-            <button class="btn" onclick={() => whatsNew.showWelcome()}>{t("settings.about.showWelcome")}</button>
           </div>
         </section>
       {/if}

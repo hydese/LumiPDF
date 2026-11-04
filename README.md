@@ -9,7 +9,7 @@ A real dark mode that keeps every formula sharp, your notes on the page, and eve
 
 [![Download for Windows](https://img.shields.io/badge/Download-Windows%2010%20%26%2011-3d6bf0?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/hydese/LumiPDF/releases/latest)
 
-[![Latest version](https://img.shields.io/github/v/release/hydese/LumiPDF?include_prereleases&label=version&color=3d6bf0)](https://github.com/hydese/LumiPDF/releases)
+[![Latest version](https://img.shields.io/github/v/release/hydese/LumiPDF?label=version&color=3d6bf0)](https://github.com/hydese/LumiPDF/releases)
 [![Downloads](https://img.shields.io/github/downloads/hydese/LumiPDF/total?color=3d6bf0)](https://github.com/hydese/LumiPDF/releases)
 [![License: GPL v3](https://img.shields.io/badge/license-GPL%20v3-3d6bf0)](LICENSE)
 
@@ -21,9 +21,6 @@ A real dark mode that keeps every formula sharp, your notes on the page, and eve
 </picture>
 
 </div>
-
-> [!NOTE]
-> LumiPDF 2.0 is in its final beta; the stable 2.0.0 is coming very soon. macOS (Apple Silicon) follows with 2.1.
 
 ## Why LumiPDF?
 
@@ -100,6 +97,7 @@ any time in Settings.
 - 🗂️ **Tabs** for many documents at once. Tabs in the background rest to keep your computer fast, and come back on the same page.
 - 📤 **Export a copy** with your notes, optionally smaller, with its password kept. Protection can be removed from the copy only if you know the password.
 - ✋ **Hand tool** to drag pages around, **full screen** with <kbd>F11</kbd>, bookmarks, search and the document outline.
+- 🌍 **Six languages**: English, Italiano, Português (Brasil), Français, Deutsch and Español. LumiPDF starts in your Windows language.
 - 🔄 **Updates in the app**: automatic, or only when you say so.
 
 <details>
@@ -131,6 +129,9 @@ any time in Settings.
 2. Open it. Windows may say **"Windows protected your PC"** because the installer isn't
    code-signed yet: click **More info → Run anyway**.
 3. That's it. LumiPDF keeps itself up to date from now on.
+
+Each release lists the installer's SHA-256 checksum, so you can check your download is the real one
+(in PowerShell: `Get-FileHash .\LumiPDF_…_x64-setup.exe`).
 
 Works on Windows 10 and 11. The Mac version (Apple Silicon) is coming with 2.1.
 

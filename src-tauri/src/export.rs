@@ -170,7 +170,9 @@ fn percent_decode(s: &str) -> String {
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Ok(b) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
+            // Byte slices, so a multi-byte character after "%" can't split a char boundary.
+            let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).ok();
+            if let Some(b) = hex.and_then(|h| u8::from_str_radix(h, 16).ok()) {
                 out.push(b);
                 i += 3;
                 continue;
@@ -204,6 +206,7 @@ mod tests {
             "Analisi 2 — p. 1"
         );
         assert_eq!(percent_decode("100%"), "100%");
+        assert_eq!(percent_decode("%€x"), "%€x");
     }
 }
 

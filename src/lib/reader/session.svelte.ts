@@ -399,7 +399,7 @@ class DocumentSession {
   }
 
   #openError(name: string, err: unknown): string {
-    return t("open.error", { name, reason: err instanceof Error ? err.message : message(err) });
+    return t("open.error", { name, reason: message(err) });
   }
 }
 

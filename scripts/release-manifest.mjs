@@ -6,6 +6,7 @@
  *
  * Usage: node scripts/release-manifest.mjs <tag> <dir with the built files> <out dir>
  */
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -49,6 +50,12 @@ if (!entry) {
 const TAG = { new: "New", better: "Better", fixed: "Fixed" };
 const notes = entry.items.map((i) => `- **${TAG[i.tag] ?? i.tag}: ${i.title}.** ${i.text}`).join("\n");
 
+const sha256 = (file) => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+const checksums = [setup, ...(mac ? [mac.replace(/\.tar\.gz$/, ".zip")] : [])]
+  .filter((f) => fs.existsSync(f))
+  .map((f) => `- \`${path.basename(f)}\`: \`${sha256(f)}\``)
+  .join("\n");
+
 fs.mkdirSync(out, { recursive: true });
 fs.writeFileSync(
   path.join(out, "latest.json"),
@@ -56,8 +63,9 @@ fs.writeFileSync(
 );
 fs.writeFileSync(
   path.join(out, "release-notes.md"),
-  `${notes}\n\n**Download:** the Windows installer (\`-setup.exe\`); LumiPDF then updates itself.` +
+  `${notes}\n\n**Download:** the Windows installer (\`-setup.exe\`); LumiPDF then updates itself. ` +
+    `The installer isn't code-signed yet: if Windows says "Windows protected your PC", choose **More info → Run anyway**.` +
     (mac ? " macOS: `.app.zip` (Apple Silicon)." : "") +
-    "\n",
+    `\n\n**SHA-256** (check with \`Get-FileHash\` in PowerShell):\n${checksums}\n`,
 );
 console.log(`latest.json for ${version}: ${Object.keys(platforms).join(", ")}`);
