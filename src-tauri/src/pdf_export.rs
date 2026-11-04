@@ -182,6 +182,45 @@ pub fn export(
     })
 }
 
+/// About how big the exported copy would be at each compression level (annotations aside).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SizeEstimate {
+    pub original_bytes: u64,
+    pub light: u64,
+    pub recommended: u64,
+    pub strong: u64,
+}
+
+/// Compresses copies of the document in memory to measure each level. Kept protection would
+/// add a little to the real file; this ignores it.
+pub fn estimate_sizes(source: &Path, open_password: Option<&str>) -> Result<SizeEstimate, AppError> {
+    let original_bytes = fs::metadata(source)?.len();
+    let (mut base, _) = load(source, open_password)?;
+    base.encryption_state.take();
+    let size = |level: Compression| -> u64 {
+        let mut doc = base.clone();
+        if let Some(target) = level.image_target() {
+            compress_images(&mut doc, target);
+        }
+        remove_thumbnails(&mut doc);
+        doc.prune_objects();
+        doc.delete_zero_length_streams();
+        doc.compress();
+        let mut out = Vec::new();
+        match doc.save_modern(&mut out) {
+            Ok(()) => out.len() as u64,
+            Err(_) => original_bytes,
+        }
+    };
+    Ok(SizeEstimate {
+        original_bytes,
+        light: size(Compression::Light),
+        recommended: size(Compression::Recommended),
+        strong: size(Compression::Strong),
+    })
+}
+
 // ---------------------------------------------------------------------------------------------
 // Protection
 //
@@ -1012,6 +1051,14 @@ mod tests {
         }
         subtypes.sort();
         assert_eq!(subtypes, ["Highlight", "Ink", "StrikeOut", "Text"]);
+    }
+
+    #[test]
+    fn estimates_sizes_without_writing_anything() {
+        let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../tests/fixtures/raster-figures.pdf");
+        let est = estimate_sizes(&src, None).unwrap();
+        assert!(est.original_bytes > 0);
+        assert!(est.strong <= est.recommended && est.recommended <= est.light, "{est:?}");
     }
 
     #[test]

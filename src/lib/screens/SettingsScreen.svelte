@@ -24,6 +24,7 @@
 
   const GITHUB = "https://github.com/hydese/LumiPDF";
   const AUTHOR = "https://github.com/hydese";
+  const TWITTER = "https://x.com/hydesee";
 
   const SECTIONS: Array<{ id: SettingsSection; icon: IconName; color: string }> = [
     { id: "general", icon: "gear", color: "#3d6bf0" },
@@ -240,6 +241,14 @@
               <input type="checkbox" class="switch" checked={s.app.betaUpdates} onchange={(e) => setBeta(e.currentTarget.checked)} />
             </label>
           {/if}
+          <!-- BETA BUILDS ONLY: replays the first-launch welcome for testers. It disappears by itself
+               in stable versions (updates.isBeta); see docs/DEVELOPMENT.md → Releasing. -->
+          {#if updates.isBeta}
+            <div class="row">
+              <span class="label"><span>{t("settings.beta.welcome")}</span><span class="hint">{t("settings.beta.welcomeHint")}</span></span>
+              <button class="btn small" onclick={() => whatsNew.replayFirstLaunch()}>{t("settings.beta.welcomeButton")}</button>
+            </div>
+          {/if}
         </section>
 
         <section class="card list study-tools">
@@ -426,6 +435,10 @@
               <button class="version" class:tapped={pulse > 0} onclick={tapVersion} title={t("settings.about.versionTitle")}>{t("app.name")} {updates.current}</button>
             {/key}
           </h3>
+          <p class="by">
+            {t("app.madeBy")} <button class="link-button" onclick={() => openExternal(AUTHOR)}>hydese</button>
+            · <button class="link-button" onclick={() => openExternal(TWITTER)} title="X (Twitter)">@hydesee</button>
+          </p>
           {#if betaNotice}<p class="beta-notice" role="status">{betaNotice}</p>{/if}
           <p>{t("settings.about.text")}</p>
           <div class="about-actions">
@@ -760,6 +773,10 @@
     max-width: 420px;
     color: var(--text-muted);
     line-height: 1.5;
+  }
+  .about p.by {
+    margin-top: -4px;
+    font-size: 12.5px;
   }
   .about-actions {
     display: flex;

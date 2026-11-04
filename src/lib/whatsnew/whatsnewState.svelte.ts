@@ -38,6 +38,18 @@ class WhatsNew {
     this.notes = notesFor(__APP_VERSION__);
   }
 
+  /**
+   * BETA BUILDS ONLY (Settings → General, shown when updates.isBeta): the whole welcome as on a
+   * fresh install, so testers get the full first-launch experience. Settings stay as they are.
+   */
+  replayFirstLaunch(): void {
+    const plan = whatsNewOnLaunch(__APP_VERSION__, "");
+    this.notes = null;
+    this.#pendingNotes = null;
+    this.welcomeNotes = plan.welcome.includes("whatsnew") ? plan.show : null;
+    this.welcome = plan.welcome;
+  }
+
   finishWelcome(): void {
     this.welcome = null;
     this.welcomeNotes = null;

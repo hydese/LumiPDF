@@ -82,6 +82,7 @@ pub fn run() {
             export::save_png,
             export::export_pdf,
             export::pdf_protection,
+            export::pdf_size_estimate,
             sheets::sheets_list,
             sheets::sheet_load,
             sheets::sheet_save,

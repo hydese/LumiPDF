@@ -71,7 +71,7 @@
     {#snippet left()}
       <span class="brand" data-tauri-drag-region><AppMark /><span data-tauri-drag-region>{t("app.name")}</span></span>
       <nav class="segmented" aria-label={t("nav.library")}>
-        <button class="on" aria-current="page"><Icon name="library" size={15} />{t("nav.library")}</button>
+        <button class="on" aria-current="page" onclick={() => library.goHome()}><Icon name="library" size={15} />{t("nav.library")}</button>
         <button title={t("nav.openTitle", { shortcut: openShortcut })} onclick={() => session.openWithDialog()}>
           <Icon name="open" size={15} />{t("nav.open")}
         </button>

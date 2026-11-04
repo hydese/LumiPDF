@@ -121,6 +121,7 @@
       window.__EXPORT_REQUEST__ = request;
       return { path: "C:\\Users\\Studente\\Università\\Analisi 2\\Analisi 2 — Trasformate di Laplace (annotated, compressed).pdf", originalBytes: 2_480_000, exportedBytes: 610_000, imagesRecompressed: 3, document: null };
     },
+    pdf_size_estimate: () => new Promise((r) => setTimeout(() => r({ originalBytes: 52_400_000, light: 31_200_000, recommended: 9_400_000, strong: 5_100_000 }), 300)),
     pdf_protection: () =>
       window.__PREVIEW__?.protection ?? { protected: false, openPassword: false, restrictions: { print: false, copy: false, edit: false, annotate: false }, removableWithOpenPassword: false },
     update_installable: () => scenario.installed !== false,

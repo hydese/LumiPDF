@@ -50,6 +50,17 @@ export const exportPdf = (request: {
   protection: ProtectionRequest;
 }) => invoke<ExportDone | null>("export_pdf", { request });
 
+export interface SizeEstimate {
+  originalBytes: number;
+  light: number;
+  recommended: number;
+  strong: number;
+}
+
+/** About how big the copy gets at each compression level (measured in memory, takes a moment). */
+export const pdfSizeEstimate = (source: string, openPassword: string | null) =>
+  invoke<SizeEstimate>("pdf_size_estimate", { source, openPassword });
+
 /** What protects an open PDF (passwords and restrictions). */
 export const pdfProtection = (source: string, openPassword: string | null) =>
   invoke<ProtectionInfo>("pdf_protection", { source, openPassword });

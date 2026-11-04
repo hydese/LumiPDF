@@ -608,5 +608,14 @@
   "menu.zoom": "Zoom",
   "menu.help": "Ajuda",
   "menu.github": "LumiPDF no GitHub",
-  "settings.update.modeMoveToApps": "Mova o LumiPDF para a pasta Aplicativos para ele instalar as atualizações sozinho; até lá, ele abre a página de download."
+  "settings.update.modeMoveToApps": "Mova o LumiPDF para a pasta Aplicativos para ele instalar as atualizações sozinho; até lá, ele abre a página de download.",
+  "export.estimating": "Calculando o novo tamanho…",
+  "export.estimate": "Cerca de {size} ({percent}% menor)",
+  "export.estimateSame": "Mais ou menos o mesmo tamanho ({size})",
+  "library.home": "Início da biblioteca",
+  "open.dropHere": "Solte para abrir",
+  "open.dropHereHint": "Cada PDF abre em uma aba.",
+  "settings.beta.welcome": "Boas-vindas, do início",
+  "settings.beta.welcomeHint": "Só na beta: mostra de novo todas as boas-vindas, como em um computador novo. Suas configurações ficam.",
+  "settings.beta.welcomeButton": "Mostrar as boas-vindas"
 }

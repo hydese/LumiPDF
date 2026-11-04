@@ -45,6 +45,13 @@ class LibraryStore {
 
   /** Where the folder browser is: a library folder and a subfolder inside it. */
   location = $state<{ root: string; dir: string } | null>(null);
+
+  /** Back to the Library's home: out of any folder and search. */
+  goHome(): void {
+    this.location = null;
+    this.query = "";
+    document.querySelector(".content")?.scrollTo({ top: 0 });
+  }
   readonly locationFolder = $derived(this.view?.folders.find((f) => f.path === this.location?.root) ?? null);
   readonly level = $derived(this.locationFolder ? levelOf(this.locationFolder, this.location!.dir) : null);
 

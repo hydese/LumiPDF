@@ -1,7 +1,7 @@
 <script lang="ts">
   /** Export a copy: annotations in or out, and how much to compress. Never touches the original. */
   import { t, tn, type MessageKey } from "../../i18n";
-  import { exportPdf, pdfProtection, revealInFolder, type Compression, type ExportDone, type ProtectionInfo } from "../../ipc/export";
+  import { exportPdf, pdfProtection, pdfSizeEstimate, revealInFolder, type Compression, type ExportDone, type ProtectionInfo, type SizeEstimate } from "../../ipc/export";
   import { session } from "../../reader/session.svelte";
   import { message } from "../../library/library.svelte";
   import Dialog from "../../ui/Dialog.svelte";
@@ -50,6 +50,26 @@
   const needsOwner = $derived(unlock && !!protection && !protection.removableWithOpenPassword);
   /** Kept protection that forbids annotations keeps them out. */
   const annotationsBlocked = $derived(!!protection?.restrictions.annotate && !unlock);
+
+  // How much each level saves: measured once, the first time compression is turned on.
+  let estimate = $state<SizeEstimate | null>(null);
+  let estimating = $state(false);
+  $effect(() => {
+    const t = tab;
+    if (!compress || !t || estimate || estimating) return;
+    estimating = true;
+    pdfSizeEstimate(t.path, t.password)
+      .then((e) => (estimate = e))
+      .catch(() => {})
+      .finally(() => (estimating = false));
+  });
+  /** "About 9.1 MB (82% smaller)" for a level, or null while unknown. */
+  function estimateText(l: Compression): string | null {
+    if (!estimate || l === "none") return null;
+    const after = estimate[l];
+    const percent = Math.round((1 - after / Math.max(1, estimate.originalBytes)) * 100);
+    return percent >= 5 ? t("export.estimate", { size: bytes(after), percent }) : t("export.estimateSame", { size: bytes(after) });
+  }
 
   function bytes(n: number): string {
     if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;
@@ -178,6 +198,9 @@
         <span class="label">
           <span>{t("export.compress")}</span>
           <span class="hint">{compress ? t(`export.level.${level}Text` as MessageKey) : t("export.compressOff")}</span>
+          {#if compress}
+            <span class="estimate" class:pending={!estimate}>{estimateText(level) ?? (estimating ? t("export.estimating") : "")}</span>
+          {/if}
         </span>
         <input type="checkbox" class="switch" bind:checked={compress} disabled={phase === "working"} />
       </label>
@@ -186,7 +209,7 @@
           <span>{t("export.compression")}</span>
           <select class="select" bind:value={level} disabled={phase === "working"}>
             {#each LEVELS as l (l)}
-              <option value={l}>{t(`export.level.${l}` as MessageKey)}</option>
+              <option value={l}>{t(`export.level.${l}` as MessageKey)}{estimate && l !== "none" ? ` · ${bytes(estimate[l])}` : ""}</option>
             {/each}
           </select>
         </label>
@@ -283,6 +306,15 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+  .estimate {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--green-text);
+  }
+  .estimate.pending {
+    font-weight: 400;
+    color: var(--text-muted);
   }
   .level {
     display: flex;

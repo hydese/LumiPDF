@@ -70,6 +70,9 @@
 
 <div class="toolbar">
 <nav class="path" aria-label={t("folders.root")}>
+  {#if loc}
+    <button class="home" title={t("library.home")} aria-label={t("library.home")} onclick={() => library.goHome()}><Icon name="home" size={15} /></button>
+  {/if}
   <button class="crumb" class:current={!loc} onclick={() => (library.location = null)}>{t("folders.root")}</button>
   {#if root && loc}
     <Icon name="forward" size={12} />
@@ -142,6 +145,20 @@
     flex-wrap: wrap;
     color: var(--text-faint);
     min-height: 28px;
+  }
+  .home {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    margin-right: 4px;
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+  }
+  .home:hover {
+    background: var(--hover);
   }
   .crumb {
     height: 28px;

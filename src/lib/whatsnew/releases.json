@@ -86,6 +86,141 @@
               "text": "Cambia de pestaña con ⌃Tab y pasa a pantalla completa con ⌃⌘F o el botón verde de la ventana."
             }
           }
+        },
+        {
+          "tag": "new",
+          "title": "How much smaller",
+          "text": "Before you export, LumiPDF shows how big the copy will be at each compression level.",
+          "tr": {
+            "it": {
+              "title": "Quanto più piccolo",
+              "text": "Prima di esportare, LumiPDF mostra quanto sarà grande la copia a ogni livello di compressione."
+            },
+            "pt-BR": {
+              "title": "Quanto menor",
+              "text": "Antes de exportar, o LumiPDF mostra o tamanho da cópia em cada nível de compressão."
+            },
+            "fr": {
+              "title": "De combien plus léger",
+              "text": "Avant d’exporter, LumiPDF indique la taille de la copie à chaque niveau de compression."
+            },
+            "de": {
+              "title": "Wie viel kleiner",
+              "text": "Vor dem Export zeigt LumiPDF, wie groß die Kopie bei jeder Komprimierungsstufe wird."
+            },
+            "es": {
+              "title": "Cuánto más pequeño",
+              "text": "Antes de exportar, LumiPDF muestra cuánto ocupará la copia con cada nivel de compresión."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "Drop to open",
+          "text": "Drag PDFs over the window and it shows where to drop them; each opens in its own tab.",
+          "tr": {
+            "it": {
+              "title": "Rilascia per aprire",
+              "text": "Trascina dei PDF sulla finestra e ti mostra dove rilasciarli; ognuno si apre in una scheda."
+            },
+            "pt-BR": {
+              "title": "Solte para abrir",
+              "text": "Arraste PDFs sobre a janela e ela mostra onde soltá-los; cada um abre em uma aba."
+            },
+            "fr": {
+              "title": "Déposer pour ouvrir",
+              "text": "Faites glisser des PDF sur la fenêtre : elle indique où les déposer, et chacun s’ouvre dans son onglet."
+            },
+            "de": {
+              "title": "Zum Öffnen loslassen",
+              "text": "Zieh PDFs über das Fenster und es zeigt dir, wo du sie loslassen kannst; jedes öffnet sich in einem eigenen Tab."
+            },
+            "es": {
+              "title": "Suelta para abrir",
+              "text": "Arrastra PDF sobre la ventana y te indica dónde soltarlos; cada uno se abre en su pestaña."
+            }
+          }
+        },
+        {
+          "tag": "better",
+          "title": "Library home",
+          "text": "A home button inside folders, and the Library button, take you back to the start of the library.",
+          "tr": {
+            "it": {
+              "title": "Inizio della libreria",
+              "text": "Un pulsante Home dentro le cartelle, e il pulsante Libreria, ti riportano all’inizio della libreria."
+            },
+            "pt-BR": {
+              "title": "Início da biblioteca",
+              "text": "Um botão de início dentro das pastas, e o botão Biblioteca, levam você de volta ao começo da biblioteca."
+            },
+            "fr": {
+              "title": "Accueil de la bibliothèque",
+              "text": "Un bouton Accueil dans les dossiers, et le bouton Bibliothèque, vous ramènent au début de la bibliothèque."
+            },
+            "de": {
+              "title": "Bibliothek-Startseite",
+              "text": "Eine Home-Taste in Ordnern und die Bibliothek-Taste bringen dich zurück zum Anfang der Bibliothek."
+            },
+            "es": {
+              "title": "Inicio de la biblioteca",
+              "text": "Un botón de inicio dentro de las carpetas, y el botón Biblioteca, te llevan al principio de la biblioteca."
+            }
+          }
+        },
+        {
+          "tag": "fixed",
+          "title": "Changing language",
+          "text": "The whole app switches to the new language right away.",
+          "tr": {
+            "it": {
+              "title": "Cambiare lingua",
+              "text": "Tutta l’app passa subito alla nuova lingua."
+            },
+            "pt-BR": {
+              "title": "Trocar de idioma",
+              "text": "O app inteiro muda para o novo idioma na hora."
+            },
+            "fr": {
+              "title": "Changer de langue",
+              "text": "Toute l’app passe tout de suite à la nouvelle langue."
+            },
+            "de": {
+              "title": "Sprache wechseln",
+              "text": "Die ganze App wechselt sofort in die neue Sprache."
+            },
+            "es": {
+              "title": "Cambiar de idioma",
+              "text": "Toda la app cambia al nuevo idioma al momento."
+            }
+          }
+        },
+        {
+          "tag": "fixed",
+          "title": "Unread PDFs",
+          "text": "A PDF you haven't read yet opens on page 1 (it showed page 0).",
+          "tr": {
+            "it": {
+              "title": "PDF non letti",
+              "text": "Un PDF che non hai ancora letto si apre a pagina 1 (mostrava pagina 0)."
+            },
+            "pt-BR": {
+              "title": "PDFs não lidos",
+              "text": "Um PDF que você ainda não leu abre na página 1 (mostrava página 0)."
+            },
+            "fr": {
+              "title": "PDF non lus",
+              "text": "Un PDF que vous n’avez pas encore lu s’ouvre à la page 1 (il affichait la page 0)."
+            },
+            "de": {
+              "title": "Ungelesene PDFs",
+              "text": "Ein PDF, das du noch nicht gelesen hast, öffnet auf Seite 1 (es zeigte Seite 0)."
+            },
+            "es": {
+              "title": "PDF sin leer",
+              "text": "Un PDF que aún no has leído se abre en la página 1 (mostraba la página 0)."
+            }
+          }
         }
       ]
     },

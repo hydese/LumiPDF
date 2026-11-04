@@ -18,7 +18,8 @@
   import { timers } from "./lib/timer/timers.svelte";
   import { ringer } from "./lib/timer/ringer.svelte";
   import { annotations, DEFAULT_TOOL, type Tool } from "./lib/annotations/store.svelte";
-  import { guardClose, minimizeWindow, platform, quitApp } from "./lib/platform/window";
+  import { guardClose, minimizeWindow, platform, quitApp, watchFileDrag } from "./lib/platform/window";
+  import Icon from "./lib/ui/Icon.svelte";
   import RingingDialog from "./lib/timer/ui/RingingDialog.svelte";
   import Dialog from "./lib/ui/Dialog.svelte";
   import { studyClock } from "./lib/timer/study.svelte";
@@ -42,11 +43,18 @@
   let exportOpen = $state(false);
   let findInput = $state<HTMLInputElement | null>(null);
   let barActions = $state<BarActions | null>(null);
-  const locale = $derived(settings.value.app.locale);
+  // The language is switched while `locale` is computed, before the {#key locale} block below
+  // redraws the app, so the new screens read the new language. (Switching it in an effect ran
+  // after the redraw and left the old language on screen until the next change.)
+  const locale = $derived.by(() => {
+    const code = settings.value.app.locale;
+    setLocale(code);
+    return code;
+  });
 
+  // macOS: the menu bar follows the language too.
   $effect(() => {
-    setLocale(locale);
-    // macOS: the menu bar follows the language too.
+    void locale;
     if (platform === "macos" && ready) void setMenuLanguage().catch(() => {});
   });
   $effect(() => {
@@ -54,6 +62,9 @@
     timers.syncWithSettings();
   });
   let askClose = $state(false);
+  /** A PDF is being dragged over the window. */
+  let dragging = $state(false);
+  $effect(() => watchFileDrag((on) => (dragging = on)));
 
   // Never leave a blank window: a screen with nothing to show (the reader with no tabs left, the
   // Stats screen after study stats were turned off) falls back to the Library.
@@ -276,6 +287,16 @@
 
 <svelte:window onkeydown={onKeydown} />
 
+{#if dragging}
+  <div class="drop-overlay" aria-hidden="true">
+    <div class="drop-card">
+      <span class="drop-icon"><Icon name="open" size={28} stroke={1.8} /></span>
+      <strong>{t("open.dropHere")}</strong>
+      <span>{t("open.dropHereHint")}</span>
+    </div>
+  </div>
+{/if}
+
 {#if ready}
   {#key locale}
     <div class="app" class:fullscreen={fullscreen.on}>
@@ -335,6 +356,51 @@
 {/if}
 
 <style>
+  .drop-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    box-shadow: inset 0 0 0 3px var(--accent);
+    animation: drop-in 140ms var(--ease);
+  }
+  .drop-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 26px 36px;
+    border-radius: 18px;
+    border: 2px dashed var(--accent);
+    background: var(--surface);
+    box-shadow: var(--card-shadow), 0 20px 60px rgba(0, 0, 0, 0.12);
+    color: var(--text);
+  }
+  .drop-card strong {
+    font-size: 17px;
+  }
+  .drop-card span:last-child {
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .drop-icon {
+    width: 52px;
+    height: 52px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 4px;
+    border-radius: 14px;
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  @keyframes drop-in {
+    from {
+      opacity: 0;
+    }
+  }
   .app {
     height: 100%;
     position: relative;

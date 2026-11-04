@@ -210,6 +210,24 @@ mod tests {
     }
 }
 
+/// How small the copy would get at each compression level, for the Export window.
+#[tauri::command]
+pub async fn pdf_size_estimate<R: Runtime>(
+    app: AppHandle<R>,
+    source: String,
+    open_password: Option<String>,
+) -> Result<crate::pdf_export::SizeEstimate, AppError> {
+    let source = std::path::PathBuf::from(source);
+    if !app.asset_protocol_scope().is_allowed(&source) {
+        return Err(AppError::InvalidInput("This document is not open".into()));
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::pdf_export::estimate_sizes(&source, open_password.as_deref())
+    })
+    .await
+    .map_err(|e| AppError::InvalidInput(e.to_string()))?
+}
+
 /// What protects an open PDF (passwords, restrictions), for the Export window.
 #[tauri::command]
 pub async fn pdf_protection<R: Runtime>(

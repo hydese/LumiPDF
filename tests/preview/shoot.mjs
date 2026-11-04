@@ -105,6 +105,13 @@ const shotsAll = [
   { name: "timer-pt", settings: { app: { appearance: "dark", ...seen, locale: "pt-BR" }, timer: { mode: "chrono" } }, click: '[aria-label="Timer de estudo"]' },
   { name: "timer-de", settings: { app: { appearance: "light", ...seen, locale: "de" }, timer: { mode: "alarm" } }, click: '[aria-label="Lern-Timer"]' },
   { name: "timer-es", settings: { app: { appearance: "light", ...seen, locale: "es" }, timer: { mode: "pomodoro" } }, click: '[aria-label="Temporizador de estudio"]' },
+  // 2.1.0-beta.1 additions.
+  { name: "export-estimate", settings: { app: { appearance: "light", ...seen, locale: "it" }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], keys: "Control+e", after: ".compress .switch", wait: 900 },
+  { name: "about-by", settings: { app: { appearance: "light", ...seen, locale: "en" } }, keys: "Control+Comma", section: "About" },
+  { name: "folder-home", settings: { app: { appearance: "light", ...seen, locale: "en" } }, clickText: ["Analisi 2", "Esercitazioni"], scrollTop: true },
+  { name: "beta-welcome-button", settings: { app: { appearance: "light", ...seen, locale: "pt-BR", betaUnlocked: true } }, keys: "Control+Comma" },
+  { name: "language-switch", settings: { app: { appearance: "light", ...seen, locale: "en" } }, keys: "Control+Comma", switchLanguage: "it" },
+  { name: "drop-overlay", settings: { app: { appearance: "dark", ...seen, locale: "en" } }, dragFile: true },
   // macOS look.
   { name: "mac-library", mac: true, settings: { app: { appearance: "light", ...seen, locale: "en" } } },
   { name: "mac-reader-dark", mac: true, settings: { app: { appearance: "dark", ...seen, locale: "it" } }, open: ["Analisi 2 — Trasformate", "Fisica 1"] },
@@ -484,6 +491,19 @@ for (const shot of shots) {
       console.log("preview shown:", await page.locator(".lumi-link-preview.ready").count());
     }
     if (shot.rightClick) await page.click(shot.rightClick, { button: "right" });
+    if (shot.switchLanguage) {
+      // Change the language in Settings: everything on screen must switch at once.
+      await page.selectOption('select:has(option[value="pt-BR"])', shot.switchLanguage);
+      await page.waitForTimeout(500);
+    }
+    if (shot.dragFile) {
+      const dataTransfer = await page.evaluateHandle(() => {
+        const dt = new DataTransfer();
+        dt.items.add(new File(["%PDF-1.4"], "Lezione 4.pdf", { type: "application/pdf" }));
+        return dt;
+      });
+      await page.dispatchEvent("body", "dragenter", { dataTransfer });
+    }
     if (shot.after) {
       await page.click(shot.after);
       await page.waitForTimeout(2300);

@@ -33,6 +33,10 @@ rebuilds `docs/images/` (needs Pillow).
 
 ## Releasing
 
+> **Before a stable release:** the beta-only "Welcome, from the start" button (Settings → General)
+> hides itself when the version has no `-beta`, but check it's gone, and decide whether to remove
+> it from `SettingsScreen.svelte` (`updates.isBeta` block) and `whatsNew.replayFirstLaunch`.
+
 1. Update `version` in `package.json` and `src-tauri/Cargo.toml`, and add its entry to
    `src/lib/whatsnew/releases.json` (shown in the app after updating, and used as the release
    notes).

@@ -79,3 +79,49 @@ export function watchMaximized(handler: (maximized: boolean) => void): () => voi
   const unlisten = win.onResized(update);
   return () => void unlisten.then((stop) => stop());
 }
+
+/**
+ * Calls `handler(true)` while PDFs are dragged over the window and `handler(false)` when they
+ * leave or are dropped (the drop itself is handled by the backend). Returns a cleanup function.
+ */
+export function watchFileDrag(handler: (dragging: boolean) => void): () => void {
+  const isPdf = (paths: string[]) => paths.some((p) => /\.pdf$/i.test(p));
+  let stopTauri: (() => void) | null = null;
+  let cancelled = false;
+  // The app: Tauri reports files dragged over the window (the page itself doesn't see them).
+  void import("@tauri-apps/api/webview")
+    .then(({ getCurrentWebview }) =>
+      getCurrentWebview().onDragDropEvent((event) => {
+        const p = event.payload;
+        if (p.type === "enter") handler(isPdf(p.paths));
+        else if (p.type === "leave" || p.type === "drop") handler(false);
+      }),
+    )
+    .then((unlisten) => (cancelled ? unlisten() : (stopTauri = unlisten)))
+    .catch(() => {});
+  // Browser preview: the page's own drag events.
+  let depth = 0;
+  const enter = (e: DragEvent) => {
+    if (!e.dataTransfer?.types.includes("Files")) return;
+    depth++;
+    handler(true);
+  };
+  const leave = () => {
+    depth = Math.max(0, depth - 1);
+    if (!depth) handler(false);
+  };
+  const drop = () => {
+    depth = 0;
+    handler(false);
+  };
+  window.addEventListener("dragenter", enter);
+  window.addEventListener("dragleave", leave);
+  window.addEventListener("drop", drop);
+  return () => {
+    cancelled = true;
+    stopTauri?.();
+    window.removeEventListener("dragenter", enter);
+    window.removeEventListener("dragleave", leave);
+    window.removeEventListener("drop", drop);
+  };
+}
