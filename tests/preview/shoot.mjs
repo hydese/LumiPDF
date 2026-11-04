@@ -131,8 +131,13 @@ for (const shot of shots) {
       console.log("zoom:", await page.locator(".zoom").first().innerText(), "notes:", await page.locator(".lumi-note").count());
     } else if (shot.annotate === "snip") {
       await page.keyboard.press("s");
-      await drag(box.x - 6, box.y - 50, box.x + 420, box.y + 120, 10);
-      await page.waitForTimeout(300);
+      await page.keyboard.press("Control+Equal");
+      await page.keyboard.press("Control+Equal");
+      await page.waitForTimeout(800);
+      const b2 = await page.locator(".layer:not([hidden]) .textLayer span").filter({ hasText: "Consider" }).first().boundingBox();
+      await drag(b2.x - 6, b2.y - 40, b2.x + 420, b2.y + 120, 10);
+      await page.mouse.wheel(0, 60);
+      await page.waitForTimeout(400);
       await page.screenshot({ path: path.join(out, "snip-select.png") });
       await page.click('.menu button.primary');
       await page.waitForTimeout(500);

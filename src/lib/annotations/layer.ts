@@ -98,16 +98,19 @@ export class AnnotationLayer {
 
   destroy(): void {
     cancelAnimationFrame(this.#frame);
+    this.#snipBox?.remove();
     for (const off of this.#cleanups) off();
     for (const p of this.#pages.values()) {
       p.marks.remove();
       p.ink.remove();
     }
     this.#pages.clear();
+    this.#snipBox?.remove();
   }
 
   /** Redraws every page that has layers (after annotations or the theme change). */
   redrawAll(): void {
+    this.#placeSnip();
     for (const [page, layers] of this.#pages) {
       if (!layers.view.div.isConnected) this.#pages.delete(page);
       else this.#draw(layers);
@@ -264,7 +267,6 @@ export class AnnotationLayer {
       };
       this.#stroke(live.type === "ink" ? ink : marks, view, stroke, live.pressure);
     }
-    this.#placeSnip(layers);
   }
 
   /**
@@ -427,23 +429,52 @@ export class AnnotationLayer {
     return { left: Math.min(s.x0, s.x1), top: Math.min(s.y0, s.y1), width: Math.abs(s.x1 - s.x0), height: Math.abs(s.y1 - s.y0) };
   }
 
-  #placeSnip(layers: PageLayers): void {
-    const rect = this.#snip?.page === layers.view.id ? this.#snipRect() : null;
-    if (!rect) {
-      if (this.#snipBox?.parentElement === layers.ink) this.#snipBox.remove();
+  /**
+   * The snip rectangle lives in its own fixed layer above everything (not inside the page, which
+   * pdf.js may rebuild while you drag), positioned from the page's place on screen.
+   */
+  #placeSnip(): void {
+    const rect = this.#snipRect();
+    const view = this.#snip ? this.controller.pageView(this.#snip.page) : null;
+    if (!rect || !view?.div.isConnected) {
+      this.#snipBox?.remove();
       return;
     }
-    this.#snipBox ??= Object.assign(document.createElement("div"), { className: "lumi-snip" });
-    Object.assign(this.#snipBox.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
-    if (this.#snipBox.parentElement !== layers.ink) layers.ink.append(this.#snipBox);
+    if (!this.#snipBox) {
+      const box = document.createElement("div");
+      box.className = "lumi-snip";
+      Object.assign(box.style, {
+        position: "fixed",
+        zIndex: "40",
+        pointerEvents: "none",
+        boxSizing: "border-box",
+        border: "2px solid var(--accent)",
+        borderRadius: "4px",
+        background: "color-mix(in srgb, var(--accent) 14%, transparent)",
+        outline: "1px solid rgba(255, 255, 255, 0.55)",
+        outlineOffset: "1px",
+      });
+      this.#snipBox = box;
+    }
+    const page = view.div.getBoundingClientRect();
+    Object.assign(this.#snipBox.style, {
+      left: `${page.left + rect.left}px`,
+      top: `${page.top + rect.top}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`,
+    });
+    if (!this.#snipBox.isConnected) document.body.append(this.#snipBox);
+  }
+
+  /** Where the finished snip is on screen now (it moves with scrolling). */
+  snipScreenRect(): DOMRect | null {
+    return this.#snipBox?.isConnected ? this.#snipBox.getBoundingClientRect() : null;
   }
 
   /** Removes the snip rectangle (after copying/saving, or when the menu closes). */
   clearSnip(): void {
-    const page = this.#snip?.page;
     this.#snip = null;
     this.#snipBox?.remove();
-    if (page) this.#schedule(page);
   }
 
   /** Renders the snipped area at `scale` × its on-screen size. */
@@ -493,7 +524,7 @@ export class AnnotationLayer {
       const py = e.clientY - box.top;
       this.cb.onSnipClear?.();
       this.#snip = { page: view.id, x0: px, y0: py, x1: px, y1: py, done: false };
-      this.#schedule(view.id);
+      this.#placeSnip();
       return;
     }
     if (tool === "eraser") {
@@ -514,7 +545,7 @@ export class AnnotationLayer {
       const box = view.div.getBoundingClientRect();
       snip.x1 = Math.min(Math.max(0, e.clientX - box.left), box.width);
       snip.y1 = Math.min(Math.max(0, e.clientY - box.top), box.height);
-      this.#schedule(snip.page);
+      this.#placeSnip();
       return;
     }
     if (this.#tool === "eraser" && this.#erasePage) {

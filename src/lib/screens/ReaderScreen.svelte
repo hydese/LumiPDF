@@ -134,7 +134,14 @@
         if (rect) menu = { at: rect, mark: null };
       });
     controller.container.addEventListener("pointerup", onUp);
+    // Keep the snip menu under its area while scrolling.
+    const onScroll = () =>
+      requestAnimationFrame(() => {
+        if (snipAt) snipAt = l.snipScreenRect() ?? snipAt;
+      });
+    controller.container.addEventListener("scroll", onScroll, { passive: true });
     return () => {
+      controller.container.removeEventListener("scroll", onScroll);
       controller.container.removeEventListener("pointerup", onUp);
       l.destroy();
       layer = null;
@@ -303,14 +310,6 @@
     cursor: grabbing;
     transform: scale(1.15);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
-  }
-  .pages :global(.lumi-snip) {
-    position: absolute;
-    border: 1.5px dashed var(--accent);
-    border-radius: 3px;
-    background: rgba(61, 107, 240, 0.08);
-    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.18);
-    pointer-events: none;
   }
   .pages :global([data-tool="snip"]) {
     cursor: crosshair;
