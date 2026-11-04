@@ -11,6 +11,7 @@ mod documents;
 mod error;
 mod export;
 mod library;
+mod pdf_export;
 mod settings;
 mod store;
 
@@ -62,6 +63,7 @@ pub fn run() {
             annotations::annotations_load,
             annotations::annotations_save,
             export::save_png,
+            export::export_pdf,
         ])
         .build(tauri::generate_context!())
         .expect("LumiPDF failed to start")

@@ -4,6 +4,7 @@
   import Icon, { type IconName } from "../../ui/Icon.svelte";
   import type { Annotation } from "../model";
   import { annotations } from "../store.svelte";
+  import { deepen } from "../layer";
 
   interface Props {
     onGo: (a: Annotation) => void;
@@ -43,7 +44,7 @@
     <ul>
       {#each sorted.filter((a) => a.page === page) as a (a.id)}
         <li>
-          <button onclick={() => onGo(a)} style:--c={a.color}>
+          <button onclick={() => onGo(a)} style:--c={a.type === "underline" || a.type === "strike" ? deepen(a.color) : a.color}>
             <span class="icon" class:fill={a.type === "highlight" || a.type === "marker" || a.type === "note"}><Icon name={ICON[a.type]} size={13} stroke={2} /></span>
             <span class="body">
               <span class="text" class:quote={a.type === "highlight" || a.type === "underline" || a.type === "strike"}>{textOf(a)}</span>

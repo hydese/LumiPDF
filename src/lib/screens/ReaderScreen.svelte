@@ -26,6 +26,7 @@
   import MarkMenu from "../annotations/ui/MarkMenu.svelte";
   import NoteEditor from "../annotations/ui/NoteEditor.svelte";
   import SnipMenu from "../annotations/ui/SnipMenu.svelte";
+  import ExportDialog from "../annotations/ui/ExportDialog.svelte";
   import { savePng } from "../ipc/export";
   import FindBar from "../reader/ui/FindBar.svelte";
   import TabStrip from "../reader/ui/TabStrip.svelte";
@@ -33,10 +34,11 @@
 
   interface Props {
     findOpen?: boolean;
+    exportOpen?: boolean;
     findInput?: HTMLInputElement | null;
     barActions?: BarActions | null;
   }
-  let { findOpen = $bindable(false), findInput = $bindable(null), barActions = $bindable(null) }: Props = $props();
+  let { exportOpen = $bindable(false), findOpen = $bindable(false), findInput = $bindable(null), barActions = $bindable(null) }: Props = $props();
 
   let outline = $state<OutlineItem[]>([]);
   const doc = $derived(session.current);
@@ -190,6 +192,13 @@
         {#snippet before()}
           <ToolGroup />
           <IconButton
+            icon="export"
+            label={t("export.button")}
+            title={t("export.buttonTitle", { shortcut: formatShortcut("mod+e", platform) })}
+            pressed={exportOpen}
+            onclick={() => (exportOpen = true)}
+          />
+          <IconButton
             icon="bookmark"
             label={session.isBookmarked ? t("reader.unbookmark") : t("reader.bookmark")}
             title={t("reader.bookmarkTitle", { shortcut: formatShortcut("mod+d", platform) })}
@@ -227,6 +236,9 @@
       <ToolOptions />
       {#if menu}
         <MarkMenu at={menu.at} mark={menu.mark} onCreate={createMark} onComment={openComment} onClose={() => (menu = null)} />
+      {/if}
+      {#if exportOpen}
+        <ExportDialog onClose={() => (exportOpen = false)} />
       {/if}
       {#if snipAt}
         <SnipMenu at={snipAt} onCopy={copySnip} onSave={saveSnip} onClose={closeSnip} />

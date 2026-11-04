@@ -33,6 +33,7 @@
   let ready = $state(false);
   let searchInput = $state<HTMLInputElement | null>(null);
   let findOpen = $state(false);
+  let exportOpen = $state(false);
   let findInput = $state<HTMLInputElement | null>(null);
   let barActions = $state<BarActions | null>(null);
   const locale = $derived(settings.value.app.locale);
@@ -120,6 +121,8 @@
         });
       case "d":
         return run(() => session.toggleBookmark());
+      case "e":
+        return run(() => (exportOpen = true));
       case "\\":
         return run(() => settings.update((s) => (s.reader.sidebarOpen = !s.reader.sidebarOpen)));
       case "=":
@@ -192,7 +195,7 @@
       <!-- The reader stays mounted while Settings is open, so the document keeps its place. -->
       {#if session.tabs.length}
         <div class="layer" hidden={navigation.screen !== "reader"}>
-          <ReaderScreen bind:findOpen bind:findInput bind:barActions />
+          <ReaderScreen bind:exportOpen bind:findOpen bind:findInput bind:barActions />
         </div>
       {/if}
       {#if navigation.screen === "library"}

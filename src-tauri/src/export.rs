@@ -6,7 +6,7 @@
 use std::fs;
 
 use tauri::ipc::{InvokeBody, Request};
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Manager, Runtime};
 
 use crate::AppError;
 
@@ -79,6 +79,68 @@ pub async fn save_png<R: Runtime>(
     };
     fs::write(&path, bytes)?;
     Ok(true)
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportRequest {
+    /// The open document (must be one the user opened).
+    pub source: String,
+    /// Used for the suggested file name.
+    pub title: String,
+    pub annotations: Vec<crate::pdf_export::ExportAnnotation>,
+    pub compression: crate::pdf_export::Compression,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportDone {
+    #[serde(flatten)]
+    pub result: crate::pdf_export::ExportResult,
+    /// The exported file, ready to open in LumiPDF.
+    pub document: Option<crate::documents::DocumentRef>,
+}
+
+/// Exports a copy of an open PDF (annotations, compression) where the user chooses.
+/// Returns null if the save dialog was cancelled.
+#[tauri::command]
+pub async fn export_pdf<R: Runtime>(
+    app: AppHandle<R>,
+    request: ExportRequest,
+) -> Result<Option<ExportDone>, AppError> {
+    use crate::pdf_export::{export, suggested_pdf_name, with_pdf_extension, Compression};
+    use tauri_plugin_dialog::DialogExt;
+
+    let source = std::path::PathBuf::from(&request.source);
+    if !app.asset_protocol_scope().is_allowed(&source) {
+        return Err(AppError::InvalidInput("This document is not open".into()));
+    }
+    let name = suggested_pdf_name(
+        &request.title,
+        !request.annotations.is_empty(),
+        request.compression != Compression::None,
+    );
+    let mut dialog = app
+        .dialog()
+        .file()
+        .set_file_name(name)
+        .add_filter("PDF", &["pdf"]);
+    if let Some(dir) = source.parent() {
+        dialog = dialog.set_directory(dir);
+    }
+    let Some(dest) = dialog.blocking_save_file().and_then(|f| f.into_path().ok()) else {
+        return Ok(None);
+    };
+    let dest = with_pdf_extension(dest);
+    let written = dest.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        export(&source, &dest, &request.annotations, request.compression)
+    })
+    .await
+    .map_err(|e| AppError::InvalidInput(e.to_string()))??;
+    // The new file can be opened right away from the result.
+    let document = crate::documents::grant(&app, &written).ok();
+    Ok(Some(ExportDone { result, document }))
 }
 
 fn percent_decode(s: &str) -> String {

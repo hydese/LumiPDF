@@ -27,6 +27,11 @@
         },
         {
           "tag": "new",
+          "title": "Export and compress",
+          "text": "Save a copy with your annotations built in, and make big PDFs smaller: a 50 MB scanned notebook becomes 9 MB at Recommended. The original is never changed."
+        },
+        {
+          "tag": "new",
           "title": "Study timer",
           "text": "Focus and break lengths you choose, with your study time and streak."
         },

@@ -52,6 +52,7 @@ const shotsAll = [
   { name: "annotate-menu", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: "menu" },
   { name: "annotate-zoom", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: "zoom" },
   { name: "snip-menu", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], annotate: "snip" },
+  { name: "export", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: true, exportFlow: true },
   { name: "whatsnew-light", settings: { app: { appearance: "light", lastSeenVersion: "1.0.5" } } },
 ];
 const shots = shotsAll;
@@ -173,6 +174,16 @@ for (const shot of shots) {
       await page.click('.doc-sidebar [role="tab"]:has-text("Notes")');
       await page.waitForTimeout(400);
     }
+  }
+  if (shot.exportFlow) {
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Control+e");
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: path.join(out, "export-dialog.png") });
+    await page.click('.dialog .btn.primary');
+    await page.waitForTimeout(500);
+    const req = await page.evaluate(() => window.__EXPORT_REQUEST__);
+    fs.writeFileSync(path.join(out, "export-request.json"), JSON.stringify(req, null, 1));
   }
   if (shot.keys) await page.keyboard.press(shot.keys);
     if (shot.section) await page.click(`nav button:has-text("${shot.section}")`);

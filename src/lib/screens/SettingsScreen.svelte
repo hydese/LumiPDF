@@ -47,6 +47,7 @@
     ["settings.shortcuts.fit", "mod+0"],
     ["settings.shortcuts.timer", "mod+shift+t"],
     ["settings.shortcuts.settings", "mod+,"],
+    ["settings.shortcuts.export", "mod+e"],
     ["settings.shortcuts.undo", "mod+z"],
     ["settings.shortcuts.redo", "mod+shift+z"],
     ["settings.shortcuts.nextTab", "mod+tab"],

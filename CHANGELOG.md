@@ -23,6 +23,10 @@ LumiPDF 2.0 is a full rewrite of LuminaPDF 1.x under a new name.
   you can drag and comments, snip tool (copy an area or save it as a PNG, in the current theme),
   eraser, undo/redo. Listed in the Notes tab; drawn to suit dark pages; stored next to the app
   by the PDF's own ID, so they follow the file and the PDF is never modified.
+- Export (Ctrl+E): a new PDF with annotations written in as real, editable PDF annotations
+  (with appearance streams, so other readers show them the same), and compression in four
+  levels (none, light, recommended, strong) that shrinks oversized or heavy pictures. Always a
+  new file; the original is never overwritten.
 - Reader with Outline, Bookmarks (Ctrl+D) and Notes tabs, floating page and zoom controls.
   Right-click the moon for reading themes and adjustments.
 - Timer with four modes: Timer (set the time in the circle), Pomodoro (focus, breaks, long break
