@@ -91,6 +91,11 @@
     library_add_folder: () => false,
     library_remove_folder: () => null,
     open_pdf_dialog: () => [],
+    save_png: (bytes) => {
+      window.__SAVED_PNG__ = bytes?.byteLength ?? bytes?.length ?? 0;
+      window.__SAVED_PNG_DATA__ = Array.from(bytes ?? []);
+      return true;
+    },
     annotations_load: () => window.__SAVED_ANNOTATIONS__ ?? null,
     annotations_save: ({ data }) => {
       window.__SAVED_ANNOTATIONS__ = data;

@@ -21,6 +21,9 @@ export interface LayerCallbacks {
   onNoteOpen: (id: string, anchor: HTMLElement) => void;
   /** A text mark was clicked in select mode. */
   onMarkClick: (id: string, at: DOMRect) => void;
+  /** An area was snipped (screen rectangle), and when a new snip starts. */
+  onSnip?: (at: DOMRect) => void;
+  onSnipClear?: () => void;
   /** Current tool settings (colour, width) for new annotations. */
   style: () => { inkColor: string; inkWidth: number; markerColor: string; markerWidth: number; markColor: string; markKind: MarkKind; noteColor: string };
 }
@@ -61,6 +64,18 @@ export class AnnotationLayer {
   ) {
     this.#cleanups.push(controller.onPageRendered((view) => this.#attach(view)));
     this.#cleanups.push(onDarkModeChange(() => this.redrawAll()));
+    // Layers only cover the visible part of each page (so zooming in never makes huge canvases);
+    // scrolling moves that window.
+    let scrollFrame = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(scrollFrame);
+      scrollFrame = requestAnimationFrame(() => this.redrawAll());
+    };
+    controller.container.addEventListener("scroll", onScroll, { passive: true });
+    this.#cleanups.push(() => {
+      cancelAnimationFrame(scrollFrame);
+      controller.container.removeEventListener("scroll", onScroll);
+    });
     const c = controller.container;
     const opts = { capture: true } as const;
     const on = <K extends keyof HTMLElementEventMap>(type: K, fn: (e: HTMLElementEventMap[K]) => void) => {
@@ -76,7 +91,8 @@ export class AnnotationLayer {
   setTool(tool: Tool): void {
     this.#tool = tool;
     const c = this.controller.container;
-    c.classList.toggle("tool-draw", tool === "pen" || tool === "marker" || tool === "eraser" || tool === "note");
+    c.classList.toggle("tool-draw", tool === "pen" || tool === "marker" || tool === "eraser" || tool === "note" || tool === "snip");
+    if (tool !== "snip") this.clearSnip();
     c.dataset.tool = tool;
   }
 
@@ -190,54 +206,49 @@ export class AnnotationLayer {
     this.#draw(layers);
   }
 
-  #sizeCanvas(canvas: HTMLCanvasElement, view: PageViewLike): CanvasRenderingContext2D {
+  /** The part of the page on screen (plus a margin for smooth scrolling), in page pixels. */
+  #region(view: PageViewLike): { left: number; top: number; width: number; height: number } {
+    const page = view.div.getBoundingClientRect();
+    const box = this.controller.container.getBoundingClientRect();
+    const margin = Math.min(400, box.height / 2);
+    const left = Math.max(0, box.left - margin - page.left);
+    const top = Math.max(0, box.top - margin - page.top);
+    const right = Math.min(view.viewport.width, box.right + margin - page.left);
+    const bottom = Math.min(view.viewport.height, box.bottom + margin - page.top);
+    return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+  }
+
+  #sizeCanvas(canvas: HTMLCanvasElement, region: { left: number; top: number; width: number; height: number }): CanvasRenderingContext2D {
     const dpr = window.devicePixelRatio || 1;
-    const w = Math.round(view.viewport.width * dpr);
-    const h = Math.round(view.viewport.height * dpr);
+    const w = Math.round(region.width * dpr);
+    const h = Math.round(region.height * dpr);
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w;
       canvas.height = h;
     }
+    Object.assign(canvas.style, { left: `${region.left}px`, top: `${region.top}px`, width: `${region.width}px`, height: `${region.height}px` });
     const ctx = canvas.getContext("2d")!;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, view.viewport.width, view.viewport.height);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.setTransform(dpr, 0, 0, dpr, -region.left * dpr, -region.top * dpr);
     return ctx;
   }
 
   #draw(layers: PageLayers): void {
     const { view } = layers;
-    const dark = isDarkActive();
-    layers.marks.style.mixBlendMode = dark ? "screen" : "multiply";
-    const marks = this.#sizeCanvas(layers.marks, view);
-    const ink = this.#sizeCanvas(layers.inkCanvas, view);
+    layers.marks.style.mixBlendMode = isDarkActive() ? "screen" : "multiply";
+    const region = this.#region(view);
+    const marks = this.#sizeCanvas(layers.marks, region);
+    const ink = this.#sizeCanvas(layers.inkCanvas, region);
     for (const pin of layers.ink.querySelectorAll(".lumi-note")) pin.remove();
 
     const list = annotations.onPage(view.id).filter((a) => !this.#erasing.has(a.id));
+    this.#paint(marks, view, list, "marks");
+    this.#paint(ink, view, list, "ink");
     for (const a of list) {
-      switch (a.type) {
-        case "marker":
-          this.#stroke(marks, view, a, false);
-          break;
-        case "ink":
-          this.#stroke(ink, view, a, false);
-          break;
-        case "highlight":
-          marks.fillStyle = mapColor(a.color);
-          for (const r of a.rects) this.#fillRect(marks, view, r, 0);
-          break;
-        case "underline":
-        case "strike":
-          ink.fillStyle = mapColor(deepen(a.color));
-          for (const r of a.rects) this.#line(ink, view, r, a.type);
-          break;
-        case "note":
-          this.#pin(layers, a.id, a.x, a.y, a.color, a.text);
-          break;
-      }
-    }
-    // Text marks that carry a comment get a small pin at their end.
-    for (const a of list) {
-      if ((a.type === "highlight" || a.type === "underline" || a.type === "strike") && a.note) {
+      if (a.type === "note") this.#pin(layers, a.id, a.x, a.y, a.color, a.text);
+      // Text marks that carry a comment get a small pin at their end.
+      else if ((a.type === "highlight" || a.type === "underline" || a.type === "strike") && a.note) {
         const last = a.rects[a.rects.length - 1]!;
         this.#pin(layers, a.id, last[2], last[3], a.color, a.note, true);
       }
@@ -253,6 +264,55 @@ export class AnnotationLayer {
       };
       this.#stroke(live.type === "ink" ? ink : marks, view, stroke, live.pressure);
     }
+    this.#placeSnip(layers);
+  }
+
+  /**
+   * Paints one of the two passes: "marks" (highlighter and highlights, blended under the text)
+   * or "ink" (pen, underline, strike-through, on top).
+   */
+  #paint(ctx: CanvasRenderingContext2D, view: PageViewLike, list: Annotation[], pass: "marks" | "ink"): void {
+    for (const a of list) {
+      if (pass === "marks") {
+        if (a.type === "marker") this.#stroke(ctx, view, a, false);
+        else if (a.type === "highlight") {
+          ctx.fillStyle = mapColor(a.color);
+          for (const r of a.rects) this.#fillRect(ctx, view, r, 0);
+        }
+      } else if (a.type === "ink") {
+        this.#stroke(ctx, view, a, false);
+      } else if (a.type === "underline" || a.type === "strike") {
+        ctx.fillStyle = mapColor(deepen(a.color));
+        for (const r of a.rects) this.#line(ctx, view, r, a.type);
+      }
+    }
+  }
+
+  /**
+   * Draws a page area as a picture, the way it looks now (theme, annotations), at `scale` times
+   * the on-screen size. `rect` is in page pixels of the current zoom.
+   */
+  async renderRegion(page: number, rect: { left: number; top: number; width: number; height: number }, scale: number): Promise<HTMLCanvasElement | null> {
+    const doc = this.controller.document;
+    const view = this.controller.pageView(page);
+    if (!doc || !view) return null;
+    const pdfPage = await doc.getPage(page);
+    const vp = view.viewport as unknown as { scale: number; rotation: number };
+    const viewport = pdfPage.getViewport({ scale: vp.scale * scale, rotation: vp.rotation });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(rect.width * scale));
+    canvas.height = Math.max(1, Math.round(rect.height * scale));
+    // White paper: in dark mode the engine turns it into the theme background, like the page.
+    await pdfPage.render({ canvas, viewport, background: "#ffffff", transform: [1, 0, 0, 1, -rect.left * scale, -rect.top * scale] }).promise;
+    const ctx = canvas.getContext("2d")!;
+    const fake: PageViewLike = { id: page, div: view.div, viewport: viewport as unknown as PageViewLike["viewport"] };
+    const list = annotations.onPage(page);
+    ctx.setTransform(1, 0, 0, 1, -rect.left * scale, -rect.top * scale);
+    ctx.globalCompositeOperation = isDarkActive() ? "screen" : "multiply";
+    this.#paint(ctx, fake, list, "marks");
+    ctx.globalCompositeOperation = "source-over";
+    this.#paint(ctx, fake, list, "ink");
+    return canvas;
   }
 
   #stroke(ctx: CanvasRenderingContext2D, view: PageViewLike, a: Pick<Ink | Marker, "points" | "color" | "width" | "type">, realPressure: boolean): void {
@@ -313,11 +373,83 @@ export class AnnotationLayer {
     pin.style.setProperty("--note", color);
     pin.title = text.slice(0, 200);
     pin.setAttribute("aria-label", text ? text.slice(0, 80) : "Note");
+    let drag: { x: number; y: number; moved: boolean } | null = null;
     pin.addEventListener("click", (e) => {
       e.stopPropagation();
+      if (pin.dataset.dragged) {
+        delete pin.dataset.dragged;
+        return;
+      }
       this.cb.onNoteOpen(id, pin);
     });
+    if (!small) {
+      // Sticky notes can be dragged anywhere on their page.
+      pin.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        e.stopPropagation();
+        pin.setPointerCapture(e.pointerId);
+        drag = { x: e.clientX, y: e.clientY, moved: false };
+      });
+      pin.addEventListener("pointermove", (e) => {
+        if (!drag) return;
+        if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4) return;
+        drag.moved = true;
+        pin.classList.add("dragging");
+        const box = layers.view.div.getBoundingClientRect();
+        pin.style.left = `${Math.min(Math.max(0, e.clientX - box.left), box.width)}px`;
+        pin.style.top = `${Math.min(Math.max(0, e.clientY - box.top), box.height)}px`;
+      });
+      pin.addEventListener("pointerup", (e) => {
+        if (!drag) return;
+        e.stopPropagation();
+        const moved = drag.moved;
+        drag = null;
+        pin.classList.remove("dragging");
+        if (!moved) return;
+        pin.dataset.dragged = "1";
+        const [nx, ny] = layers.view.viewport.convertToPdfPoint(Number.parseFloat(pin.style.left), Number.parseFloat(pin.style.top));
+        annotations.update(id, { x: nx, y: ny });
+      });
+    }
     layers.ink.append(pin);
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // Snip (screenshot of an area)
+
+  #snip: { page: number; x0: number; y0: number; x1: number; y1: number; done: boolean } | null = null;
+  #snipBox: HTMLDivElement | null = null;
+
+  /** The snip rectangle in page pixels, normalised. */
+  #snipRect(): { left: number; top: number; width: number; height: number } | null {
+    const s = this.#snip;
+    if (!s) return null;
+    return { left: Math.min(s.x0, s.x1), top: Math.min(s.y0, s.y1), width: Math.abs(s.x1 - s.x0), height: Math.abs(s.y1 - s.y0) };
+  }
+
+  #placeSnip(layers: PageLayers): void {
+    const rect = this.#snip?.page === layers.view.id ? this.#snipRect() : null;
+    if (!rect) {
+      if (this.#snipBox?.parentElement === layers.ink) this.#snipBox.remove();
+      return;
+    }
+    this.#snipBox ??= Object.assign(document.createElement("div"), { className: "lumi-snip" });
+    Object.assign(this.#snipBox.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
+    if (this.#snipBox.parentElement !== layers.ink) layers.ink.append(this.#snipBox);
+  }
+
+  /** Removes the snip rectangle (after copying/saving, or when the menu closes). */
+  clearSnip(): void {
+    const page = this.#snip?.page;
+    this.#snip = null;
+    this.#snipBox?.remove();
+    if (page) this.#schedule(page);
+  }
+
+  /** Renders the snipped area at `scale` × its on-screen size. */
+  async renderSnip(scale: number): Promise<HTMLCanvasElement | null> {
+    const rect = this.#snipRect();
+    return this.#snip && rect ? this.renderRegion(this.#snip.page, rect, scale) : null;
   }
 
   // -------------------------------------------------------------------------------------------
@@ -338,7 +470,7 @@ export class AnnotationLayer {
     this.#down = { x: e.clientX, y: e.clientY, time: Date.now() };
     const tool = this.#tool;
     if (e.button !== 0 || !annotations.enabled) return;
-    if (tool !== "pen" && tool !== "marker" && tool !== "eraser" && tool !== "note") return;
+    if (tool !== "pen" && tool !== "marker" && tool !== "eraser" && tool !== "note" && tool !== "snip") return;
     if ((e.target as Element).closest(".lumi-note")) return; // clicking a pin opens it
     const view = this.#viewAt(e.clientX, e.clientY);
     if (!view) return;
@@ -355,6 +487,15 @@ export class AnnotationLayer {
       return;
     }
     (e.target as Element).setPointerCapture?.(e.pointerId);
+    if (tool === "snip") {
+      const box = view.div.getBoundingClientRect();
+      const px = e.clientX - box.left;
+      const py = e.clientY - box.top;
+      this.cb.onSnipClear?.();
+      this.#snip = { page: view.id, x0: px, y0: py, x1: px, y1: py, done: false };
+      this.#schedule(view.id);
+      return;
+    }
     if (tool === "eraser") {
       this.#erasePage = view.id;
       this.#eraseAt(view, x, y);
@@ -366,6 +507,16 @@ export class AnnotationLayer {
   }
 
   #onMove(e: PointerEvent): void {
+    const snip = this.#snip;
+    if (snip && !snip.done && this.#tool === "snip") {
+      const view = this.controller.pageView(snip.page);
+      if (!view) return;
+      const box = view.div.getBoundingClientRect();
+      snip.x1 = Math.min(Math.max(0, e.clientX - box.left), box.width);
+      snip.y1 = Math.min(Math.max(0, e.clientY - box.top), box.height);
+      this.#schedule(snip.page);
+      return;
+    }
     if (this.#tool === "eraser" && this.#erasePage) {
       const view = this.controller.pageView(this.#erasePage);
       if (view && e.buttons & 1) {
@@ -397,6 +548,19 @@ export class AnnotationLayer {
   #onUp(e: PointerEvent): void {
     const down = this.#down;
     this.#down = null;
+    const snip = this.#snip;
+    if (snip && !snip.done && this.#tool === "snip") {
+      const rect = this.#snipRect()!;
+      if (rect.width < 6 || rect.height < 6) {
+        this.clearSnip();
+        return;
+      }
+      snip.done = true;
+      const view = this.controller.pageView(snip.page)!;
+      const box = view.div.getBoundingClientRect();
+      this.cb.onSnip?.(new DOMRect(box.left + rect.left, box.top + rect.top, rect.width, rect.height));
+      return;
+    }
     if (this.#erasePage) {
       this.#erasePage = 0;
       if (this.#erasing.size) annotations.remove(new Set(this.#erasing));

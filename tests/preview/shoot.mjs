@@ -50,6 +50,8 @@ const shotsAll = [
   { name: "annotate-light", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: true },
   { name: "annotate-dark", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], annotate: true },
   { name: "annotate-menu", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: "menu" },
+  { name: "annotate-zoom", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: "zoom" },
+  { name: "snip-menu", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], annotate: "snip" },
   { name: "whatsnew-light", settings: { app: { appearance: "light", lastSeenVersion: "1.0.5" } } },
 ];
 const shots = shotsAll;
@@ -101,7 +103,43 @@ for (const shot of shots) {
       await page.mouse.up();
       await page.waitForTimeout(120);
     };
-    if (shot.annotate === "menu") {
+    if (shot.annotate === "zoom") {
+      await page.keyboard.press("p");
+      await drag(box.x + 20, box.y + 40, box.x + 300, box.y + 60, 20);
+      await page.keyboard.press("n");
+      await page.mouse.click(box.x + 360, box.y + 40);
+      await page.keyboard.type("moved note");
+      await page.click(".editor .btn.primary");
+      // Drag the note somewhere else.
+      const pin = page.locator(".lumi-note").first();
+      const pb = await pin.boundingBox();
+      await page.mouse.move(pb.x + 10, pb.y + 10);
+      await page.mouse.down();
+      for (let i = 1; i <= 10; i++) await page.mouse.move(pb.x + 10 + i * 12, pb.y + 10 + i * 4);
+      await page.mouse.up();
+      await page.keyboard.press("p");
+      await page.fill(".options .px input", "6");
+      await page.keyboard.press("Enter");
+      await page.locator(".options .px input").blur();
+      for (let i = 0; i < 9; i++) {
+        await page.keyboard.press("Control+Equal");
+        await page.waitForTimeout(250);
+      }
+      await page.waitForTimeout(1500);
+      const t2 = await page.locator(".layer:not([hidden]) .textLayer span").filter({ hasText: "Consider" }).first().boundingBox();
+      if (t2) await drag(t2.x + 20, t2.y + 80, t2.x + 500, t2.y + 120, 25);
+      console.log("zoom:", await page.locator(".zoom").first().innerText(), "notes:", await page.locator(".lumi-note").count());
+    } else if (shot.annotate === "snip") {
+      await page.keyboard.press("s");
+      await drag(box.x - 6, box.y - 50, box.x + 420, box.y + 120, 10);
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: path.join(out, "snip-select.png") });
+      await page.click('.menu button.primary');
+      await page.waitForTimeout(500);
+      console.log("saved png bytes:", await page.evaluate(() => window.__SAVED_PNG__));
+      const data = await page.evaluate(() => window.__SAVED_PNG_DATA__ ?? []);
+      if (data.length) fs.writeFileSync(path.join(out, "snip-result.png"), Buffer.from(data));
+    } else if (shot.annotate === "menu") {
       await drag(box.x + 2, box.y + box.height / 2, box.x + 330, box.y + box.height / 2 + 22);
       await page.waitForTimeout(300);
     } else {

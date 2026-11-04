@@ -58,7 +58,7 @@
     const typing = (event.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable='true']");
     const reading = navigation.screen === "reader" && session.current !== null;
     if (reading && !typing && !event.ctrlKey && !event.metaKey && !event.altKey) {
-      const tools: Record<string, Tool> = { v: "select", h: "highlight", p: "pen", m: "marker", e: "eraser", n: "note" };
+      const tools: Record<string, Tool> = { v: "select", h: "highlight", p: "pen", m: "marker", e: "eraser", n: "note", s: "snip" };
       const tool = tools[event.key.toLowerCase()];
       if (tool) {
         event.preventDefault();

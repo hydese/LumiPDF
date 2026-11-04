@@ -25,6 +25,8 @@
   import ToolOptions from "../annotations/ui/ToolOptions.svelte";
   import MarkMenu from "../annotations/ui/MarkMenu.svelte";
   import NoteEditor from "../annotations/ui/NoteEditor.svelte";
+  import SnipMenu from "../annotations/ui/SnipMenu.svelte";
+  import { savePng } from "../ipc/export";
   import FindBar from "../reader/ui/FindBar.svelte";
   import TabStrip from "../reader/ui/TabStrip.svelte";
   import { navigation } from "../app/navigation.svelte";
@@ -77,6 +79,30 @@
   let layer = $state.raw<AnnotationLayer | null>(null);
   let menu = $state<{ at: DOMRect; mark: TextMark | null } | null>(null);
   let editing = $state<{ id: string; anchor: HTMLElement } | null>(null);
+  let snipAt = $state<DOMRect | null>(null);
+
+  /** Snips are rendered at 3× the on-screen size (crisp formulas), up to 8000 px wide. */
+  async function snipBlob(): Promise<Blob> {
+    const rect = snipAt;
+    const scale = rect ? Math.max(1, Math.min(3 * (window.devicePixelRatio || 1), 8000 / Math.max(rect.width, rect.height))) : 3;
+    const canvas = await layer?.renderSnip(scale);
+    if (!canvas) throw new Error("nothing to capture");
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) throw new Error("the image could not be made");
+    return blob;
+  }
+  async function copySnip() {
+    const blob = await snipBlob();
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+  }
+  async function saveSnip() {
+    const blob = await snipBlob();
+    return savePng(blob, t("snip.name", { title: doc?.title ?? "LumiPDF", page: session.page }));
+  }
+  function closeSnip() {
+    snipAt = null;
+    layer?.clearSnip();
+  }
 
   /** A stand-in anchor for popovers that open at a screen rectangle. */
   function anchorAt(rect: DOMRect): HTMLElement {
@@ -96,6 +122,8 @@
         if (mark && mark.type !== "ink" && mark.type !== "marker" && mark.type !== "note") menu = { at, mark };
       },
       style: () => settings.value.annotate,
+      onSnip: (at) => (snipAt = at),
+      onSnipClear: () => (snipAt = null),
     });
     layer = l;
     // Selecting text in select mode shows the mark menu above the selection.
@@ -193,6 +221,9 @@
       {#if menu}
         <MarkMenu at={menu.at} mark={menu.mark} onCreate={createMark} onComment={openComment} onClose={() => (menu = null)} />
       {/if}
+      {#if snipAt}
+        <SnipMenu at={snipAt} onCopy={copySnip} onSave={saveSnip} onClose={closeSnip} />
+      {/if}
       {#if editing}
         <NoteEditor id={editing.id} anchor={editing.anchor} onClose={() => (editing = null)} />
       {/if}
@@ -267,6 +298,22 @@
   }
   .pages :global(.lumi-note.small::after) {
     display: none;
+  }
+  .pages :global(.lumi-note.dragging) {
+    cursor: grabbing;
+    transform: scale(1.15);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  }
+  .pages :global(.lumi-snip) {
+    position: absolute;
+    border: 1.5px dashed var(--accent);
+    border-radius: 3px;
+    background: rgba(61, 107, 240, 0.08);
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.18);
+    pointer-events: none;
+  }
+  .pages :global([data-tool="snip"]) {
+    cursor: crosshair;
   }
   .pages :global(.lumi-note:hover) {
     transform: scale(1.12);

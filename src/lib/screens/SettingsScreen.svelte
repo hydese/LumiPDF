@@ -302,7 +302,7 @@
           {/each}
           <div class="row">
             <span>{t("settings.shortcuts.tools")}</span>
-            <kbd>V · H · P · M · E · N</kbd>
+            <kbd>V · H · P · M · E · N · S</kbd>
           </div>
         </section>
       {:else if section === "about"}

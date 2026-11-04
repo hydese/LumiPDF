@@ -365,5 +365,15 @@
   "notes.emptyNote": "Empty note",
   "settings.shortcuts.undo": "Undo",
   "settings.shortcuts.redo": "Redo",
-  "settings.shortcuts.tools": "Tools: select, highlight, pen, highlighter, eraser, note"
+  "settings.shortcuts.tools": "Tools: select, highlight, pen, highlighter, eraser, note, snip",
+  "tools.snip": "Screenshot (snip)",
+  "tools.snipHint": "Drag over an area to copy it or save it as a PNG",
+  "tools.customWidth": "Exact thickness in pixels",
+  "snip.copy": "Copy image",
+  "snip.save": "Save PNG",
+  "snip.copied": "Copied",
+  "snip.saved": "Saved",
+  "snip.failed": "Couldn’t do that: {reason}",
+  "snip.close": "Cancel",
+  "snip.name": "{title} — page {page}"
 }

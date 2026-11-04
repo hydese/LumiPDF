@@ -18,9 +18,19 @@
     { kind: "strike", icon: "strike" },
   ];
   const hint = $derived(
-    tool === "pen" || tool === "marker" ? t("tools.drawHint") : tool === "eraser" ? t("tools.eraserHint") : tool === "note" ? t("tools.noteHint") : t("tools.highlightHint"),
+    tool === "pen" || tool === "marker"
+      ? t("tools.drawHint")
+      : tool === "eraser"
+        ? t("tools.eraserHint")
+        : tool === "note"
+          ? t("tools.noteHint")
+          : tool === "snip"
+            ? t("tools.snipHint")
+            : t("tools.highlightHint"),
   );
   const WIDTH_LABEL = ["tools.thin", "tools.medium", "tools.thick"] as const;
+  /** Same limits as the settings schema. */
+  const limits = $derived(tool === "pen" ? { min: 0.5, max: 10 } : { min: 4, max: 40 });
 
   function setColor(c: string) {
     settings.update((s) => {
@@ -40,7 +50,7 @@
 
 {#if tool !== "select"}
   <div class="options" role="toolbar" aria-label={t(`tools.${tool}` as MessageKey)}>
-    {#if tool !== "eraser"}
+    {#if tool !== "eraser" && tool !== "snip"}
       <div class="group" role="radiogroup" aria-label={t("tools.color")}>
         {#each colors as c (c)}
           <button class="swatch" role="radio" aria-checked={current === c} aria-label={c} style:--c={c} onclick={() => setColor(c)}></button>
@@ -55,6 +65,21 @@
             <span style:height="{2 + i * 3}px" style:background={current}></span>
           </button>
         {/each}
+        <label class="px" title={t("tools.customWidth")}>
+          <input
+            type="number"
+            min={limits.min}
+            max={limits.max}
+            step="0.5"
+            value={width}
+            aria-label={t("tools.customWidth")}
+            onchange={(e) => {
+              const v = Number(e.currentTarget.value);
+              if (Number.isFinite(v)) setWidth(Math.min(limits.max, Math.max(limits.min, v)));
+            }}
+          />
+          px
+        </label>
       </div>
     {/if}
     {#if tool === "highlight"}
@@ -132,6 +157,28 @@
   .kind[aria-checked="true"] {
     background: var(--pressed);
     color: var(--text);
+  }
+  .px {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 2px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+  }
+  .px input {
+    width: 44px;
+    height: 26px;
+    padding: 0 4px;
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    background: var(--field);
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+  }
+  .px input:focus {
+    border-color: var(--accent);
   }
   .kind:disabled {
     opacity: 0.35;

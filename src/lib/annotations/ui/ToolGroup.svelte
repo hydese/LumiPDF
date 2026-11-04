@@ -11,6 +11,7 @@
     { id: "marker", icon: "highlighter", key: "M" },
     { id: "eraser", icon: "eraser", key: "E" },
     { id: "note", icon: "sticky", key: "N" },
+    { id: "snip", icon: "snip", key: "S" },
   ];
 </script>
 

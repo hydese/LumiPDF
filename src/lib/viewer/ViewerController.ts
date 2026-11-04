@@ -147,9 +147,16 @@ export class ViewerController {
     return (this.viewer.getPageView(page - 1) as unknown as PageViewLike | undefined) ?? null;
   }
 
-  /** Calls `handler` each time a page finishes drawing (after zoom, scrolling into view…). */
+  /**
+   * Calls `handler` each time a page finishes drawing (after zoom, scrolling into view…).
+   * At high zoom pdf.js also draws a sharper "detail" view of the visible area and reports that
+   * with the detail view as source; the handler always receives the page itself.
+   */
   onPageRendered(handler: (view: PageViewLike) => void): () => void {
-    const listener = ({ source }: { source: PageViewLike }) => handler(source);
+    const listener = ({ pageNumber }: { pageNumber: number }) => {
+      const view = this.pageView(pageNumber);
+      if (view?.div) handler(view);
+    };
     this.eventBus.on("pagerendered", listener);
     return () => this.eventBus.off("pagerendered", listener);
   }
