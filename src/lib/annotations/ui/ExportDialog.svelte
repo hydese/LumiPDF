@@ -14,7 +14,9 @@
   }
   let { onClose }: Props = $props();
 
-  const LEVELS: Compression[] = ["none", "light", "recommended", "strong"];
+  const LEVELS: Compression[] = ["light", "recommended", "strong"];
+  // No compression unless asked for.
+  let compress = $state(false);
   let level = $state<Compression>("recommended");
   let include = $state(annotations.list.length > 0);
   let phase = $state<"choose" | "working" | "done">("choose");
@@ -63,7 +65,7 @@
         source: tab.path,
         title: tab.title,
         annotations: include && !annotationsBlocked ? toExport(annotations.list) : [],
-        compression: level,
+        compression: compress ? level : "none",
         protection: {
           openPassword: tab.password,
           remove: unlock,
@@ -171,17 +173,24 @@
       </div>
     {/if}
 
-    <div class="levels" role="radiogroup" aria-label={t("export.compression")}>
-      <span class="group">{t("export.compression")}</span>
-      {#each LEVELS as l (l)}
-        <button role="radio" aria-checked={level === l} disabled={phase === "working"} onclick={() => (level = l)}>
-          <span class="dot"></span>
-          <span class="text">
-            <span class="name">{t(`export.level.${l}` as MessageKey)}</span>
-            <span class="hint">{t(`export.level.${l}Text` as MessageKey)}</span>
-          </span>
-        </button>
-      {/each}
+    <div class="compress">
+      <label class="row">
+        <span class="label">
+          <span>{t("export.compress")}</span>
+          <span class="hint">{compress ? t(`export.level.${level}Text` as MessageKey) : t("export.compressOff")}</span>
+        </span>
+        <input type="checkbox" class="switch" bind:checked={compress} disabled={phase === "working"} />
+      </label>
+      {#if compress}
+        <label class="level">
+          <span>{t("export.compression")}</span>
+          <select class="select" bind:value={level} disabled={phase === "working"}>
+            {#each LEVELS as l (l)}
+              <option value={l}>{t(`export.level.${l}` as MessageKey)}</option>
+            {/each}
+          </select>
+        </label>
+      {/if}
     </div>
 
     {#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -264,50 +273,23 @@
     font-size: 12px;
     color: var(--text-muted);
   }
-  .levels {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
   .group {
     font-size: 12px;
     font-weight: 500;
     color: var(--text-muted);
     margin-bottom: 2px;
   }
-  .levels button {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
-    border-radius: var(--radius-l);
-    border: 1px solid var(--hairline);
-    background: transparent;
-    text-align: left;
-  }
-  .levels button:hover:not(:disabled) {
-    background: var(--hover);
-  }
-  .levels button[aria-checked="true"] {
-    border-color: var(--accent);
-    background: var(--accent-soft);
-  }
-  .dot {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-    border-radius: 8px;
-    border: 1.5px solid var(--text-faint);
-  }
-  [aria-checked="true"] .dot {
-    border: 5px solid var(--accent);
-  }
-  .text {
+  .compress {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 8px;
   }
-  .name {
+  .level {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 14px;
     font-weight: 500;
   }
   .actions {

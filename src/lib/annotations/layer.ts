@@ -72,6 +72,8 @@ export class AnnotationLayer {
       scrollFrame = requestAnimationFrame(() => this.redrawAll());
     };
     controller.container.addEventListener("scroll", onScroll, { passive: true });
+    // After a zoom the layers follow the new page size right away (pdf.js redraws pages later).
+    this.#cleanups.push(controller.onScaleChanged(onScroll));
     this.#cleanups.push(() => {
       cancelAnimationFrame(scrollFrame);
       controller.container.removeEventListener("scroll", onScroll);
@@ -113,19 +115,39 @@ export class AnnotationLayer {
   /** Redraws every page that has layers (after annotations or the theme change). */
   redrawAll(): void {
     this.#placeSnip();
+    this.#attachRendered();
     for (const [page, layers] of this.#pages) {
       if (!layers.view.div.isConnected) this.#pages.delete(page);
+      else if (!layers.marks.isConnected || !layers.ink.isConnected) this.#attach(layers.view);
       else this.#draw(layers);
     }
   }
 
-  /** Forget layers (new document). */
+  /**
+   * Puts layers on pages that are already drawn but have none: pdf.js can drop our layers when
+   * it resets a page (zoom), and a tab coming back shows its pages without drawing them again.
+   */
+  #attachRendered(): void {
+    const box = this.controller.container.getBoundingClientRect();
+    for (const div of this.controller.container.querySelectorAll<HTMLElement>(".page[data-page-number]")) {
+      const page = Number(div.dataset.pageNumber);
+      if (this.#pages.get(page)?.marks.isConnected) continue;
+      if (!div.querySelector(".canvasWrapper canvas")) continue;
+      const r = div.getBoundingClientRect();
+      if (r.bottom < box.top - 400 || r.top > box.bottom + 400) continue;
+      const view = this.controller.pageView(page);
+      if (view?.div === div) this.#attach(view);
+    }
+  }
+
+  /** Forget layers (new document); pages already drawn get fresh ones. */
   reset(): void {
     for (const p of this.#pages.values()) {
       p.marks.remove();
       p.ink.remove();
     }
     this.#pages.clear();
+    this.#attachRendered();
   }
 
   /**

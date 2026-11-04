@@ -53,7 +53,10 @@ const shotsAll = [
   { name: "annotate-zoom", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: "zoom" },
   { name: "snip-menu", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], annotate: "snip" },
   { name: "export", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: true, exportFlow: true },
+  { name: "export-compress", settings: { app: { appearance: "dark", ...seen } }, open: ["Analisi 2 — Trasformate"], annotate: true, exportFlow: "compress" },
   { name: "export-protected", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: true, exportFlow: "unlock", protection: { protected: true, openPassword: false, restrictions: { print: true, copy: true, edit: true, annotate: false }, removableWithOpenPassword: false } },
+  { name: "annotate-steps", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: true, steps: ["v", "e", "Control+Equal", "Control+Equal", "Control+Minus"] },
+  { name: "annotate-tabs", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Automatica — Lezione 12", "Analisi 2 — Trasformate"], annotate: true, steps: ["Control+1", "Control+2", "e", "Control+Equal", "draw"] },
   { name: "whatsnew-light", settings: { app: { appearance: "light", lastSeenVersion: "1.0.5" } } },
 ];
 const shots = only ? shotsAll.filter((s) => only.includes(s.name)) : shotsAll;
@@ -180,6 +183,11 @@ for (const shot of shots) {
     await page.keyboard.press("Escape");
     await page.keyboard.press("Control+e");
     await page.waitForTimeout(400);
+    if (shot.exportFlow === "compress") {
+      await page.click('.compress .switch');
+      await page.selectOption('.compress select', "strong");
+      await page.waitForTimeout(200);
+    }
     if (shot.exportFlow === "unlock") {
       await page.click('.protection .switch');
       await page.fill('.protection .field', "admin");
@@ -192,6 +200,19 @@ for (const shot of shots) {
     fs.writeFileSync(path.join(out, `${shot.name}-request.json`), JSON.stringify(req, null, 1));
   }
   if (shot.keys) await page.keyboard.press(shot.keys);
+    // Key presses (or "draw": a pen stroke mid-page) with a screenshot after each.
+    for (const [i, key] of (shot.steps ?? []).entries()) {
+      if (key === "draw") {
+        const b = await page.locator(".layer:not([hidden]) .pdfViewer .page").first().boundingBox();
+        await page.keyboard.press("p");
+        await page.mouse.move(b.x + 150, b.y + 330);
+        await page.mouse.down();
+        for (let j = 1; j <= 20; j++) await page.mouse.move(b.x + 150 + j * 15, b.y + 330 + Math.sin(j / 2) * 20);
+        await page.mouse.up();
+      } else await page.keyboard.press(key);
+      await page.waitForTimeout(1200);
+      await page.screenshot({ path: path.join(out, `${shot.name}-${i + 1}.png`) });
+    }
     if (shot.section) await page.click(`nav button:has-text("${shot.section}")`);
     if (shot.click) await page.click(shot.click);
     if (shot.rightClick) await page.click(shot.rightClick, { button: "right" });

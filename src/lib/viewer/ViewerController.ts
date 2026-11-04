@@ -161,6 +161,13 @@ export class ViewerController {
     return () => this.eventBus.off("pagerendered", listener);
   }
 
+  /** Calls `handler` after the zoom changes (pages may not be drawn again yet). */
+  onScaleChanged(handler: () => void): () => void {
+    const listener = () => handler();
+    this.eventBus.on("scalechanging", listener);
+    return () => this.eventBus.off("scalechanging", listener);
+  }
+
   /** Where the reader is now, to come back to it later (tabs). */
   place(): ReadingPlace {
     const page = this.viewer.currentPageNumber || 1;

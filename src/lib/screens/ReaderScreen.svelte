@@ -3,6 +3,7 @@
    * The reader. While pages are shown dark, the whole reader turns dark too, so no bright
    * toolbar glares next to a dark page.
    */
+  import { untrack } from "svelte";
   import { t } from "../i18n";
   import { formatShortcut } from "../platform/shortcuts";
   import { platform } from "../platform/window";
@@ -150,15 +151,31 @@
     };
   });
 
-  $effect(() => layer?.setTool(annotations.tool));
   $effect(() => {
-    void annotations.revision;
-    layer?.redrawAll();
+    const l = layer;
+    const tool = annotations.tool;
+    untrack(() => l?.setTool(tool));
   });
   $effect(() => {
+    void annotations.revision;
+    const l = layer;
+    untrack(() => l?.redrawAll());
+  });
+  // Switch annotations only when the document itself changes. Untracked: activate() reads and
+  // bumps the store's revision, and tracking that made every change re-run this and wipe the
+  // drawn layers (annotations vanished until a zoom redrew the page).
+  let shownPdf: unknown = undefined;
+  let shownLayer: AnnotationLayer | null = null;
+  $effect(() => {
     const pdf = doc?.pdf.doc ?? null;
-    layer?.reset();
-    void annotations.activate(pdf);
+    const l = layer;
+    untrack(() => {
+      if (pdf === shownPdf && l === shownLayer) return;
+      if (pdf !== shownPdf) l?.reset();
+      shownPdf = pdf;
+      shownLayer = l;
+      void annotations.activate(pdf);
+    });
   });
 
   function createMark(kind: TextMark["type"], color: string): TextMark | null {
