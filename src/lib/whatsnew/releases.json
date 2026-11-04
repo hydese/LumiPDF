@@ -48,7 +48,7 @@
         {
           "tag": "new",
           "title": "Updates in the app",
-          "text": "LumiPDF installs new versions itself, automatically when you close it or when you choose. Want new features early? Turn on beta versions in Settings."
+          "text": "LumiPDF installs new versions itself, automatically when you close it or when you choose."
         },
         {
           "tag": "fixed",
