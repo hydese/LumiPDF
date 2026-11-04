@@ -6,6 +6,11 @@ All notable changes to LumiPDF are listed here. Versions follow [Semantic Versio
 
 LumiPDF 2.0 is a full rewrite of LuminaPDF 1.x under a new name.
 
+### Fixed (during 2.0 testing)
+- The eraser no longer deletes sticky notes.
+- Turning study tools off while on the Stats screen or a sheet tab no longer leaves a blank
+  window; deleting a sheet from the Library stays in the Library.
+
 ### Added
 - New interface, light and dark, with a single top bar that is also the window title bar.
 - Welcome on first install (language, appearance, reading theme, folders and cloud drives,
@@ -29,7 +34,12 @@ LumiPDF 2.0 is a full rewrite of LuminaPDF 1.x under a new name.
   formula sheets; Settings → General has the main switch and one per tool, and the Library shows
   a dismissible "Studying? Turn on study tools" line while they're off.
 - Any annotation colour: a hex/system colour picker next to the preset colours, with recent
-  custom colours.
+  custom colours. Custom colours are drawn exactly as picked, also on dark pages (preset colours
+  still adapt to them).
+- Hand tool (G): drag to scroll, no text selection; links and notes still work.
+- Formula sheets: smart guides in Free layout (snap to page centre, margins and other items;
+  hold Alt to place freely); selected-item actions moved to the sheet's top bar.
+- Study stats: "Reset study stats" (keeps documents, progress, bookmarks and the goal).
 - Study stats: a Today card in the Library (time against the daily goal, streak, the week) and a
   Stats screen with totals, current and best streak, a 7/30-day chart and the most studied
   documents and folders. Study time is now also kept per document per day.

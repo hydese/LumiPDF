@@ -174,7 +174,7 @@
       onSnipClear: () => (snipAt = null),
     });
     layer = l;
-    const previews = new LinkPreview(controller, l, () => settings.value.reader.linkPreviews && annotations.tool === "select");
+    const previews = new LinkPreview(controller, l, () => settings.value.reader.linkPreviews && (annotations.tool === "select" || annotations.tool === "hand"));
     // Selecting text in select mode shows the mark menu above the selection.
     const onUp = () =>
       setTimeout(() => {
@@ -462,6 +462,16 @@
   }
   .pages :global([data-tool="eraser"]) {
     cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Ccircle cx='9' cy='9' r='7.5' fill='rgba(255,255,255,0.6)' stroke='%23444' stroke-width='1.2'/%3E%3C/svg%3E") 9 9, crosshair;
+  }
+  .pages :global([data-tool="hand"]) {
+    cursor: grab;
+  }
+  .pages :global([data-tool="hand"].panning) {
+    cursor: grabbing;
+  }
+  .pages :global([data-tool="hand"] .textLayer) {
+    pointer-events: none;
+    user-select: none;
   }
   .pages :global([data-tool="note"]) {
     cursor: copy;

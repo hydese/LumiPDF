@@ -2,6 +2,7 @@
   /** Library card: your formula sheets, newest first; open one in a tab or start a new one. */
   import { formatWhen, t, tn } from "../../i18n";
   import { session } from "../../reader/session.svelte";
+  import { navigation } from "../../app/navigation.svelte";
   import SourceCard from "../../library/ui/SourceCard.svelte";
   import Dialog from "../../ui/Dialog.svelte";
   import Icon from "../../ui/Icon.svelte";
@@ -20,6 +21,8 @@
     const tab = session.tabs.find((x) => x.path === `sheet:${s.id}`);
     if (tab) await session.close(tab.id);
     await sheets.remove(s.id);
+    // Stay in the Library (closing the tab may have switched to another one).
+    navigation.go("library");
   }
 </script>
 

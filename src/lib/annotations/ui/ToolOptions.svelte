@@ -49,7 +49,7 @@
   }
 </script>
 
-{#if tool !== "select"}
+{#if tool !== "select" && tool !== "hand"}
   <div class="options" role="toolbar" aria-label={t(`tools.${tool}` as MessageKey)}>
     {#if tool !== "eraser" && tool !== "snip"}
       <div class="group" role="radiogroup" aria-label={t("tools.color")}>

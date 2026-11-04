@@ -245,3 +245,51 @@ export function parseSheet(raw: unknown, id: string): Sheet | null {
     items,
   };
 }
+
+// ---------------------------------------------------------------------------------------------
+// Smart guides (free layout): while moving, edges and centres snap to the page and to other items.
+
+export interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface Snapped {
+  x: number;
+  y: number;
+  /** Vertical guide lines (x positions) and horizontal ones (y positions), in points. */
+  vertical: number[];
+  horizontal: number[];
+}
+
+/**
+ * Moves `box` onto the nearest alignment within `threshold` points: page centre and margins,
+ * and the left/centre/right and top/centre/bottom of `others`.
+ */
+export function snapBox(box: Box, others: Box[], paper: { w: number; h: number }, threshold: number): Snapped {
+  const xs = [MARGIN, paper.w / 2, paper.w - MARGIN, ...others.flatMap((o) => [o.x, o.x + o.w / 2, o.x + o.w])];
+  const ys = [MARGIN, paper.h / 2, paper.h - MARGIN, ...others.flatMap((o) => [o.y, o.y + o.h / 2, o.y + o.h])];
+  const best = (edges: number[], targets: number[]) => {
+    let shift = 0;
+    let dist = threshold + 1;
+    for (const e of edges)
+      for (const t of targets) {
+        const d = Math.abs(t - e);
+        if (d < dist) {
+          dist = d;
+          shift = t - e;
+        }
+      }
+    return dist <= threshold ? shift : null;
+  };
+  const dx = best([box.x, box.x + box.w / 2, box.x + box.w], xs);
+  const dy = best([box.y, box.y + box.h / 2, box.y + box.h], ys);
+  const x = box.x + (dx ?? 0);
+  const y = box.y + (dy ?? 0);
+  const near = (a: number, b: number) => Math.abs(a - b) < 0.5;
+  const vertical = dx === null ? [] : xs.filter((t) => [x, x + box.w / 2, x + box.w].some((e) => near(e, t)));
+  const horizontal = dy === null ? [] : ys.filter((t) => [y, y + box.h / 2, y + box.h].some((e) => near(e, t)));
+  return { x, y, vertical: [...new Set(vertical)], horizontal: [...new Set(horizontal)] };
+}

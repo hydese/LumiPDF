@@ -246,9 +246,13 @@ class DocumentSession {
       this.activeId = null;
       this.view = null;
       const neighbour = this.tabs[Math.min(index, this.tabs.length - 1)];
-      if (neighbour) await this.activate(neighbour.id);
-      else {
-        navigation.go("library");
+      // Closing a tab from elsewhere (Library, Settings) switches tabs but keeps you there.
+      const screen = navigation.screen;
+      if (neighbour) {
+        await this.activate(neighbour.id);
+        if (screen !== "reader") navigation.screen = screen;
+      } else {
+        if (screen === "reader") navigation.go("library");
         void library.refresh();
       }
     }

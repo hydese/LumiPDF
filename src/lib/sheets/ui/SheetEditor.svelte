@@ -30,6 +30,7 @@
     TITLE_HEIGHT,
     TITLE_SIZE,
     clampSpot,
+    snapBox,
     layoutSheet,
     newId,
     toFlow,
@@ -153,6 +154,10 @@
     ghost: { x: number; y: number } | null;
   }
   let drag = $state<Drag | null>(null);
+  /** Guide lines shown while moving in free layout. */
+  let guides = $state<{ page: number; vertical: number[]; horizontal: number[] } | null>(null);
+  /** Snapping distance, in screen pixels. */
+  const SNAP_PX = 6;
 
   /** Page and point (in points) under a screen position. */
   function pointAt(clientX: number, clientY: number): { page: number; x: number; y: number } | null {
@@ -223,7 +228,16 @@
     const at = pointAt(e.clientX, e.clientY);
     if (!at) return;
     if (sheet.layout === "free") {
-      setItem(item.id, { free: clampSpot(sheet, item, { page: at.page, x: at.x - drag.grab.x, y: at.y - drag.grab.y, w: item.free?.w ?? drag.start.w }) }, false);
+      let spot = clampSpot(sheet, item, { page: at.page, x: at.x - drag.grab.x, y: at.y - drag.grab.y, w: item.free?.w ?? drag.start.w });
+      // Smart guides (hold Alt to place freely).
+      if (!e.altKey && layout) {
+        const others = layout.placed.filter((p) => p.page === spot.page && p.item.id !== item.id);
+        const h = item.type === "title" ? TITLE_HEIGHT : (spot.w * item.natural[1]) / item.natural[0];
+        const snapped = snapBox({ x: spot.x, y: spot.y, w: spot.w, h }, others, paper, SNAP_PX / zoom);
+        spot = clampSpot(sheet, item, { ...spot, x: snapped.x, y: snapped.y });
+        guides = { page: spot.page, vertical: snapped.vertical, horizontal: snapped.horizontal };
+      } else guides = null;
+      setItem(item.id, { free: spot }, false);
     } else {
       drag.target = flowTarget(at, item.id);
       drag.ghost = { x: e.clientX - drag.grab.x * zoom, y: e.clientY - drag.grab.y * zoom };
@@ -234,6 +248,7 @@
     if (!drag || e.pointerId !== drag.pointer) return;
     const d = drag;
     drag = null;
+    guides = null;
     if (!d.moved || !sheet || sheet.layout !== "flow" || d.mode !== "move" || d.target < 0) return;
     const items = sheet.items.filter((it) => it.id !== d.itemId);
     const item = sheet.items.find((it) => it.id === d.itemId)!;
@@ -394,7 +409,7 @@
   void library;
 </script>
 
-<svelte:window onkeydown={onKey} onpointermove={onMove} onpointerup={onUp} onpointercancel={() => (drag = null)} />
+<svelte:window onkeydown={onKey} onpointermove={onMove} onpointerup={onUp} onpointercancel={() => ((drag = null), (guides = null))} />
 
 <div class="editor" class:dark>
   {#if sheet && layout}
@@ -411,7 +426,21 @@
         }}
         onkeydown={(e) => e.key === "Enter" && e.currentTarget.blur()}
       />
-      <span class="count">{tn("sheets.snips", snipCount)}</span>
+      {#if selectedPlaced && editing !== selectedPlaced.item.id}
+        {@const sp = selectedPlaced}
+        <div class="selection" role="group" aria-label={t("sheets.selection")}>
+          {#if sp.item.type === "snip"}
+            {#if sp.item.source.path}
+              <button class="btn small" onclick={() => openSource(sp)} title={sp.item.source.name}><Icon name="external" size={12} stroke={2} />{t("sheets.source", { page: sp.item.source.page })}</button>
+            {/if}
+          {:else}
+            <button class="btn small" onclick={() => startEditing(sp.item.id)}>{t("sheets.edit")}</button>
+          {/if}
+          <button class="btn small danger-text" onclick={() => removeItem(sp.item.id)}><Icon name="trash" size={12} stroke={2} />{t("sheets.delete")}</button>
+        </div>
+      {:else}
+        <span class="count">{tn("sheets.snips", snipCount)}</span>
+      {/if}
 
       <div class="tools">
         <div class="seg" role="radiogroup" aria-label={t("sheets.layout")}>
@@ -471,7 +500,7 @@
     bind:this={scroller}
     role="presentation"
     onpointerdown={(e) => {
-      if (!(e.target as HTMLElement).closest(".item, .chip")) selected = null;
+      if (!(e.target as HTMLElement).closest(".item")) selected = null;
       if (!(e.target as HTMLElement).closest(".export")) exportMenu = false;
     }}
   >
@@ -522,19 +551,15 @@
                 <span class="handle" role="presentation" onpointerdown={(e) => onItemDown(e, p, "resize")}></span>
               {/if}
             </div>
-            {#if selected === p.item.id && !drag?.moved && editing !== p.item.id}
-              <div class="chip" style:left="{p.x * zoom}px" style:top="{Math.max(0, p.y * zoom - 34)}px">
-                {#if p.item.type === "snip"}
-                  {#if p.item.source.path}
-                    <button onclick={() => openSource(p)} title={p.item.source.name}><Icon name="external" size={12} stroke={2} />{t("sheets.source", { page: p.item.source.page })}</button>
-                  {/if}
-                {:else}
-                  <button onclick={() => startEditing(p.item.id)}>{t("sheets.edit")}</button>
-                {/if}
-                <button class="danger" onclick={() => removeItem(p.item.id)} aria-label={t("sheets.delete")}><Icon name="trash" size={12} stroke={2} /></button>
-              </div>
-            {/if}
           {/each}
+          {#if guides && guides.page === page}
+            {#each guides.vertical as gx (gx)}
+              <span class="guide v" style:left="{gx * zoom}px"></span>
+            {/each}
+            {#each guides.horizontal as gy (gy)}
+              <span class="guide h" style:top="{gy * zoom}px"></span>
+            {/each}
+          {/if}
           {#if indicator && indicator.page === page}
             <span class="drop" style:left="{indicator.x * zoom}px" style:top="{indicator.y * zoom - 1}px" style:width="{indicator.w * zoom}px"></span>
           {/if}
@@ -786,34 +811,29 @@
     cursor: nwse-resize;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   }
-  .chip {
-    position: absolute;
-    z-index: 5;
-    display: flex;
-    gap: 2px;
-    padding: 3px;
-    border-radius: 9px;
-    background: var(--surface-raised);
-    box-shadow: var(--pop-shadow);
-    white-space: nowrap;
-  }
-  .chip button {
+  .selection {
     display: flex;
     align-items: center;
-    gap: 5px;
-    height: 24px;
-    padding: 0 8px;
-    border: none;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--text);
-    font-size: 12px;
+    gap: 6px;
   }
-  .chip button:hover {
-    background: var(--hover);
-  }
-  .chip .danger {
+  .danger-text {
     color: var(--danger);
+  }
+  .guide {
+    position: absolute;
+    z-index: 4;
+    pointer-events: none;
+    background: #ff3b8d;
+  }
+  .guide.v {
+    top: 0;
+    bottom: 0;
+    width: 1px;
+  }
+  .guide.h {
+    left: 0;
+    right: 0;
+    height: 1px;
   }
   .drop {
     position: absolute;

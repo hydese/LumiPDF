@@ -14,6 +14,10 @@
   import DayBars from "../stats/ui/DayBars.svelte";
   import { activeDays, allTime, bestStreak, lastDays, rangeTotal, shortDuration, topDocuments, topFolders } from "../stats/stats";
   import { studyStats } from "../stats/statsState.svelte";
+  import { studyClock } from "../timer/study.svelte";
+  import { libraryResetStudy } from "../ipc/library";
+  import { message } from "../library/library.svelte";
+  import Dialog from "../ui/Dialog.svelte";
 
   interface Props {
     barActions?: BarActions | null;
@@ -49,6 +53,19 @@
   function setGoal(minutes: number) {
     const v = Math.min(STUDY_GOAL_LIMITS.max, Math.max(STUDY_GOAL_LIMITS.min, minutes));
     settings.update((s) => (s.study.goal = v));
+  }
+
+  let confirmReset = $state(false);
+  let resetError = $state<string | null>(null);
+  async function resetStats() {
+    confirmReset = false;
+    try {
+      await studyClock.flush(); // so time counted just now doesn't come back afterwards
+      await libraryResetStudy();
+      await library.refresh();
+    } catch (err) {
+      resetError = message(err);
+    }
   }
 
   function openRanked(key: string) {
@@ -165,7 +182,23 @@
         <p class="muted empty">{t("stats.nothingYet")}</p>
       {/if}
     </section>
+
+    <div class="reset">
+      {#if resetError}<span class="error">{resetError}</span>{/if}
+      <button class="btn small" onclick={() => (confirmReset = true)}><Icon name="reset" size={13} stroke={2} />{t("stats.reset")}</button>
+    </div>
   </main>
+
+  {#if confirmReset}
+    <Dialog labelledBy="reset-title" width={420} onClose={() => (confirmReset = false)}>
+      <h2 id="reset-title" class="dialog-title">{t("stats.resetTitle")}</h2>
+      <p class="dialog-text">{t("stats.resetText")}</p>
+      <div class="dialog-actions">
+        <button class="btn" onclick={() => (confirmReset = false)}>{t("export.cancel")}</button>
+        <button class="btn danger" onclick={resetStats}>{t("stats.resetConfirm")}</button>
+      </div>
+    </Dialog>
+  {/if}
 </div>
 
 <style>
@@ -407,6 +440,31 @@
     text-align: right;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
+  }
+  .reset {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+  }
+  .error {
+    color: var(--danger);
+    font-size: 12.5px;
+  }
+  .dialog-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .dialog-text {
+    margin: -8px 0 0;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
   }
   .empty {
     padding: 8px 0;

@@ -21,7 +21,8 @@
   let open = $state(false);
   let draft = $state("");
   const custom = $derived(!presets.some((p) => p.toLowerCase() === value.toLowerCase()));
-  const recent = $derived(settings.value.annotate.recentColors.filter((c) => !presets.includes(c)).slice(0, 6));
+  /** Earlier custom colours (not the one in use now, not the presets). */
+  const recent = $derived(settings.value.annotate.recentColors.filter((c) => !presets.includes(c) && c !== value.toLowerCase()).slice(0, 6));
 
   function normalize(input: string): string | null {
     let v = input.trim().replace(/^#/, "").toLowerCase();
@@ -29,14 +30,19 @@
     return /^[0-9a-f]{6}$/.test(v) ? `#${v}` : null;
   }
 
-  function pick(hex: string) {
+  /** Applies a colour. `keep`: also remember it among the recent colours (a final choice). */
+  function pick(hex: string, keep = true) {
     const c = normalize(hex);
     if (!c) return;
     draft = c.slice(1);
-    onPick(c);
-    if (!presets.includes(c)) {
-      settings.update((s) => (s.annotate.recentColors = [c, ...s.annotate.recentColors.filter((x) => x !== c)].slice(0, 8)));
-    }
+    if (c !== value.toLowerCase()) onPick(c);
+    if (keep) remember(c);
+  }
+  function remember(c: string) {
+    if (presets.includes(c)) return;
+    const list = settings.value.annotate.recentColors;
+    if (list[0] === c) return;
+    settings.update((s) => (s.annotate.recentColors = [c, ...s.annotate.recentColors.filter((x) => x !== c)].slice(0, 8)));
   }
 
   function toggle() {
@@ -50,7 +56,12 @@
     if (!open) return;
     const onDown = (e: PointerEvent) => !wrap.contains(e.target as Node) && (open = false);
     window.addEventListener("pointerdown", onDown, true);
-    return () => window.removeEventListener("pointerdown", onDown, true);
+    return () => {
+      window.removeEventListener("pointerdown", onDown, true);
+      // Closing the panel keeps the colour you ended on among the recent ones.
+      const c = normalize(value);
+      if (c && !presets.includes(c)) remember(c);
+    };
   });
 </script>
 
@@ -69,7 +80,7 @@
     <div class="panel" class:up role="dialog" aria-label={t("tools.customColor")}>
       <div class="row">
         <label class="native" title={t("tools.pickColor")} style:--c={value}>
-          <input type="color" value={value} aria-label={t("tools.pickColor")} oninput={(e) => pick(e.currentTarget.value)} />
+          <input type="color" value={value} aria-label={t("tools.pickColor")} oninput={(e) => pick(e.currentTarget.value, false)} onchange={(e) => pick(e.currentTarget.value)} />
         </label>
         <label class="hex" class:invalid={!valid}>
           <span>#</span>
@@ -85,14 +96,17 @@
               if (e.key === "Enter") pick(draft);
               else if (e.key === "Escape") open = false;
             }}
-            onblur={() => valid && pick(draft)}
+            onblur={() => valid && pick(draft, false)}
           />
         </label>
       </div>
       {#if recent.length}
         <div class="recent" aria-label={t("tools.recentColors")}>
           {#each recent as c (c)}
-            <button class="dot" aria-label={c} title={c} style:--c={c} onclick={() => pick(c)}></button>
+            <button class="dot" aria-label={c} title={c} style:--c={c} onclick={() => {
+                pick(c);
+                open = false;
+              }}></button>
           {/each}
         </div>
       {/if}

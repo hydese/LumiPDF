@@ -60,6 +60,7 @@ pub fn run() {
             library::library_open,
             library::library_update,
             library::library_add_study_time,
+            library::library_reset_study,
             library::library_forget,
             annotations::annotations_load,
             annotations::annotations_save,

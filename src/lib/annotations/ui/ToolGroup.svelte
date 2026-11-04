@@ -5,6 +5,7 @@
   import { annotations, type Tool } from "../store.svelte";
 
   const TOOLS: Array<{ id: Tool; icon: IconName; key: string }> = [
+    { id: "hand", icon: "hand", key: "G" },
     { id: "select", icon: "cursor", key: "V" },
     { id: "highlight", icon: "textmark", key: "H" },
     { id: "pen", icon: "pen", key: "P" },

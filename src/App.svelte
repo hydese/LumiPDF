@@ -48,6 +48,16 @@
   });
   let askClose = $state(false);
 
+  // Never leave a blank window: a screen with nothing to show (the reader with no tabs left, the
+  // Stats screen after study stats were turned off) falls back to the Library.
+  $effect(() => {
+    if (!ready) return;
+    const screen = navigation.screen;
+    if ((screen === "reader" && session.tabs.length === 0 && !session.loadingName) || (screen === "stats" && !studyTools.stats)) {
+      navigation.go("library");
+    }
+  });
+
   /** Saves annotations and study time, then closes for real. */
   async function quitSaved() {
     await Promise.allSettled([annotations.flush(), studyClock.flush(), sheets.flush()]);
@@ -66,7 +76,7 @@
     const typing = (event.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable='true']");
     const reading = navigation.screen === "reader" && session.current !== null;
     if (reading && !typing && !event.ctrlKey && !event.metaKey && !event.altKey) {
-      const tools: Record<string, Tool> = { v: "select", h: "highlight", p: "pen", m: "marker", e: "eraser", n: "note", s: "snip" };
+      const tools: Record<string, Tool> = { g: "hand", v: "select", h: "highlight", p: "pen", m: "marker", e: "eraser", n: "note", s: "snip" };
       const tool = tools[event.key.toLowerCase()];
       if (tool) {
         event.preventDefault();

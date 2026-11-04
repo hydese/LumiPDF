@@ -8,7 +8,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { annotationsLoad, annotationsSave } from "../ipc/annotations";
 import { parseAnnotations, type Annotation, type AnnotationFile } from "./model";
 
-export type Tool = "select" | "highlight" | "pen" | "marker" | "eraser" | "note" | "snip";
+export type Tool = "hand" | "select" | "highlight" | "pen" | "marker" | "eraser" | "note" | "snip";
 
 const SAVE_DELAY_MS = 800;
 const HISTORY = 200;

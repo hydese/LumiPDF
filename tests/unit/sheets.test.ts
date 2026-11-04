@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GAP, MARGIN, PAPER, layoutSheet, newSheet, parseSheet, toFlow, toFree, type SheetItem } from "../../src/lib/sheets/model";
+import { GAP, MARGIN, PAPER, layoutSheet, newSheet, parseSheet, snapBox, toFlow, toFree, type SheetItem } from "../../src/lib/sheets/model";
 
 const snip = (id: string, w: number, h: number, scale = 1): SheetItem => ({
   id,
@@ -61,5 +61,23 @@ describe("formula sheet layout", () => {
     expect(sheet.columns).toBe(2);
     expect(sheet.paper).toBe("a4");
     expect(sheet.items.map((i) => i.type)).toEqual(["title", "snip"]);
+  });
+});
+
+describe("smart guides", () => {
+  const paper = PAPER.a4;
+  it("snaps to the page centre and to other items", () => {
+    // Centre 3 pt off the page centre: snaps, with a vertical guide at the centre.
+    const s = snapBox({ x: paper.w / 2 - 50 + 3, y: 300, w: 100, h: 40 }, [], paper, 5);
+    expect(s.x).toBeCloseTo(paper.w / 2 - 50);
+    expect(s.vertical).toContain(paper.w / 2);
+    // Top edge 2 pt below another item's bottom: snaps to it.
+    const t = snapBox({ x: 100, y: 202, w: 80, h: 30 }, [{ x: 300, y: 150, w: 60, h: 50 }], paper, 5);
+    expect(t.y).toBe(200);
+    expect(t.horizontal).toContain(200);
+  });
+  it("leaves far boxes alone", () => {
+    const s = snapBox({ x: 123, y: 456, w: 50, h: 20 }, [], paper, 4);
+    expect([s.x, s.y, s.vertical.length, s.horizontal.length]).toEqual([123, 456, 0, 0]);
   });
 });

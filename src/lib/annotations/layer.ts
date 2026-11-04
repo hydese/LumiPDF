@@ -14,7 +14,7 @@ import { getStroke } from "perfect-freehand";
 import type { PDFPageProxy } from "pdfjs-dist";
 import { isDarkActive, mapColor, onDarkModeChange } from "../dark/engine";
 import type { PageViewLike, ViewerController } from "../viewer/ViewerController";
-import { hits, mergeLineRects, newId, thinPoints, type Annotation, type Ink, type Marker, type MarkKind, type TextMark } from "./model";
+import { PALETTE, hits, mergeLineRects, newId, thinPoints, type Annotation, type Ink, type Marker, type MarkKind, type TextMark } from "./model";
 import { annotations, type Tool } from "./store.svelte";
 
 export interface LayerCallbacks {
@@ -49,6 +49,11 @@ interface LiveStroke {
 const ERASER_PX = 8;
 const CLICK_PX = 4;
 
+const PRESETS = new Set<string>([...PALETTE.ink, ...PALETTE.marker, ...PALETTE.note, ...PALETTE.ink.map(deepenPreset), ...PALETTE.marker.map(deepenPreset)]);
+function deepenPreset(hex: string): string {
+  return deepen(hex).toLowerCase();
+}
+
 export class AnnotationLayer {
   #pages = new Map<number, PageLayers>();
   #live: LiveStroke | null = null;
@@ -60,6 +65,8 @@ export class AnnotationLayer {
   #tool: Tool = "select";
   /** While true, annotations are painted in their original colours (white-paper renders). */
   #plain = false;
+  /** Hand tool: the drag in progress. */
+  #pan: { x: number; y: number; left: number; top: number; id: number } | null = null;
 
   constructor(
     private readonly controller: ViewerController,
@@ -380,8 +387,12 @@ export class AnnotationLayer {
     ctx.fill(path);
   }
 
+  /**
+   * Preset colours are adapted to dark pages (dark ink becomes light, and so on). A custom colour
+   * is drawn exactly as picked: you chose it while looking at the page.
+   */
   #color(css: string): string {
-    return this.#plain ? css : mapColor(css);
+    return this.#plain || !PRESETS.has(css.toLowerCase()) ? css : mapColor(css);
   }
 
   #fillRect(ctx: CanvasRenderingContext2D, view: PageViewLike, [x1, y1, x2, y2]: [number, number, number, number], pad: number): void {
@@ -571,6 +582,16 @@ export class AnnotationLayer {
   #onDown(e: PointerEvent): void {
     this.#down = { x: e.clientX, y: e.clientY, time: Date.now() };
     const tool = this.#tool;
+    if (tool === "hand") {
+      // Hand: drag to scroll. Links, notes and buttons still work with a click.
+      if (e.button !== 0 || (e.target as Element).closest("a, button, .lumi-note, input, textarea")) return;
+      const c = this.controller.container;
+      this.#pan = { x: e.clientX, y: e.clientY, left: c.scrollLeft, top: c.scrollTop, id: e.pointerId };
+      c.setPointerCapture?.(e.pointerId);
+      c.classList.add("panning");
+      e.preventDefault();
+      return;
+    }
     if (e.button !== 0 || !annotations.enabled) return;
     if (tool !== "pen" && tool !== "marker" && tool !== "eraser" && tool !== "note" && tool !== "snip") return;
     if ((e.target as Element).closest(".lumi-note")) return; // clicking a pin opens it
@@ -609,6 +630,13 @@ export class AnnotationLayer {
   }
 
   #onMove(e: PointerEvent): void {
+    const pan = this.#pan;
+    if (pan && e.pointerId === pan.id) {
+      const c = this.controller.container;
+      c.scrollLeft = pan.left - (e.clientX - pan.x);
+      c.scrollTop = pan.top - (e.clientY - pan.y);
+      return;
+    }
     const snip = this.#snip;
     if (snip && !snip.done && this.#tool === "snip") {
       const view = this.controller.pageView(snip.page);
@@ -648,6 +676,11 @@ export class AnnotationLayer {
   }
 
   #onUp(e: PointerEvent): void {
+    if (this.#pan && e.pointerId === this.#pan.id) {
+      this.#pan = null;
+      this.controller.container.classList.remove("panning");
+      return;
+    }
     const down = this.#down;
     this.#down = null;
     const snip = this.#snip;
@@ -717,7 +750,8 @@ export class AnnotationLayer {
     const tolerance = ERASER_PX / view.viewport.scale;
     let changed = false;
     for (const a of annotations.onPage(view.id)) {
-      if (!this.#erasing.has(a.id) && hits(a, x, y, tolerance)) {
+      // Sticky notes are never erased by accident: they're deleted from their own editor.
+      if (a.type !== "note" && !this.#erasing.has(a.id) && hits(a, x, y, tolerance)) {
         this.#erasing.add(a.id);
         changed = true;
       }

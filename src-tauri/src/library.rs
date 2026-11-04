@@ -273,6 +273,15 @@ fn normalize(path: &Path) -> Option<PathBuf> {
 }
 
 impl LibraryData {
+    /// Clears every study total (per day and per document).
+    pub fn reset_study(&mut self) {
+        self.study_days.clear();
+        for doc in &mut self.documents {
+            doc.study_seconds = 0;
+            doc.study_days.clear();
+        }
+    }
+
     /// True if the user already gave access to `path`: it is a remembered document or lies in an
     /// added folder.
     pub fn knows(&self, path: &Path) -> bool {
@@ -584,6 +593,17 @@ pub fn library_add_study_time<R: Runtime>(
     save(&app, &data)
 }
 
+/// Forgets all study time (stats start over). Reading progress and bookmarks are kept.
+#[tauri::command]
+pub fn library_reset_study<R: Runtime>(
+    app: AppHandle<R>,
+    library: State<'_, Library>,
+) -> Result<(), AppError> {
+    let mut data = lock(&library)?;
+    data.reset_study();
+    save(&app, &data)
+}
+
 /// Removes a document from "Continue reading" (the file is not touched).
 #[tauri::command]
 pub fn library_forget<R: Runtime>(
@@ -666,6 +686,14 @@ mod tests {
         assert_eq!(a.study_seconds, 90);
         assert_eq!(data.study_days["2026-11-04"], 90);
         assert_eq!(a.study_days["2026-11-04"], 90);
+        let mut reset = data.clone();
+        reset.reset_study();
+        assert!(reset.study_days.is_empty());
+        assert!(reset
+            .documents
+            .iter()
+            .all(|d| d.study_seconds == 0 && d.study_days.is_empty()));
+        assert_eq!(reset.documents.len(), data.documents.len());
         assert_eq!(a.name, "a.pdf");
     }
 

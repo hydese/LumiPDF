@@ -70,4 +70,5 @@ export const libraryRemoveFolder = (path: string) => invoke<void>("library_remov
 export const libraryOpen = (path: string) => invoke<DocumentRef>("library_open", { path });
 export const libraryUpdate = (path: string, update: DocUpdate) => invoke<void>("library_update", { path, update });
 export const libraryAddStudyTime = (day: string, seconds: number) => invoke<void>("library_add_study_time", { day, seconds });
+export const libraryResetStudy = () => invoke<void>("library_reset_study");
 export const libraryForget = (path: string) => invoke<void>("library_forget", { path });

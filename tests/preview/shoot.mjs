@@ -65,7 +65,10 @@ const shotsAll = [
   { name: "link-preview-toc", settings: { app: { appearance: "light", ...seen } }, open: ["Controlli — Appunti"], linkHover: "toc" },
   { name: "sheet", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], sheetFlow: true },
   { name: "sheet-light", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], sheetFlow: true },
+  { name: "sheet-zoom", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], sheetFlow: true, sheetZoom: true },
   { name: "library-sheets", settings: { app: { appearance: "light", ...seen }, sheets: { last: "" } }, seedSheets: true },
+  { name: "study-off", settings: { app: { appearance: "dark", ...seen } }, offFlow: true },
+  { name: "hand-tool", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], handFlow: true },
   { name: "hex-picker", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], hexFlow: true },
   { name: "welcome-usage", settings: { app: { appearance: "light" } }, welcome: 1 },
   { name: "welcome-usage-dark", settings: { app: { appearance: "dark" }, study: { tools: false } }, welcome: 1 },
@@ -194,6 +197,42 @@ for (const shot of shots) {
       await page.waitForTimeout(400);
     }
   }
+  if (shot.offFlow) {
+    // From the Stats screen and from a sheet tab: Settings → Study tools off → Back.
+    await page.click('.sources .btn:has-text("Stats")');
+    await page.waitForTimeout(400);
+    await page.keyboard.press("Control+Comma");
+    await page.click(".study-tools .main .switch");
+    await page.click('button:has-text("Back")');
+    await page.waitForTimeout(500);
+    console.log("after stats:", await page.locator(".layer:not([hidden]) h1").first().innerText().catch(() => "BLANK"));
+    await page.keyboard.press("Control+Comma");
+    await page.click(".study-tools .main .switch");
+    await page.click('button:has-text("Back")');
+    await page.click('.sources .btn:has-text("New sheet")');
+    await page.waitForTimeout(500);
+    await page.keyboard.press("Control+Comma");
+    await page.click(".study-tools .main .switch");
+    console.log("still in settings:", await page.locator('h2:has-text("General"), h1:has-text("General")').count() > 0 || (await page.locator(".study-tools").count()) > 0);
+    await page.click('button:has-text("Back")');
+    await page.waitForTimeout(500);
+    console.log("after sheet tab:", await page.locator(".layer:not([hidden]) h1").first().innerText().catch(() => "BLANK"));
+  }
+  if (shot.handFlow) {
+    await page.keyboard.press("Escape");
+    for (let i = 0; i < 3; i++) await page.keyboard.press("Control+Equal");
+    await page.waitForTimeout(800);
+    await page.keyboard.press("g");
+    const c = page.locator(".layer:not([hidden]) .pdfViewer").locator("xpath=..");
+    const before = await c.evaluate((el) => [el.scrollLeft, el.scrollTop]);
+    await page.mouse.move(700, 500);
+    await page.mouse.down();
+    for (let i = 1; i <= 10; i++) await page.mouse.move(700 - i * 10, 500 - i * 20);
+    await page.mouse.up();
+    const after = await c.evaluate((el) => [el.scrollLeft, el.scrollTop]);
+    const sel = await page.evaluate(() => String(window.getSelection()));
+    console.log("hand scroll:", before, "->", after, "selection:", JSON.stringify(sel));
+  }
   if (shot.hexFlow) {
     await page.keyboard.press("Escape");
     await page.keyboard.press("p");
@@ -267,6 +306,42 @@ for (const shot of shots) {
     await page.mouse.up();
     await page.waitForTimeout(300);
     await page.screenshot({ path: path.join(out, `${shot.name}-3.png`) });
+    if (shot.sheetZoom) {
+      await page.click('.zoom button[aria-label="Zoom out"]');
+      await page.click('.zoom button[aria-label="Zoom out"]');
+      await page.waitForTimeout(300);
+      const item = page.locator(".sheet-page .item.snip").first();
+      const before = await item.boundingBox();
+      await page.mouse.move(before.x + 20, before.y + 8);
+      await page.mouse.down();
+      for (let i = 1; i <= 10; i++) await page.mouse.move(before.x + 20 + i * 15, before.y + 8 + i * 12);
+      await page.mouse.up();
+      await page.waitForTimeout(300);
+      const after = await item.boundingBox();
+      console.log("zoomed drag:", Math.round(before.x), Math.round(before.y), "->", Math.round(after.x), Math.round(after.y));
+      // Make it smaller with the handle, then move it again.
+      await item.click();
+      const h = await page.locator(".sheet-page .item.selected .handle").boundingBox();
+      await page.mouse.move(h.x + 6, h.y + 6);
+      await page.mouse.down();
+      for (let i = 1; i <= 10; i++) await page.mouse.move(h.x + 6 - i * 12, h.y + 6 - i * 3);
+      await page.mouse.up();
+      await page.waitForTimeout(200);
+      const small = await item.boundingBox();
+      await page.mouse.move(small.x + small.width / 2, small.y + small.height / 2);
+      await page.mouse.down();
+      // Towards the page centre, to see a guide.
+      const pageBox = await page.locator(".sheet-page").first().boundingBox();
+      const tx = pageBox.x + pageBox.width / 2 + 2;
+      for (let i = 1; i <= 10; i++) await page.mouse.move(small.x + small.width / 2 + ((tx - small.x - small.width / 2) * i) / 10, small.y + small.height / 2 + i * 20);
+      await page.screenshot({ path: path.join(out, `${shot.name}-guides.png`) });
+      console.log("guides:", await page.locator(".guide").count());
+      await page.mouse.up();
+      await page.waitForTimeout(200);
+      const moved = await item.boundingBox();
+      console.log("resized:", Math.round(small.width), "moved:", Math.round(small.x), Math.round(small.y), "->", Math.round(moved.x), Math.round(moved.y));
+      await page.screenshot({ path: path.join(out, `${shot.name}-zoom.png`) });
+    }
     await page.click('.export .btn');
     await page.click('.menu button:has-text("PDF")');
     await page.waitForTimeout(600);

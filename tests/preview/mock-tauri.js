@@ -101,6 +101,14 @@
     library_update: () => null,
     library_add_study_time: () => null,
     library_forget: () => null,
+    library_reset_study: () => {
+      library.studyDays = {};
+      for (const d of library.documents) {
+        d.studySeconds = 0;
+        d.studyDays = {};
+      }
+      return null;
+    },
     library_add_folder: () => false,
     library_remove_folder: () => null,
     open_pdf_dialog: () => [],

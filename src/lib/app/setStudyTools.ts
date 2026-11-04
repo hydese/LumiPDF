@@ -12,4 +12,5 @@ export function setStudyTools(patch: Partial<Pick<StudySettings, "tools" | "time
     for (const tab of session.tabs.filter((t) => t.kind === "sheet")) void session.close(tab.id);
   }
   if (!studyTools.stats && navigation.screen === "stats") navigation.go("library");
+  // Closing the last sheet tab from Settings must not leave Settings (App handles the rest).
 }

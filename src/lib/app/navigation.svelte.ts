@@ -19,7 +19,8 @@ class Navigation {
     this.go("settings");
   }
 
-  /** Leaves Settings for the screen it was opened from. */
+  /** Leaves Settings for the screen it was opened from (App falls back to the Library if that
+   * screen has nothing to show any more). */
   closeSettings(): void {
     this.screen = this.#returnTo;
   }
