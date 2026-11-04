@@ -98,9 +98,16 @@ export class AnnotationLayer {
     on("pointermove", (e) => this.#onMove(e));
     on("pointerup", (e) => this.#onUp(e));
     on("pointercancel", () => this.#cancel());
+    // A stroke can end outside the pages (released over the sidebar or another window).
+    const endAnywhere = (e: PointerEvent) => {
+      if (this.#erasePage && !c.contains(e.target as Node)) this.#finishErase();
+    };
+    window.addEventListener("pointerup", endAnywhere, true);
+    this.#cleanups.push(() => window.removeEventListener("pointerup", endAnywhere, true));
   }
 
   setTool(tool: Tool): void {
+    this.#finishErase();
     this.#tool = tool;
     const c = this.controller.container;
     c.classList.toggle("tool-draw", tool === "pen" || tool === "marker" || tool === "eraser" || tool === "note" || tool === "snip");
@@ -109,6 +116,7 @@ export class AnnotationLayer {
   }
 
   destroy(): void {
+    this.#finishErase();
     cancelAnimationFrame(this.#frame);
     this.#snipBox?.remove();
     this.#snipDim?.remove();
@@ -581,7 +589,9 @@ export class AnnotationLayer {
 
   #onDown(e: PointerEvent): void {
     this.#down = { x: e.clientX, y: e.clientY, time: Date.now() };
-    const tool = this.#tool;
+    // The eraser end of a stylus erases, whatever the tool.
+    const penEraser = e.pointerType === "pen" && (e.button === 5 || (e.buttons & 32) !== 0);
+    const tool = penEraser && annotations.enabled ? "eraser" : this.#tool;
     if (tool === "hand") {
       // Hand: drag to scroll. Links, notes and buttons still work with a click.
       if (e.button !== 0 || (e.target as Element).closest("a, button, .lumi-note, input, textarea")) return;
@@ -592,7 +602,7 @@ export class AnnotationLayer {
       e.preventDefault();
       return;
     }
-    if (e.button !== 0 || !annotations.enabled) return;
+    if ((e.button !== 0 && !penEraser) || !annotations.enabled) return;
     if (tool !== "pen" && tool !== "marker" && tool !== "eraser" && tool !== "note" && tool !== "snip") return;
     if ((e.target as Element).closest(".lumi-note")) return; // clicking a pin opens it
     const view = this.#viewAt(e.clientX, e.clientY);
@@ -647,9 +657,9 @@ export class AnnotationLayer {
       this.#placeSnip();
       return;
     }
-    if (this.#tool === "eraser" && this.#erasePage) {
+    if (this.#erasePage) {
       const view = this.controller.pageView(this.#erasePage);
-      if (view && e.buttons & 1) {
+      if (view && e.buttons & (1 | 32)) {
         const [x, y] = this.#toPdf(view, e);
         this.#eraseAt(view, x, y);
       }
@@ -697,9 +707,7 @@ export class AnnotationLayer {
       return;
     }
     if (this.#erasePage) {
-      this.#erasePage = 0;
-      if (this.#erasing.size) annotations.remove(new Set(this.#erasing));
-      this.#erasing.clear();
+      this.#finishErase();
       return;
     }
     const live = this.#live;
@@ -741,9 +749,21 @@ export class AnnotationLayer {
 
   #cancel(): void {
     this.#live = null;
-    this.#erasePage = 0;
-    this.#erasing.clear();
+    // What was already rubbed out stays deleted (it has disappeared from the page already).
+    this.#finishErase();
     this.redrawAll();
+  }
+
+  /**
+   * Ends an eraser stroke: everything it went over is deleted for real. Called however the
+   * stroke ends (released anywhere, cancelled, tool changed), so nothing is ever left hidden
+   * on the page but still listed in Notes.
+   */
+  #finishErase(): void {
+    if (!this.#erasePage && !this.#erasing.size) return;
+    this.#erasePage = 0;
+    if (this.#erasing.size) annotations.remove(new Set(this.#erasing));
+    this.#erasing.clear();
   }
 
   #eraseAt(view: PageViewLike, x: number, y: number): void {

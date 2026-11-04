@@ -102,6 +102,8 @@ export interface SheetSettings {
   last: string;
   /** Paper for new sheets. */
   paper: SheetPaper;
+  /** The "switch to Free to place snips anywhere" tip was closed. */
+  tipDismissed: boolean;
 }
 
 /** The annotation tools remember their last colour and size. */
@@ -159,7 +161,7 @@ export const DEFAULT_SETTINGS: Settings = {
   timer: { mode: "timer", countdown: 25, alarm: "07:30", clock24: systemUses24h(), askOnClose: true, focus: 50, shortBreak: 10, longBreak: 20, sessionsBeforeLong: 4, sound: true },
   reader: { sidebarOpen: true, sidebarTab: "outline", openTabs: [], activeTab: "", linkPreviews: true },
   study: { goal: 120, tools: true, timer: true, stats: true, sheets: true, hintDismissed: false },
-  sheets: { last: "", paper: systemPaper() },
+  sheets: { last: "", paper: systemPaper(), tipDismissed: false },
   annotate: { inkColor: "#2f5bd8", inkWidth: 1.8, markerColor: "#ffe14d", markerWidth: 13, markColor: "#ffe14d", markKind: "highlight", noteColor: "#ffd84d", recentColors: [] },
   library: { goodnotes: false, notebooks: { title: "", sort: "recent", count: 5, view: "list", hidden: [] } },
   reading: {
@@ -247,6 +249,7 @@ export function parseSettings(raw: unknown): Settings {
     sheets: {
       last: typeof obj(root.sheets).last === "string" && /^[a-z0-9-]{0,40}$/.test(obj(root.sheets).last as string) ? (obj(root.sheets).last as string) : "",
       paper: oneOf(obj(root.sheets).paper, ["a4", "letter"], DEFAULT_SETTINGS.sheets.paper),
+      tipDismissed: bool(obj(root.sheets).tipDismissed, false),
     },
     annotate: {
       inkColor: hex(an.inkColor, dan.inkColor),

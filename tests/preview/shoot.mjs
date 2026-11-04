@@ -68,8 +68,9 @@ const shotsAll = [
   { name: "sheet-zoom", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], sheetFlow: true, sheetZoom: true },
   { name: "library-sheets", settings: { app: { appearance: "light", ...seen }, sheets: { last: "" } }, seedSheets: true },
   { name: "study-off", settings: { app: { appearance: "dark", ...seen } }, offFlow: true },
+  { name: "erase-notes", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: true, eraseFlow: true },
   { name: "hand-tool", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], handFlow: true },
-  { name: "hex-picker", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], hexFlow: true },
+  { name: "hex-picker", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false }, annotate: { recentColors: ["#ffd400", "#5a4b00", "#5d4e02", "#584900", "#ff0000", "#5b4c01", "#2a9d8f"] } }, open: ["Analisi 2 — Trasformate"], hexFlow: true },
   { name: "welcome-usage", settings: { app: { appearance: "light" } }, welcome: 1 },
   { name: "welcome-usage-dark", settings: { app: { appearance: "dark" }, study: { tools: false } }, welcome: 1 },
   { name: "settings-study-tools", settings: { app: { appearance: "light", ...seen } }, keys: "Control+Comma" },
@@ -217,6 +218,37 @@ for (const shot of shots) {
     await page.click('button:has-text("Back")');
     await page.waitForTimeout(500);
     console.log("after sheet tab:", await page.locator(".layer:not([hidden]) h1").first().innerText().catch(() => "BLANK"));
+  }
+  if (shot.eraseFlow) {
+    const count = () => page.locator('.doc-sidebar li').count();
+    console.log("notes before:", await count());
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("e");
+    const b = await page.locator(".layer:not([hidden]) .pdfViewer .page").first().boundingBox();
+    for (let y = b.y + 40; y < Math.min(b.y + b.height, 780); y += 10) {
+      await page.mouse.move(b.x + 20, y);
+      await page.mouse.down();
+      await page.mouse.move(b.x + b.width / 2, y, { steps: 6 });
+      await page.mouse.move(b.x + b.width - 20, y, { steps: 6 });
+      await page.mouse.up();
+    }
+    await page.waitForTimeout(400);
+    console.log("notes after:", await count(), "pins:", await page.locator(".lumi-note").count());
+    // Draw a stroke, then rub it out and let go over the sidebar.
+    await page.keyboard.press("p");
+    await page.mouse.move(b.x + 150, b.y + 300);
+    await page.mouse.down();
+    await page.mouse.move(b.x + 400, b.y + 320, { steps: 12 });
+    await page.mouse.up();
+    console.log("with stroke:", await count());
+    await page.keyboard.press("e");
+    await page.mouse.move(b.x + 140, b.y + 305);
+    await page.mouse.down();
+    await page.mouse.move(b.x + 420, b.y + 312, { steps: 14 });
+    await page.mouse.move(100, 400, { steps: 10 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    console.log("released outside:", await count());
   }
   if (shot.handFlow) {
     await page.keyboard.press("Escape");

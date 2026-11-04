@@ -21,8 +21,25 @@
   let open = $state(false);
   let draft = $state("");
   const custom = $derived(!presets.some((p) => p.toLowerCase() === value.toLowerCase()));
-  /** Earlier custom colours (not the one in use now, not the presets). */
-  const recent = $derived(settings.value.annotate.recentColors.filter((c) => !presets.includes(c) && c !== value.toLowerCase()).slice(0, 6));
+  /** Earlier custom colours: not the one in use, not the presets, no near-duplicates. */
+  const recent = $derived(distinct(settings.value.annotate.recentColors.filter((c) => !presets.includes(c) && !similar(c, value))).slice(0, 6));
+
+  /** Colours closer than this (RGB distance) count as the same choice. */
+  const SAME = 40;
+  function rgb(hex: string): [number, number, number] {
+    const n = Number.parseInt(hex.replace("#", ""), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function similar(a: string, b: string): boolean {
+    const [r1, g1, b1] = rgb(a);
+    const [r2, g2, b2] = rgb(b);
+    return Math.hypot(r1 - r2, g1 - g2, b1 - b2) < SAME;
+  }
+  function distinct(list: string[]): string[] {
+    const out: string[] = [];
+    for (const c of list) if (!out.some((o) => similar(o, c))) out.push(c);
+    return out;
+  }
 
   function normalize(input: string): string | null {
     let v = input.trim().replace(/^#/, "").toLowerCase();
@@ -42,7 +59,7 @@
     if (presets.includes(c)) return;
     const list = settings.value.annotate.recentColors;
     if (list[0] === c) return;
-    settings.update((s) => (s.annotate.recentColors = [c, ...s.annotate.recentColors.filter((x) => x !== c)].slice(0, 8)));
+    settings.update((s) => (s.annotate.recentColors = distinct([c, ...s.annotate.recentColors.filter((x) => !similar(x, c))]).slice(0, 8)));
   }
 
   function toggle() {

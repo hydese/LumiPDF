@@ -504,6 +504,16 @@
       if (!(e.target as HTMLElement).closest(".export")) exportMenu = false;
     }}
   >
+    {#if sheet && layout && sheet.layout === "flow" && !settings.value.sheets.tipDismissed}
+      <div class="tip" role="note" style:width="{Math.min(paper.w * zoom, 640)}px">
+        <span class="tip-icon"><Icon name="move" size={15} stroke={2} /></span>
+        <span class="tip-text"><strong>{t("sheets.tipTitle")}</strong> {t("sheets.tipText")}</span>
+        <button class="btn small primary" onclick={() => setLayout("free")}>{t("sheets.tipFree")}</button>
+        <button class="tip-close" aria-label={t("sheets.tipDismiss")} title={t("sheets.tipDismiss")} onclick={() => settings.update((s) => (s.sheets.tipDismissed = true))}>
+          <Icon name="close" size={12} stroke={2.2} />
+        </button>
+      </div>
+    {/if}
     {#if sheet && layout}
       {#each Array.from({ length: layout.pages }, (_, i) => i) as page (page)}
         <div class="sheet-page" data-page={page} style:width="{paper.w * zoom}px" style:height="{paper.h * zoom}px" style:background={paperColor}>
@@ -727,6 +737,50 @@
     flex-direction: column;
     align-items: center;
     gap: 24px;
+  }
+  .tip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 10px 10px 12px;
+    border-radius: 12px;
+    background: var(--surface-raised);
+    box-shadow: var(--pop-shadow);
+    flex-shrink: 0;
+  }
+  .tip-icon {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .tip-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--text-soft);
+  }
+  .tip-text strong {
+    color: var(--text);
+  }
+  .tip-close {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border: none;
+    border-radius: 13px;
+    background: transparent;
+    color: var(--text-muted);
+  }
+  .tip-close:hover {
+    background: var(--hover);
   }
   .sheet-page {
     position: relative;
