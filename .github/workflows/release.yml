@@ -8,13 +8,13 @@
 name: Release
 
 # Three ways to start it:
-#  - push a commit to v2 (or main) whose message contains [release]: the version comes from
+#  - push a commit to main whose message contains [release]: the version comes from
 #    package.json and the tag (vX.Y.Z) is created here;
 #  - push a version tag;
 #  - run it by hand (the workflow must be on the default branch for that).
 on:
   push:
-    branches: [v2, main]
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
     inputs:

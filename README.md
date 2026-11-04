@@ -2,7 +2,7 @@
 
 A lightweight PDF reader for long study sessions, with a dark mode that keeps text as crisp as the original page.
 
-> **Status:** LumiPDF 2.0 is in testing on the `v2` branch. It replaces LuminaPDF 1.x.
+> **Status:** LumiPDF 2.0 is in beta. It replaces LuminaPDF 1.x, whose code is kept on the `v1` branch.
 > Windows 10 and 11 first; macOS (Apple Silicon) follows in 2.1.
 
 ## Features
