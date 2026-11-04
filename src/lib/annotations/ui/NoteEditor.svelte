@@ -5,6 +5,7 @@
   import Popover from "../../ui/Popover.svelte";
   import { PALETTE } from "../model";
   import { annotations } from "../store.svelte";
+  import HexPicker from "./HexPicker.svelte";
 
   interface Props {
     id: string;
@@ -46,6 +47,7 @@
             {#each PALETTE.note as c (c)}
               <button class="swatch" aria-label={c} aria-pressed={a.color === c} style:--c={c} onclick={() => annotations.update(id, { color: c })}></button>
             {/each}
+            <HexPicker value={a.color} presets={PALETTE.note} up onPick={(c) => annotations.update(id, { color: c })} />
           </div>
         {/if}
         <button

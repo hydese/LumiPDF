@@ -5,6 +5,7 @@
   import Icon, { type IconName } from "../../ui/Icon.svelte";
   import { PALETTE, WIDTHS, type MarkKind } from "../model";
   import { annotations } from "../store.svelte";
+  import HexPicker from "./HexPicker.svelte";
 
   const tool = $derived(annotations.tool);
   const a = $derived(settings.value.annotate);
@@ -55,6 +56,7 @@
         {#each colors as c (c)}
           <button class="swatch" role="radio" aria-checked={current === c} aria-label={c} style:--c={c} onclick={() => setColor(c)}></button>
         {/each}
+        <HexPicker value={current} presets={colors} onPick={setColor} />
       </div>
     {/if}
     {#if widths}

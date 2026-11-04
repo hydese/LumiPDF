@@ -8,6 +8,7 @@
   import Icon from "../../ui/Icon.svelte";
   import { PALETTE, type MarkKind, type TextMark } from "../model";
   import { annotations } from "../store.svelte";
+  import HexPicker from "./HexPicker.svelte";
 
   interface Props {
     /** Screen rectangle to sit above. */
@@ -46,7 +47,7 @@
     onClose();
   }
   function comment() {
-    const target = mark ?? onCreate(settings.value.annotate.markKind, settings.value.annotate.markColor);
+    const target = mark ?? created ?? onCreate(settings.value.annotate.markKind, settings.value.annotate.markColor);
     onClose();
     if (target) onComment(target);
   }
@@ -56,12 +57,27 @@
     onClose();
   }
   const kind = $derived(mark?.type ?? "highlight");
+  /** A mark made from the colour panel on a new selection. */
+  let created = $state<TextMark | null>(null);
 </script>
 
 <div class="menu" role="menu" bind:this={menu} style:top="{top}px" style:left="{left}px">
   {#each PALETTE.marker as c (c)}
     <button class="swatch" role="menuitemradio" aria-checked={mark?.color === c} aria-label={c} style:--c={c} onclick={() => apply(kind === "highlight" ? "highlight" : kind, c)}></button>
   {/each}
+  <HexPicker
+    value={mark?.color ?? settings.value.annotate.markColor}
+    presets={PALETTE.marker}
+    up={top > 120}
+    onPick={(c) => {
+      // The menu stays open while you try colours: the first pick creates the highlight,
+      // later ones recolour it.
+      settings.update((s) => (s.annotate.markColor = c));
+      const target = mark ?? created;
+      if (target) annotations.update(target.id, { color: c });
+      else created = onCreate(kind, c);
+    }}
+  />
   <span class="sep"></span>
   <button role="menuitemradio" aria-checked={kind === "underline"} title={t("tools.kind.underline")} aria-label={t("tools.kind.underline")} onclick={() => apply(kind === "underline" ? "highlight" : "underline", mark?.color ?? settings.value.annotate.markColor)}>
     <Icon name="underline" size={15} />

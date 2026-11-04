@@ -66,6 +66,7 @@ const shotsAll = [
   { name: "sheet", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], sheetFlow: true },
   { name: "sheet-light", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], sheetFlow: true },
   { name: "library-sheets", settings: { app: { appearance: "light", ...seen }, sheets: { last: "" } }, seedSheets: true },
+  { name: "hex-picker", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], hexFlow: true },
   { name: "whatsnew-light", settings: { app: { appearance: "light", lastSeenVersion: "1.0.5" } } },
 ];
 const shots = only ? shotsAll.filter((s) => only.includes(s.name)) : shotsAll;
@@ -187,6 +188,22 @@ for (const shot of shots) {
       await page.click('.doc-sidebar [role="tab"]:has-text("Notes")');
       await page.waitForTimeout(400);
     }
+  }
+  if (shot.hexFlow) {
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("p");
+    await page.click(".options .any");
+    await page.fill(".options .hex input", "8e44ad");
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(200);
+    const b = await page.locator(".layer:not([hidden]) .pdfViewer .page").first().boundingBox();
+    await page.mouse.move(b.x + 160, b.y + 560);
+    await page.mouse.down();
+    for (let i = 1; i <= 20; i++) await page.mouse.move(b.x + 160 + i * 14, b.y + 560 + Math.sin(i / 2) * 16);
+    await page.mouse.up();
+    await page.click(".options .any");
+    await page.waitForTimeout(300);
+    console.log("custom selected:", await page.locator(".options .any").getAttribute("aria-pressed"), "panel open:", await page.locator(".options .panel").count());
   }
   if (shot.sheetFlow) {
     await page.keyboard.press("Escape");

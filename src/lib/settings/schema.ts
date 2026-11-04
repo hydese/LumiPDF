@@ -106,6 +106,8 @@ export interface AnnotateSettings {
   markColor: string;
   markKind: "highlight" | "underline" | "strike";
   noteColor: string;
+  /** Custom colours picked recently (hex), newest first. */
+  recentColors: string[];
 }
 
 export interface Settings {
@@ -151,7 +153,7 @@ export const DEFAULT_SETTINGS: Settings = {
   reader: { sidebarOpen: true, sidebarTab: "outline", openTabs: [], activeTab: "", linkPreviews: true },
   study: { goal: 120 },
   sheets: { last: "", paper: systemPaper() },
-  annotate: { inkColor: "#2f5bd8", inkWidth: 1.8, markerColor: "#ffe14d", markerWidth: 13, markColor: "#ffe14d", markKind: "highlight", noteColor: "#ffd84d" },
+  annotate: { inkColor: "#2f5bd8", inkWidth: 1.8, markerColor: "#ffe14d", markerWidth: 13, markColor: "#ffe14d", markKind: "highlight", noteColor: "#ffd84d", recentColors: [] },
   library: { goodnotes: false, notebooks: { title: "", sort: "recent", count: 5, view: "list", hidden: [] } },
   reading: {
     darkEnabled: true,
@@ -240,6 +242,7 @@ export function parseSettings(raw: unknown): Settings {
       markColor: hex(an.markColor, dan.markColor),
       markKind: oneOf(an.markKind, ["highlight", "underline", "strike"], dan.markKind),
       noteColor: hex(an.noteColor, dan.noteColor),
+      recentColors: Array.isArray(an.recentColors) ? an.recentColors.filter((c): c is string => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c)).slice(0, 8) : [],
     },
     library: {
       goodnotes: bool(lib.goodnotes, DEFAULT_SETTINGS.library.goodnotes),
