@@ -36,7 +36,11 @@ describe("what's new", () => {
     expect(whatsNewOnLaunch("2.0.0", "2.0.0").show).toBeNull();
     expect(whatsNewOnLaunch("2.0.0", "1.0.5").show?.version).toBe("2.0.0");
     expect(whatsNewOnLaunch("2.0.0", "1.0.5").welcome).toEqual([]);
-    expect(whatsNewOnLaunch("2.0.0-beta.2", "2.0.0-beta.1")).toEqual({ welcome: [], show: null, remember: true });
+    expect(whatsNewOnLaunch("2.0.0-beta.9", "2.0.0-beta.8")).toEqual({ welcome: [], show: null, remember: true });
+    // A prerelease with its own entry shows its notes and the welcome steps it asks for.
+    const beta2 = whatsNewOnLaunch("2.0.0-beta.2", "2.0.0-beta.1");
+    expect(beta2.show?.version).toBe("2.0.0-beta.2");
+    expect(beta2.welcome).toEqual(["language", "usage", "appearance", "reading", "library", "updates"]);
   });
 });
 

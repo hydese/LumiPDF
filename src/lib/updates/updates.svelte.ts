@@ -175,6 +175,19 @@ class Updates {
     return settings.value.app.updateMode === "auto" && this.install === "ready";
   }
 
+  /**
+   * Installing a beta puts you on the beta channel (once: if you turn it off later, it stays
+   * off), so testers get the next beta without looking for the hidden switch.
+   */
+  adoptBeta(): void {
+    if (this.isBeta && !settings.value.app.betaUnlocked) {
+      settings.update((s) => {
+        s.app.betaUnlocked = true;
+        s.app.betaUpdates = true;
+      });
+    }
+  }
+
   /** Checks shortly after launch, so startup isn't slowed by the network. */
   checkSoon(): () => void {
     const timer = setTimeout(() => void this.check(), STARTUP_DELAY_MS);

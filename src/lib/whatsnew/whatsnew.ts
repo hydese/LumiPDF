@@ -40,11 +40,19 @@ export interface LaunchPlan {
   remember: boolean;
 }
 
+/**
+ * To show the welcome again after an update, give that version an entry in releases.json with
+ * "welcome": the steps to show (all of them: ["language", "usage", "appearance", "reading",
+ * "library", "updates"]). A beta can have its own entry ("2.1.0-beta.2"); otherwise betas share
+ * the entry of the version they lead up to.
+ */
 export function whatsNewOnLaunch(current: string, lastSeen: string): LaunchPlan {
   if (!lastSeen) return { welcome: [...WELCOME_STEPS], show: null, remember: false };
   if (compareVersions(current, lastSeen) <= 0) return { welcome: [], show: null, remember: false };
-  // Updating between prereleases of the same version doesn't repeat the notes.
-  const notes = releaseOf(current) === releaseOf(lastSeen) ? null : notesFor(current);
+  const own = RELEASES.find((r) => r.version === current) ?? null;
+  // Updating between prereleases of the same version doesn't repeat the notes, unless that
+  // prerelease has an entry of its own.
+  const notes = own ?? (releaseOf(current) === releaseOf(lastSeen) ? null : notesFor(current));
   const welcome = (notes?.welcome ?? []).filter((s) => WELCOME_STEPS.includes(s));
   return { welcome, show: notes, remember: notes === null };
 }

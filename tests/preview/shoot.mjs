@@ -23,7 +23,7 @@ const mock = fs.readFileSync(path.join(root, "tests/preview/mock-tauri.js"), "ut
 const browser = await chromium.launch();
 let failures = 0;
 
-const seen = { lastSeenVersion: "2.0.0-alpha.0" };
+const seen = { lastSeenVersion: JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version };
 const gn = { goodnotes: true };
 const shotsAll = [
   { name: "library-light", settings: { app: { appearance: "light", ...seen } }, update: true },
@@ -81,7 +81,7 @@ const shotsAll = [
   { name: "clarity-off", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"] },
   { name: "clarity-on", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false, textClarity: true } }, open: ["Analisi 2 — Trasformate"] },
   { name: "beta-badge", settings: { app: { appearance: "light", ...seen } }, clickText: "Analisi 2" },
-  { name: "beta-unlock", settings: { app: { appearance: "dark", ...seen } }, keys: "Control+Comma", section: "About", tapVersion: 7 },
+  { name: "beta-unlock", settings: { app: { appearance: "dark", ...seen } }, keys: "Control+Comma", section: "About", tapVersion: 4 },
   { name: "fullscreen", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], keys: "F11" },
   { name: "whatsnew-light", settings: { app: { appearance: "light", lastSeenVersion: "1.0.5" } } },
 ];
@@ -427,9 +427,8 @@ for (const shot of shots) {
     if (shot.hover) await page.hover(shot.hover);
     if (shot.tapVersion) {
       for (let i = 0; i < shot.tapVersion; i++) await page.click(".about .version");
-      await page.click('nav button:has-text("General")');
-      await page.waitForTimeout(300);
-      console.log("beta switch visible:", await page.locator('.row:has-text("Beta versions")').count());
+      await page.waitForTimeout(100);
+      console.log("notice:", await page.locator(".beta-notice").innerText().catch(() => "-"));
     }
     if (shot.linkHover !== undefined) {
       // Hover an internal link on page 2 (page 1 is the contents page: no previews there).

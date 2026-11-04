@@ -65,14 +65,30 @@
   }
 
   // ---- Beta ----------------------------------------------------------------------------------
-  let taps = 0;
+  const TAPS = 7;
+  let taps = $state(0);
   let tapTimer: ReturnType<typeof setTimeout> | undefined;
+  let pulse = $state(0);
   let betaNotice = $state<string | null>(null);
   function tapVersion() {
+    pulse++;
+    if (updates.betaVisible) {
+      betaNotice = t("settings.update.betaAlready");
+      return;
+    }
     clearTimeout(tapTimer);
-    tapTimer = setTimeout(() => (taps = 0), 1500);
-    if (++taps < 7) return;
+    tapTimer = setTimeout(() => {
+      taps = 0;
+      betaNotice = null;
+    }, 2500);
+    taps++;
+    if (taps < TAPS) {
+      // Like Android's developer options: after a few taps, say how many are left.
+      betaNotice = taps >= 3 ? tn("settings.update.tapsLeft", TAPS - taps) : null;
+      return;
+    }
     taps = 0;
+    clearTimeout(tapTimer);
     settings.update((x) => (x.app.betaUnlocked = true));
     betaNotice = t("settings.update.betaUnlocked");
   }
@@ -396,7 +412,11 @@
         <section class="card about">
           <AppMark size={56} />
           <!-- Clicking the version 7 times reveals the beta switch (for testers). -->
-          <h3><button class="version" onclick={tapVersion}>{t("app.name")} {updates.current}</button></h3>
+          <h3>
+            {#key pulse}
+              <button class="version" class:tapped={pulse > 0} onclick={tapVersion} title={t("settings.about.versionTitle")}>{t("app.name")} {updates.current}</button>
+            {/key}
+          </h3>
           {#if betaNotice}<p class="beta-notice" role="status">{betaNotice}</p>{/if}
           <p>{t("settings.about.text")}</p>
           <div class="about-actions">
@@ -467,12 +487,30 @@
     gap: 8px;
   }
   .version {
-    padding: 0;
-    border: none;
-    background: none;
+    padding: 4px 12px;
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    background: var(--field);
     color: inherit;
     font: inherit;
-    cursor: default;
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease;
+  }
+  .version:hover {
+    background: var(--hover);
+    border-color: var(--accent);
+  }
+  .version.tapped {
+    animation: tap 0.22s ease;
+  }
+  @keyframes tap {
+    40% {
+      transform: scale(0.94);
+      background: var(--accent-soft);
+      border-color: var(--accent);
+    }
   }
   .beta-notice {
     margin: 0;

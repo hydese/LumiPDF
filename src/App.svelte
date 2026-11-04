@@ -190,6 +190,7 @@
       );
       ready = true;
       updates.beforeInstall = () => Promise.allSettled([annotations.flush(), studyClock.flush(), sheets.flush()]);
+      updates.adoptBeta();
       whatsNew.onLaunch();
       if (settings.value.app.checkForUpdates) stops.push(updates.checkSoon());
       await Promise.all([library.refresh(), sheets.refresh()]);

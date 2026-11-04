@@ -42,6 +42,12 @@ LumiPDF 2.0 is a full rewrite of LuminaPDF 1.x under a new name.
   hidden beta channel. The portable version keeps the download link. The release workflow builds
   the signed installer into a draft release (public releases are installer-only; the portable
   exe is a test build from CI); publishing updates the channels.
+- New app icon (the in-app mark: white moon on the blue rounded square), with a bolder variant
+  for 16–48 px. Source SVGs in src-tauri/icons/source.
+- The welcome can be shown again by any version, betas included: give the version its own entry
+  in releases.json with "welcome" (2.0.0-beta.2 shows all steps).
+- Installing a beta turns on the beta channel; the version in Settings → About is a button that
+  shows how many clicks are left to unlock beta options.
 - Full screen (F11 or the button in the reader): the top bar hides and returns at the top edge.
 - Folder browser sorting: name A–Z, Z–A, or recently opened.
 - Beta builds show a BETA badge in the top bar. The beta channel is hidden (testers unlock it in

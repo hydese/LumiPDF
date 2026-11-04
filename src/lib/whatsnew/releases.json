@@ -56,6 +56,35 @@
           "text": "Protected and damaged PDFs that 1.x refused now open normally."
         }
       ]
+    },
+    {
+      "version": "2.0.0-beta.2",
+      "date": "",
+      "welcome": [
+        "language",
+        "usage",
+        "appearance",
+        "reading",
+        "library",
+        "updates"
+      ],
+      "items": [
+        {
+          "tag": "new",
+          "title": "Welcome, again",
+          "text": "This beta shows the welcome once more, so you can try the new choices: studying or just reading, and how LumiPDF updates."
+        },
+        {
+          "tag": "better",
+          "title": "New app icon",
+          "text": "LumiPDF has its new icon on the desktop, the taskbar and the installer."
+        },
+        {
+          "tag": "better",
+          "title": "Beta options",
+          "text": "Testers find the beta switch by clicking the version in Settings → About; each click now shows how many are left."
+        }
+      ]
     }
   ]
 }
