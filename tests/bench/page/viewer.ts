@@ -6,7 +6,7 @@
 import { mount, unmount } from "svelte";
 import PdfView from "../../../src/lib/viewer/PdfView.svelte";
 import { documentOptions, loadDocument, pdfjs } from "../../../src/lib/viewer/pdfjs";
-import { setClipSnapping, setDarkMode } from "../../../src/lib/dark/engine";
+import { gpuPageCanvases, setClipSnapping, setDarkMode } from "../../../src/lib/dark/engine";
 import { DEFAULT_TUNING, type ThemeId } from "../../../src/lib/dark/themes";
 
 function waitForPageCanvas(root: HTMLElement, pageNumber = 1): Promise<HTMLCanvasElement> {
@@ -55,7 +55,10 @@ async function check(url: string) {
     // only when its pixel size differs from the floored CSS size (screen scaling above 100%).
     // Reference: a completely separate, unhooked pdf.js document (no LumiPDF canvas factory,
     // no page wrapping), so any change our hooks make to pixels shows up here.
-    const plainTask = pdfjs.getDocument(documentOptions(url));
+    // Same canvas kind as the viewer (graphics chip or processor), which rounds edges and
+    // scales pictures slightly differently; the check is about our hooks, not the hardware.
+    const gpu = gpuPageCanvases();
+    const plainTask = pdfjs.getDocument({ ...documentOptions(url), enableHWA: gpu });
     const plainDoc = await plainTask.promise;
     const page = await plainDoc.getPage(1);
     const viewerEl = target.querySelector<HTMLElement>(".pdfViewer")!;
@@ -67,6 +70,7 @@ async function check(url: string) {
     const reference = document.createElement("canvas");
     reference.width = canvas.width;
     reference.height = canvas.height;
+    reference.getContext("2d", { alpha: false, willReadFrequently: !gpu });
     await page.render({ canvas: reference, viewport, transform }).promise;
     await plainTask.destroy();
 
