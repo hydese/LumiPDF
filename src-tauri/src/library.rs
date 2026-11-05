@@ -567,7 +567,10 @@ pub fn library_remove_folder<R: Runtime>(
 
 /// Opens a document that is already in the library (downloading an iCloud placeholder first).
 #[tauri::command]
-pub async fn library_open<R: Runtime>(app: AppHandle<R>, path: String) -> Result<DocumentRef, AppError> {
+pub async fn library_open<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+) -> Result<DocumentRef, AppError> {
     {
         let path = PathBuf::from(&path);
         tauri::async_runtime::spawn_blocking(move || cloud::download_icloud_placeholder(&path))
@@ -679,7 +682,14 @@ mod tests {
         touch(&dir.path().join(".notes.txt.icloud"));
         let (files, _) = scan_folder(dir.path());
         assert_eq!(files.len(), 1);
-        assert_eq!((files[0].dir.as_str(), files[0].name.as_str(), files[0].cloud_only), ("sub", "Lezione 3.pdf", true));
+        assert_eq!(
+            (
+                files[0].dir.as_str(),
+                files[0].name.as_str(),
+                files[0].cloud_only
+            ),
+            ("sub", "Lezione 3.pdf", true)
+        );
         assert!(files[0].path.ends_with("Lezione 3.pdf"));
     }
 

@@ -152,7 +152,10 @@ mod tests {
 
     #[test]
     fn reads_icloud_placeholder_names() {
-        assert_eq!(icloud_placeholder_name(".Lezione 1.pdf.icloud"), Some("Lezione 1.pdf"));
+        assert_eq!(
+            icloud_placeholder_name(".Lezione 1.pdf.icloud"),
+            Some("Lezione 1.pdf")
+        );
         assert_eq!(icloud_placeholder_name(".DS_Store"), None);
         assert_eq!(icloud_placeholder_name("a.pdf.icloud"), None);
         assert_eq!(icloud_placeholder_name("..icloud"), None);

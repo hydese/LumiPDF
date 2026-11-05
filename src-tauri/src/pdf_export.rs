@@ -194,7 +194,10 @@ pub struct SizeEstimate {
 
 /// Compresses copies of the document in memory to measure each level. Kept protection would
 /// add a little to the real file; this ignores it.
-pub fn estimate_sizes(source: &Path, open_password: Option<&str>) -> Result<SizeEstimate, AppError> {
+pub fn estimate_sizes(
+    source: &Path,
+    open_password: Option<&str>,
+) -> Result<SizeEstimate, AppError> {
     let original_bytes = fs::metadata(source)?.len();
     let (mut base, _) = load(source, open_password)?;
     base.encryption_state.take();
@@ -1055,10 +1058,14 @@ mod tests {
 
     #[test]
     fn estimates_sizes_without_writing_anything() {
-        let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../tests/fixtures/raster-figures.pdf");
+        let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../tests/fixtures/raster-figures.pdf");
         let est = estimate_sizes(&src, None).unwrap();
         assert!(est.original_bytes > 0);
-        assert!(est.strong <= est.recommended && est.recommended <= est.light, "{est:?}");
+        assert!(
+            est.strong <= est.recommended && est.recommended <= est.light,
+            "{est:?}"
+        );
     }
 
     #[test]

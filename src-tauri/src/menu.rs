@@ -86,14 +86,19 @@ pub fn install<R: Runtime>(app: &AppHandle<R>, l: &MenuLabels) -> tauri::Result<
     use tauri::menu::{AboutMetadata, MenuBuilder, MenuItem, PredefinedMenuItem, SubmenuBuilder};
     use tauri::Manager;
 
-    let item = |id: &str, text: &str, accel: Option<&str>| MenuItem::with_id(app, id, text, true, accel);
+    let item =
+        |id: &str, text: &str, accel: Option<&str>| MenuItem::with_id(app, id, text, true, accel);
     let about = AboutMetadata {
         name: Some("LumiPDF".into()),
         version: Some(app.package_info().version.to_string()),
         ..Default::default()
     };
     let app_menu = SubmenuBuilder::new(app, "LumiPDF")
-        .item(&PredefinedMenuItem::about(app, Some(&l.about), Some(about))?)
+        .item(&PredefinedMenuItem::about(
+            app,
+            Some(&l.about),
+            Some(about),
+        )?)
         .separator()
         .item(&item("settings", &l.settings, Some("Cmd+Comma"))?)
         .separator()

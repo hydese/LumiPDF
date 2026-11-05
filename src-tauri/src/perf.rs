@@ -14,7 +14,10 @@ const FILE_NAME: &str = "LumiPDF-performance.log";
 /// Appends `text` to the log on the Desktop; returns the log's path.
 #[tauri::command]
 pub fn perf_log<R: Runtime>(app: AppHandle<R>, text: String) -> Result<String, AppError> {
-    let dir = app.path().desktop_dir().map_err(|e| AppError::InvalidInput(e.to_string()))?;
+    let dir = app
+        .path()
+        .desktop_dir()
+        .map_err(|e| AppError::InvalidInput(e.to_string()))?;
     let path = dir.join(FILE_NAME);
     let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
     if size < MAX_BYTES {

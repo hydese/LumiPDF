@@ -78,7 +78,9 @@ pub fn installed() -> bool {
 /// (/Volumes, read-only) or from a translocated copy (macOS runs a downloaded app that wasn't
 /// moved to Applications from a hidden read-only folder); those open the download page instead.
 fn mac_can_update(exe: &str) -> bool {
-    exe.contains(".app/Contents/MacOS") && !exe.starts_with("/Volumes/") && !exe.contains("/AppTranslocation/")
+    exe.contains(".app/Contents/MacOS")
+        && !exe.starts_with("/Volumes/")
+        && !exe.contains("/AppTranslocation/")
 }
 
 #[tauri::command]
@@ -191,10 +193,18 @@ mod tests {
 
     #[test]
     fn mac_updates_only_from_a_writable_app() {
-        assert!(mac_can_update("/Applications/LumiPDF.app/Contents/MacOS/lumipdf"));
-        assert!(mac_can_update("/Users/me/Applications/LumiPDF.app/Contents/MacOS/lumipdf"));
-        assert!(!mac_can_update("/Volumes/LumiPDF/LumiPDF.app/Contents/MacOS/lumipdf"));
-        assert!(!mac_can_update("/private/var/folders/x/T/AppTranslocation/ABC/d/LumiPDF.app/Contents/MacOS/lumipdf"));
+        assert!(mac_can_update(
+            "/Applications/LumiPDF.app/Contents/MacOS/lumipdf"
+        ));
+        assert!(mac_can_update(
+            "/Users/me/Applications/LumiPDF.app/Contents/MacOS/lumipdf"
+        ));
+        assert!(!mac_can_update(
+            "/Volumes/LumiPDF/LumiPDF.app/Contents/MacOS/lumipdf"
+        ));
+        assert!(!mac_can_update(
+            "/private/var/folders/x/T/AppTranslocation/ABC/d/LumiPDF.app/Contents/MacOS/lumipdf"
+        ));
         assert!(!mac_can_update("/Users/me/lumipdf"));
     }
 }
