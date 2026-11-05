@@ -29,11 +29,23 @@ export interface LayerCallbacks {
   style: () => { inkColor: string; inkWidth: number; markerColor: string; markerWidth: number; markColor: string; markKind: MarkKind; noteColor: string };
 }
 
+interface Region {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 interface PageLayers {
   view: PageViewLike;
   marks: HTMLCanvasElement;
   ink: HTMLDivElement;
   inkCanvas: HTMLCanvasElement;
+  /** The stroke being drawn, on its own canvas so each move repaints only that stroke. */
+  liveCanvas: HTMLCanvasElement;
+  /** The page area the canvases cover now (page pixels), and the zoom they were drawn at. */
+  region: Region | null;
+  scale: number;
 }
 
 interface LiveStroke {
@@ -60,6 +72,7 @@ export class AnnotationLayer {
   #erasing = new Set<string>();
   #erasePage = 0;
   #frame = 0;
+  #frameFull = false;
   #down: { x: number; y: number; time: number } | null = null;
   #cleanups: Array<() => void> = [];
   #tool: Tool = "select";
@@ -76,14 +89,21 @@ export class AnnotationLayer {
     this.#cleanups.push(onDarkModeChange(() => this.redrawAll()));
     // Layers only cover the visible part of each page (so zooming in never makes huge canvases);
     // scrolling moves that window.
+    // Scrolling only redraws a page's canvases when the view leaves the area they cover (they
+    // cover the visible part plus a margin); nothing is rebuilt on every frame.
     let scrollFrame = 0;
     const onScroll = () => {
       cancelAnimationFrame(scrollFrame);
-      scrollFrame = requestAnimationFrame(() => this.redrawAll());
+      scrollFrame = requestAnimationFrame(() => this.#follow());
     };
     controller.container.addEventListener("scroll", onScroll, { passive: true });
     // After a zoom the layers follow the new page size right away (pdf.js redraws pages later).
-    this.#cleanups.push(controller.onScaleChanged(onScroll));
+    this.#cleanups.push(
+      controller.onScaleChanged(() => {
+        cancelAnimationFrame(scrollFrame);
+        scrollFrame = requestAnimationFrame(() => this.redrawAll());
+      }),
+    );
     this.#cleanups.push(() => {
       cancelAnimationFrame(scrollFrame);
       controller.container.removeEventListener("scroll", onScroll);
@@ -138,6 +158,28 @@ export class AnnotationLayer {
       if (!layers.view.div.isConnected) this.#pages.delete(page);
       else if (!layers.marks.isConnected || !layers.ink.isConnected) this.#attach(layers.view);
       else this.#draw(layers);
+    }
+  }
+
+  /** While scrolling: repaint only pages whose canvases no longer cover what's on screen. */
+  #follow(): void {
+    this.#placeSnip();
+    for (const [page, layers] of this.#pages) {
+      if (!layers.view.div.isConnected) {
+        this.#pages.delete(page);
+        continue;
+      }
+      if (!layers.region || layers.scale !== layers.view.viewport.scale) {
+        this.#draw(layers);
+        continue;
+      }
+      const need = this.#region(layers.view, 0);
+      const have = layers.region;
+      const covered =
+        need.width === 0 ||
+        need.height === 0 ||
+        (need.left >= have.left && need.top >= have.top && need.left + need.width <= have.left + have.width && need.top + need.height <= have.top + have.height);
+      if (!covered) this.#draw(layers, false);
     }
   }
 
@@ -240,8 +282,10 @@ export class AnnotationLayer {
       const ink = document.createElement("div");
       ink.className = "lumi-ink";
       const inkCanvas = document.createElement("canvas");
-      ink.append(inkCanvas);
-      layers = { view, marks, ink, inkCanvas };
+      const liveCanvas = document.createElement("canvas");
+      liveCanvas.className = "lumi-live";
+      ink.append(inkCanvas, liveCanvas);
+      layers = { view, marks, ink, inkCanvas, liveCanvas, region: null, scale: 0 };
       this.#pages.set(view.id, layers);
     }
     // Marks sit right above the page image (below the text layer); ink goes on top.
@@ -251,11 +295,11 @@ export class AnnotationLayer {
     this.#draw(layers);
   }
 
-  /** The part of the page on screen (plus a margin for smooth scrolling), in page pixels. */
-  #region(view: PageViewLike): { left: number; top: number; width: number; height: number } {
+  /** The part of the page on screen (plus `margin`, by default about a screen), in page pixels. */
+  #region(view: PageViewLike, margin?: number): Region {
     const page = view.div.getBoundingClientRect();
     const box = this.controller.container.getBoundingClientRect();
-    const margin = Math.min(400, box.height / 2);
+    margin ??= Math.min(900, box.height);
     const left = Math.max(0, box.left - margin - page.left);
     const top = Math.max(0, box.top - margin - page.top);
     const right = Math.min(view.viewport.width, box.right + margin - page.left);
@@ -263,7 +307,7 @@ export class AnnotationLayer {
     return { left, top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
   }
 
-  #sizeCanvas(canvas: HTMLCanvasElement, region: { left: number; top: number; width: number; height: number }): CanvasRenderingContext2D {
+  #sizeCanvas(canvas: HTMLCanvasElement, region: Region): CanvasRenderingContext2D {
     const dpr = window.devicePixelRatio || 1;
     const w = Math.round(region.width * dpr);
     const h = Math.round(region.height * dpr);
@@ -279,35 +323,63 @@ export class AnnotationLayer {
     return ctx;
   }
 
-  #draw(layers: PageLayers): void {
+  /**
+   * Paints a page's annotations. `full` also rebuilds the note pins (annotations changed); a
+   * scroll only moves the painted area. Pages without annotations keep no canvas at all, so they
+   * cost nothing to scroll (blended layers are expensive, above all in WebKit on macOS).
+   */
+  #draw(layers: PageLayers, full = true): void {
     const { view } = layers;
-    layers.marks.style.mixBlendMode = isDarkActive() ? "screen" : "multiply";
-    const region = this.#region(view);
-    const marks = this.#sizeCanvas(layers.marks, region);
-    const ink = this.#sizeCanvas(layers.inkCanvas, region);
-    for (const pin of layers.ink.querySelectorAll(".lumi-note")) pin.remove();
-
     const list = annotations.onPage(view.id).filter((a) => !this.#erasing.has(a.id));
-    this.#paint(marks, view, list, "marks");
-    this.#paint(ink, view, list, "ink");
-    for (const a of list) {
-      if (a.type === "note") this.#pin(layers, a.id, a.x, a.y, a.color, a.text);
-      // Text marks that carry a comment get a small pin at their end.
-      else if ((a.type === "highlight" || a.type === "underline" || a.type === "strike") && a.note) {
-        const last = a.rects[a.rects.length - 1]!;
-        this.#pin(layers, a.id, last[2], last[3], a.color, a.note, true);
+    const hasMarks = list.some((a) => a.type === "marker" || a.type === "highlight");
+    const hasInk = list.some((a) => a.type === "ink" || a.type === "underline" || a.type === "strike");
+    const region = this.#region(view);
+    layers.region = region;
+    layers.scale = view.viewport.scale;
+    layers.marks.style.mixBlendMode = isDarkActive() ? "screen" : "multiply";
+    this.#show(layers.marks, hasMarks);
+    this.#show(layers.inkCanvas, hasInk);
+    if (hasMarks) this.#paint(this.#sizeCanvas(layers.marks, region), view, list, "marks");
+    if (hasInk) this.#paint(this.#sizeCanvas(layers.inkCanvas, region), view, list, "ink");
+    if (full) {
+      for (const pin of layers.ink.querySelectorAll(".lumi-note")) pin.remove();
+      for (const a of list) {
+        if (a.type === "note") this.#pin(layers, a.id, a.x, a.y, a.color, a.text);
+        // Text marks that carry a comment get a small pin at their end.
+        else if ((a.type === "highlight" || a.type === "underline" || a.type === "strike") && a.note) {
+          const last = a.rects[a.rects.length - 1]!;
+          this.#pin(layers, a.id, last[2], last[3], a.color, a.note, true);
+        }
       }
     }
+    this.#drawLive(layers);
+  }
+
+  /** The stroke being drawn (pen or highlighter), alone on its canvas. */
+  #drawLive(layers: PageLayers): void {
     const live = this.#live;
-    if (live && live.page === view.id) {
-      const style = this.cb.style();
-      const stroke = {
-        points: live.points,
-        color: live.type === "ink" ? style.inkColor : style.markerColor,
-        width: live.type === "ink" ? style.inkWidth : style.markerWidth,
-        type: live.type,
-      };
-      this.#stroke(live.type === "ink" ? ink : marks, view, stroke, live.pressure);
+    const on = live !== null && live.page === layers.view.id;
+    this.#show(layers.liveCanvas, on);
+    if (!on || !live) return;
+    const region = layers.region ?? this.#region(layers.view);
+    layers.liveCanvas.style.mixBlendMode = live.type === "marker" ? (isDarkActive() ? "screen" : "multiply") : "normal";
+    const ctx = this.#sizeCanvas(layers.liveCanvas, region);
+    const style = this.cb.style();
+    const stroke = {
+      points: live.points,
+      color: live.type === "ink" ? style.inkColor : style.markerColor,
+      width: live.type === "ink" ? style.inkWidth : style.markerWidth,
+      type: live.type,
+    };
+    this.#stroke(ctx, layers.view, stroke, live.pressure);
+  }
+
+  /** Hides an unused canvas and frees its memory. */
+  #show(canvas: HTMLCanvasElement, on: boolean): void {
+    canvas.style.display = on ? "" : "none";
+    if (!on && canvas.width !== 0) {
+      canvas.width = 0;
+      canvas.height = 0;
     }
   }
 
@@ -636,7 +708,7 @@ export class AnnotationLayer {
     }
     const pressure = e.pointerType === "pen";
     this.#live = { page: view.id, type: tool === "pen" ? "ink" : "marker", points: [x, y, pressure ? e.pressure || 0.5 : 0.5], pressure, straight: e.shiftKey };
-    this.#schedule(view.id);
+    this.#schedule(view.id, true);
   }
 
   #onMove(e: PointerEvent): void {
@@ -682,7 +754,7 @@ export class AnnotationLayer {
         live.points.push(x, y, p);
       }
     }
-    this.#schedule(live.page);
+    this.#schedule(live.page, true);
   }
 
   #onUp(e: PointerEvent): void {
@@ -779,11 +851,17 @@ export class AnnotationLayer {
     if (changed) this.#schedule(view.id);
   }
 
-  #schedule(page: number): void {
+  /** Repaints a page on the next frame: only the stroke being drawn (`liveOnly`), or everything. */
+  #schedule(page: number, liveOnly = false): void {
+    if (liveOnly && this.#frameFull) return; // a full repaint is already coming, with the stroke
     cancelAnimationFrame(this.#frame);
+    this.#frameFull = !liveOnly;
     this.#frame = requestAnimationFrame(() => {
+      this.#frameFull = false;
       const layers = this.#pages.get(page);
-      if (layers) this.#draw(layers);
+      if (!layers) return;
+      if (liveOnly) this.#drawLive(layers);
+      else this.#draw(layers);
     });
   }
 }

@@ -14,6 +14,7 @@
  *
  * When dark mode is off the hooks pass everything through unchanged.
  */
+import { detectPlatform } from "../platform/shortcuts";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import { pdfjs } from "../viewer/pdfjs";
 import { createColorMapper, type ColorMapper } from "./mapper";
@@ -347,6 +348,20 @@ export class RecolorCanvasFactory {
 
 const wrappedPages = new WeakSet<PDFPageProxy>();
 
+/**
+ * Page canvases on the GPU. pdf.js asks for CPU canvases (willReadFrequently) unless hardware
+ * acceleration is on; LumiPDF never reads pixels back from a page canvas, and on macOS (WebKit)
+ * CPU-backed Retina pages are slow to scroll, resize and redraw. Windows keeps the CPU canvas,
+ * which the rendering bench checks pixel for pixel.
+ */
+let gpuPages = typeof navigator !== "undefined" && detectPlatform(navigator.userAgent) === "macos";
+export function useGpuPageCanvases(on: boolean): void {
+  gpuPages = on;
+}
+export function gpuPageCanvases(): boolean {
+  return gpuPages;
+}
+
 function wrapPage(page: PDFPageProxy): void {
   if (wrappedPages.has(page)) return;
   wrappedPages.add(page);
@@ -354,8 +369,9 @@ function wrapPage(page: PDFPageProxy): void {
   page.render = (params) => {
     const canvas = params.canvas;
     if (canvas) {
-      // Same options pdf.js uses (render task, enableHWA off), so it receives this same context.
-      patchContext(canvas.getContext("2d", { alpha: false, willReadFrequently: true })!);
+      // Same options pdf.js uses (render task; enableHWA is set to match gpuPages), so it
+      // receives this same context.
+      patchContext(canvas.getContext("2d", { alpha: false, willReadFrequently: !gpuPages })!);
     }
     return render(params);
   };

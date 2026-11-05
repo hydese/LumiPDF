@@ -2,6 +2,202 @@
   "$comment": "What's new after an update. Add an entry for every version you release, newest first. The app shows the entry for its own version once, on the first launch after updating; the GitHub release notes are generated from it. A test fails if the version in package.json has no entry. Tags: new, better, fixed. Optional \"welcome\": [\"language\" | \"usage\" | \"appearance\" | \"reading\" | \"library\" | \"updates\"] shows those welcome steps again after updating, when a change needs the user to choose something.",
   "releases": [
     {
+      "version": "2.1.0-beta.2",
+      "date": "2026-11-05",
+      "title": "LumiPDF 2.1.0 Beta 2 – macOS",
+      "items": [
+        {
+          "tag": "better",
+          "title": "Smoother on the Mac",
+          "text": "The hand tool, pen and highlighter follow your finger without lag, switching tools is instant, and pages are drawn on the graphics chip.",
+          "tr": {
+            "it": {
+              "title": "Più fluido su Mac",
+              "text": "Lo strumento mano, la penna e l’evidenziatore seguono il dito senza ritardi, cambiare strumento è immediato e le pagine vengono disegnate dalla scheda grafica."
+            },
+            "pt-BR": {
+              "title": "Mais fluido no Mac",
+              "text": "A ferramenta mão, a caneta e o marca-texto acompanham o seu dedo sem atraso, trocar de ferramenta é instantâneo e as páginas são desenhadas pelo chip gráfico."
+            },
+            "fr": {
+              "title": "Plus fluide sur Mac",
+              "text": "La main, le stylo et le surligneur suivent votre doigt sans décalage, changer d’outil est instantané et les pages sont dessinées par la puce graphique."
+            },
+            "de": {
+              "title": "Flüssiger auf dem Mac",
+              "text": "Hand, Stift und Textmarker folgen deinem Finger ohne Verzögerung, der Werkzeugwechsel geht sofort und Seiten werden vom Grafikchip gezeichnet."
+            },
+            "es": {
+              "title": "Más fluido en el Mac",
+              "text": "La mano, el lápiz y el resaltador siguen tu dedo sin retraso, cambiar de herramienta es instantáneo y las páginas se dibujan con el chip gráfico."
+            }
+          }
+        },
+        {
+          "tag": "fixed",
+          "title": "No more black pages",
+          "text": "The next pages are drawn ahead while you read, so scrolling, also in full screen, doesn’t show empty pages.",
+          "tr": {
+            "it": {
+              "title": "Niente più pagine nere",
+              "text": "Le pagine successive vengono preparate mentre leggi, così scorrendo, anche a schermo intero, non vedi pagine vuote."
+            },
+            "pt-BR": {
+              "title": "Sem páginas pretas",
+              "text": "As próximas páginas são preparadas enquanto você lê, então ao rolar, também em tela cheia, não aparecem páginas vazias."
+            },
+            "fr": {
+              "title": "Fini les pages noires",
+              "text": "Les pages suivantes sont préparées pendant votre lecture : en faisant défiler, même en plein écran, aucune page n’apparaît vide."
+            },
+            "de": {
+              "title": "Keine schwarzen Seiten mehr",
+              "text": "Die nächsten Seiten werden schon beim Lesen vorbereitet, damit beim Scrollen, auch im Vollbild, keine leeren Seiten erscheinen."
+            },
+            "es": {
+              "title": "Se acabaron las páginas negras",
+              "text": "Las páginas siguientes se preparan mientras lees, así que al desplazarte, también en pantalla completa, no ves páginas vacías."
+            }
+          }
+        },
+        {
+          "tag": "better",
+          "title": "Faster resizing and full screen",
+          "text": "Resizing the window and leaving full screen re-fit the page once, when you stop, instead of on every frame.",
+          "tr": {
+            "it": {
+              "title": "Ridimensionamento e schermo intero più veloci",
+              "text": "Ridimensionando la finestra o uscendo dallo schermo intero, la pagina si adatta una volta sola, quando ti fermi, invece che a ogni fotogramma."
+            },
+            "pt-BR": {
+              "title": "Redimensionar e tela cheia mais rápidos",
+              "text": "Ao redimensionar a janela ou sair da tela cheia, a página se ajusta uma vez só, quando você para, e não a cada quadro."
+            },
+            "fr": {
+              "title": "Redimensionnement et plein écran plus rapides",
+              "text": "En redimensionnant la fenêtre ou en quittant le plein écran, la page s’ajuste une seule fois, quand vous vous arrêtez, et non à chaque image."
+            },
+            "de": {
+              "title": "Schnelleres Ändern der Größe und Vollbild",
+              "text": "Beim Ändern der Fenstergröße und Verlassen des Vollbilds wird die Seite einmal angepasst, wenn du aufhörst, statt bei jedem Bild."
+            },
+            "es": {
+              "title": "Redimensionar y pantalla completa más rápidos",
+              "text": "Al redimensionar la ventana o salir de pantalla completa, la página se ajusta una sola vez, cuando paras, y no en cada fotograma."
+            }
+          }
+        },
+        {
+          "tag": "fixed",
+          "title": "Photos keep their colours in dark mode",
+          "text": "Colourful photos and illustrations are no longer turned grey or inverted.",
+          "tr": {
+            "it": {
+              "title": "Le foto mantengono i colori in modalità scura",
+              "text": "Foto e illustrazioni colorate non vengono più rese grigie o invertite."
+            },
+            "pt-BR": {
+              "title": "Fotos mantêm as cores no modo escuro",
+              "text": "Fotos e ilustrações coloridas não ficam mais cinzas nem invertidas."
+            },
+            "fr": {
+              "title": "Les photos gardent leurs couleurs en mode sombre",
+              "text": "Les photos et illustrations colorées ne sont plus grisées ni inversées."
+            },
+            "de": {
+              "title": "Fotos behalten im Dunkelmodus ihre Farben",
+              "text": "Farbige Fotos und Illustrationen werden nicht mehr grau oder invertiert."
+            },
+            "es": {
+              "title": "Las fotos mantienen sus colores en modo oscuro",
+              "text": "Las fotos e ilustraciones de colores ya no se vuelven grises ni se invierten."
+            }
+          }
+        },
+        {
+          "tag": "fixed",
+          "title": "Crisper scanned pages",
+          "text": "Scanned text in dark mode no longer has a grey glow around the letters.",
+          "tr": {
+            "it": {
+              "title": "Pagine scansionate più nitide",
+              "text": "In modalità scura il testo scansionato non ha più un alone grigio attorno alle lettere."
+            },
+            "pt-BR": {
+              "title": "Páginas digitalizadas mais nítidas",
+              "text": "No modo escuro, o texto digitalizado não tem mais um brilho cinza em volta das letras."
+            },
+            "fr": {
+              "title": "Pages numérisées plus nettes",
+              "text": "En mode sombre, le texte numérisé n’a plus de halo gris autour des lettres."
+            },
+            "de": {
+              "title": "Schärfere gescannte Seiten",
+              "text": "Gescannter Text hat im Dunkelmodus keinen grauen Schimmer mehr um die Buchstaben."
+            },
+            "es": {
+              "title": "Páginas escaneadas más nítidas",
+              "text": "En modo oscuro, el texto escaneado ya no tiene un halo gris alrededor de las letras."
+            }
+          }
+        },
+        {
+          "tag": "fixed",
+          "title": "The contrast slider works",
+          "text": "Moving Contrast in the reading settings now visibly changes the page.",
+          "tr": {
+            "it": {
+              "title": "Il cursore del contrasto funziona",
+              "text": "Spostare il Contrasto nelle impostazioni di lettura ora cambia davvero la pagina."
+            },
+            "pt-BR": {
+              "title": "O controle de contraste funciona",
+              "text": "Mover o Contraste nas configurações de leitura agora muda a página de verdade."
+            },
+            "fr": {
+              "title": "Le curseur de contraste fonctionne",
+              "text": "Déplacer le Contraste dans les réglages de lecture modifie maintenant la page."
+            },
+            "de": {
+              "title": "Der Kontrastregler funktioniert",
+              "text": "Den Kontrast in den Leseeinstellungen zu verschieben verändert jetzt sichtbar die Seite."
+            },
+            "es": {
+              "title": "El control de contraste funciona",
+              "text": "Mover el Contraste en los ajustes de lectura ahora cambia la página de verdad."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "Performance panel (beta)",
+          "text": "Settings → General → Performance panel shows how smoothly LumiPDF runs and writes LumiPDF-performance.log to your Desktop, so you can send it to us.",
+          "tr": {
+            "it": {
+              "title": "Pannello prestazioni (beta)",
+              "text": "Impostazioni → Generali → Pannello prestazioni mostra quanto è fluido LumiPDF e scrive LumiPDF-performance.log sulla Scrivania, così puoi inviarcelo."
+            },
+            "pt-BR": {
+              "title": "Painel de desempenho (beta)",
+              "text": "Configurações → Geral → Painel de desempenho mostra a fluidez do LumiPDF e grava LumiPDF-performance.log na Mesa, para você nos enviar."
+            },
+            "fr": {
+              "title": "Panneau de performances (bêta)",
+              "text": "Réglages → Général → Panneau de performances montre la fluidité de LumiPDF et écrit LumiPDF-performance.log sur le Bureau, pour que vous puissiez nous l’envoyer."
+            },
+            "de": {
+              "title": "Leistungsanzeige (Beta)",
+              "text": "Einstellungen → Allgemein → Leistungsanzeige zeigt, wie flüssig LumiPDF läuft, und schreibt LumiPDF-performance.log auf den Schreibtisch, damit du sie uns schicken kannst."
+            },
+            "es": {
+              "title": "Panel de rendimiento (beta)",
+              "text": "Ajustes → General → Panel de rendimiento muestra la fluidez de LumiPDF y guarda LumiPDF-performance.log en el Escritorio para que nos lo envíes."
+            }
+          }
+        }
+      ]
+    },
+    {
       "version": "2.1.0-beta.1",
       "date": "2026-11-04",
       "title": "LumiPDF 2.1.0 Beta 1 – macOS",

@@ -20,6 +20,8 @@
   import { annotations, DEFAULT_TOOL, type Tool } from "./lib/annotations/store.svelte";
   import { guardClose, minimizeWindow, platform, quitApp, watchFileDrag } from "./lib/platform/window";
   import Icon from "./lib/ui/Icon.svelte";
+  import PerfPanel from "./lib/perf/PerfPanel.svelte";
+  import { perf } from "./lib/perf/perf.svelte";
   import RingingDialog from "./lib/timer/ui/RingingDialog.svelte";
   import Dialog from "./lib/ui/Dialog.svelte";
   import { studyClock } from "./lib/timer/study.svelte";
@@ -283,9 +285,15 @@
       void unlisten.then((stop) => stop());
     };
   });
+  // Beta only: bring the performance panel back if it was on last time.
+  $effect(() => {
+    if (updates.isBeta) perf.restore();
+  });
 </script>
 
 <svelte:window onkeydown={onKeydown} />
+
+{#if perf.on && updates.isBeta}<PerfPanel />{/if}
 
 {#if dragging}
   <div class="drop-overlay" aria-hidden="true">

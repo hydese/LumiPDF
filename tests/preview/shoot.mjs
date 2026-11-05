@@ -76,6 +76,7 @@ const shotsAll = [
   { name: "erase-notes", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: true, eraseFlow: true },
   { name: "hand-tool", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], handFlow: true },
   { name: "hex-picker", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false }, annotate: { recentColors: ["#ffd400", "#5a4b00", "#5d4e02", "#584900", "#ff0000", "#5b4c01", "#2a9d8f"] } }, open: ["Analisi 2 — Trasformate"], hexFlow: true },
+  { name: "perf-panel", settings: { app: { appearance: "dark", ...seen } }, open: ["Analisi 2 — Trasformate"], perfFlow: true },
   { name: "welcome-usage", settings: { app: { appearance: "light" } }, welcome: 1 },
   { name: "welcome-usage-dark", settings: { app: { appearance: "dark" }, study: { tools: false } }, welcome: 1 },
   { name: "settings-study-tools", settings: { app: { appearance: "light", ...seen } }, keys: "Control+Comma" },
@@ -451,6 +452,16 @@ for (const shot of shots) {
     await page.waitForTimeout(500);
     const req = await page.evaluate(() => window.__EXPORT_REQUEST__);
     fs.writeFileSync(path.join(out, `${shot.name}-request.json`), JSON.stringify(req, null, 1));
+  }
+  if (shot.perfFlow) {
+    // Beta-only performance panel: turn it on in Settings, go back to the PDF, scroll and draw.
+    await page.keyboard.press("Control+Comma");
+    await page.click('label:has-text("Performance panel") .switch');
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(400);
+    const scroller = page.locator(".layer:not([hidden]) .pdfViewer").locator("xpath=..");
+    for (let i = 0; i < 6; i++) { await scroller.evaluate((el) => el.scrollBy(0, 300)); await page.waitForTimeout(150); }
+    await page.waitForTimeout(2500);
   }
   if (shot.keys) await page.keyboard.press(shot.keys);
     // Key presses (or "draw": a pen stroke mid-page) with a screenshot after each.

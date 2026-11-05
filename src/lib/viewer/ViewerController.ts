@@ -74,7 +74,13 @@ export class ViewerController {
   private awaitingFirstRender = false;
   /** While set, the zoom follows the window size (fit width / fit page). */
   private fit: "page-width" | "page-fit" | null = "page-width";
-  private fitFrame = 0;
+  private fitTimer: ReturnType<typeof setTimeout> | undefined;
+  private aheadTimer: ReturnType<typeof setTimeout> | undefined;
+  private lastScroll = 0;
+  private static readonly RESIZE_SETTLE_MS = 160;
+  /** Pages drawn ahead of and behind the visible ones while idle, so they aren't blank. */
+  private static readonly AHEAD = 2;
+  private static readonly BEHIND = 1;
   /** pdf.js has laid out the current document's pages (zoom can be applied). */
   private pagesReady = false;
   private readonly cleanups: Array<() => void> = [];
@@ -99,6 +105,7 @@ export class ViewerController {
       this.restorePlace(this.pendingPlace);
     });
     this.eventBus.on("pagerendered", () => {
+      this.scheduleRenderAhead();
       if (!this.awaitingFirstRender) return;
       this.awaitingFirstRender = false;
       this.options.onFirstRender?.();
@@ -111,13 +118,20 @@ export class ViewerController {
 
     this.listen(options.container, "click", (e) => this.interceptExternalLink(e as MouseEvent), true);
     this.listen(options.container, "wheel", (e) => this.zoomWithWheel(e as WheelEvent), { passive: false });
+    // Fit-to-window zoom follows resizes once they settle: re-zooming (and so redrawing every
+    // page) on each frame of a window drag or of the macOS full-screen animation made them laggy.
     const resize = new ResizeObserver(() => {
       if (!this.fit) return;
-      cancelAnimationFrame(this.fitFrame);
-      this.fitFrame = requestAnimationFrame(() => this.applyFit());
+      clearTimeout(this.fitTimer);
+      this.fitTimer = setTimeout(() => this.applyFit(false), this.pagesReady ? ViewerController.RESIZE_SETTLE_MS : 0);
     });
     resize.observe(options.container);
-    this.cleanups.push(() => resize.disconnect());
+    this.cleanups.push(() => {
+      resize.disconnect();
+      clearTimeout(this.fitTimer);
+      clearTimeout(this.aheadTimer);
+    });
+    this.listen(options.container, "scroll", () => (this.lastScroll = performance.now()));
     this.watchDevicePixelRatio();
     this.cleanups.push(onDarkModeChange(() => this.applyDarkMode()));
     this.applyDarkMode(false);
@@ -159,6 +173,38 @@ export class ViewerController {
     };
     this.eventBus.on("pagerendered", listener);
     return () => this.eventBus.off("pagerendered", listener);
+  }
+
+  /** Beta performance panel: what the viewer is doing now. */
+  stats(): { drawn: number; drawing: number; canvasMegapixels: number; scale: number } {
+    const views = (this.viewer as unknown as { _pages: Array<{ renderingState: number }> })._pages ?? [];
+    let drawn = 0;
+    let drawing = 0;
+    for (const v of views) {
+      if (v.renderingState === 3) drawn++;
+      else if (v.renderingState === 1 || v.renderingState === 2) drawing++;
+    }
+    let pixels = 0;
+    for (const c of this.options.container.querySelectorAll("canvas")) pixels += c.width * c.height;
+    return { drawn, drawing, canvasMegapixels: pixels / 1e6, scale: this.viewer.currentScale };
+  }
+
+  /** Beta performance panel: how long each page took to draw. */
+  onPageTimed(handler: (page: number, ms: number) => void): () => void {
+    const started = new Map<number, number>();
+    const start = ({ pageNumber }: { pageNumber: number }) => started.set(pageNumber, performance.now());
+    const end = ({ pageNumber }: { pageNumber: number }) => {
+      const t = started.get(pageNumber);
+      if (t === undefined) return;
+      started.delete(pageNumber);
+      handler(pageNumber, performance.now() - t);
+    };
+    this.eventBus.on("pagerender", start);
+    this.eventBus.on("pagerendered", end);
+    return () => {
+      this.eventBus.off("pagerender", start);
+      this.eventBus.off("pagerendered", end);
+    };
   }
 
   /** Calls `handler` after the zoom changes (pages may not be drawn again yet). */
@@ -252,15 +298,58 @@ export class ViewerController {
    * Fit width/page, leaving a gutter on both sides so the page reads as a sheet on the desk
    * (pdf.js's own presets fill the window edge to edge when page borders are off).
    */
-  private applyFit(): void {
+  private applyFit(force = true): void {
     const width = this.options.container.clientWidth;
     if (!this.fit || !this.doc || !this.pagesReady || width === 0) return;
+    // A resize that left the window the same size must not re-zoom: setting the preset and then
+    // the gutter scale makes pdf.js throw away and redraw every visible page.
+    const size = `${this.fit}:${width}x${this.options.container.clientHeight}:${this.viewer.currentScale}`;
+    if (!force && size === this.fitSize) return;
     this.viewer.currentScaleValue = this.fit;
     const room = Math.max(0.5, (width - 2 * ViewerController.GUTTER) / width);
     this.viewer.currentScale = this.viewer.currentScale * room;
+    this.fitSize = `${this.fit}:${width}x${this.options.container.clientHeight}:${this.viewer.currentScale}`;
   }
 
+  private fitSize = "";
+
   private static readonly GUTTER = 32;
+
+  /**
+   * pdf.js draws the visible pages and one more in the scroll direction; scrolling further shows
+   * blank pages until they're drawn. When nothing else is drawing and the reader isn't scrolling,
+   * draw a couple more pages around the visible ones, one at a time.
+   */
+  private scheduleRenderAhead(): void {
+    clearTimeout(this.aheadTimer);
+    this.aheadTimer = setTimeout(() => void this.renderAhead(), 120);
+  }
+
+  private async renderAhead(): Promise<void> {
+    const doc = this.doc;
+    if (!doc || !this.pagesReady) return;
+    if (performance.now() - this.lastScroll < 250) return this.scheduleRenderAhead();
+    type View = { id: number; renderingState: number; pdfPage: unknown; setPdfPage(p: unknown): void };
+    const viewer = this.viewer as unknown as { _pages: View[]; renderingQueue: { renderView(v: View): boolean } };
+    const RUNNING = 1;
+    const INITIAL = 0;
+    if (viewer._pages.some((v) => v.renderingState === RUNNING)) return; // pdf.js is busy; it calls us again
+    const current = this.viewer.currentPageNumber || 1;
+    const order: number[] = [];
+    for (let i = 1; i <= ViewerController.AHEAD; i++) order.push(current + i);
+    for (let i = 1; i <= ViewerController.BEHIND; i++) order.push(current - i);
+    for (const n of order) {
+      const view = viewer._pages[n - 1];
+      if (!view || view.renderingState !== INITIAL) continue;
+      if (!view.pdfPage) {
+        const page = await doc.getPage(n);
+        if (doc !== this.doc) return;
+        if (!view.pdfPage) view.setPdfPage(page);
+      }
+      viewer.renderingQueue.renderView(view); // its "pagerendered" schedules the next one
+      return;
+    }
+  }
 
   /** Highlights all matches of `query` and moves to the next (or previous) one. */
   find(query: string, previous = false): void {

@@ -12,6 +12,7 @@ mod error;
 mod export;
 mod library;
 mod menu;
+mod perf;
 mod pdf_export;
 mod settings;
 mod sheets;
@@ -61,6 +62,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
             menu::set_menu,
+            perf::perf_log,
             updater::update_installable,
             updater::update_check,
             updater::update_download,

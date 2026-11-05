@@ -46,8 +46,9 @@ async function check(url: string) {
   const target = document.getElementById("wrap")!;
   const view = mount(PdfView, { target, props: { doc: pdf.doc, onState: () => {}, onExternalLink: () => {} } });
   try {
-    const canvas = await waitForPageCanvas(target);
-    await new Promise((r) => setTimeout(r, 300)); // let the text layer settle
+    await waitForPageCanvas(target);
+    await new Promise((r) => setTimeout(r, 400)); // let the text layer and any resize re-fit settle
+    const canvas = await waitForPageCanvas(target); // pick it up again: a re-render replaces it
 
     // Reproduce the viewer's render exactly (see PDFPageView in pdf_viewer.mjs): the viewport
     // scale is the viewer's --scale-factor (zoom × 96/72); the canvas gets an extra x/y transform

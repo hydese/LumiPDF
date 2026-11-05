@@ -42,11 +42,16 @@ export interface ColorMapper {
 export function createColorMapper(theme: ReadingTheme, tuning: DarkTuning): ColorMapper {
   const bgRgb = parseCssColor(theme.background)!.rgb;
   const fgRgb = parseCssColor(theme.text)!.rgb;
-  const bg = srgbToOklab(bgRgb);
+  const bgBase = srgbToOklab(bgRgb);
   const fgBase = srgbToOklab(fgRgb);
-  const fg: Lab = { ...fgBase, L: Math.min(0.99, fgBase.L * tuning.brightness) };
-  // contrast > 1 lifts mid-tones (grey text, thin lines) further away from the background.
-  const vectorCurve = BASE_CURVE / tuning.contrast;
+  // Contrast is the gap between text and background: above 1 the background gets darker, the
+  // text a little brighter and grey text and lines move further from the background; below 1
+  // the other way. (At 1 the theme is exactly as designed.)
+  const k = tuning.contrast;
+  const bg: Lab = { ...bgBase, L: Math.max(0, Math.min(0.6, bgBase.L * (1 - (k - 1) * 1.2))) };
+  const fgL = Math.min(0.99, fgBase.L * tuning.brightness);
+  const fg: Lab = { ...fgBase, L: Math.min(0.99, Math.max(bg.L + 0.25, bg.L + (fgL - bg.L) * (1 + (k - 1) * 0.35))) };
+  const vectorCurve = BASE_CURVE / k ** 1.5;
   const imageCurve = vectorCurve * IMAGE_CURVE_FACTOR;
 
   function mapLab(c: Lab, curve = vectorCurve): Lab {

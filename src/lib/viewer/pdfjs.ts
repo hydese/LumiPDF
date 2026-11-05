@@ -41,9 +41,10 @@ export interface LoadedPdf {
 
 export async function loadDocument(url: string, askPassword: PasswordPrompt): Promise<LoadedPdf> {
   // Imported lazily to avoid a module cycle (the engine imports this file for `pdfjs`).
-  const { RecolorCanvasFactory, attachToDocument, installPdfjsHooks } = await import("../dark/engine");
+  const { RecolorCanvasFactory, attachToDocument, installPdfjsHooks, gpuPageCanvases } = await import("../dark/engine");
   await installPdfjsHooks();
-  const task = pdfjs.getDocument({ ...documentOptions(url), CanvasFactory: RecolorCanvasFactory });
+  // enableHWA: page canvases on the GPU where LumiPDF turns that on (macOS, see the engine).
+  const task = pdfjs.getDocument({ ...documentOptions(url), CanvasFactory: RecolorCanvasFactory, enableHWA: gpuPageCanvases() });
   task.onPassword = (update: (password: string) => void, reason: number) => {
     const retry = reason === pdfjs.PasswordResponses.INCORRECT_PASSWORD;
     void askPassword(retry).then((password) => {

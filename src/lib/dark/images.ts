@@ -9,7 +9,7 @@ import type { ColorMapper } from "./mapper";
 
 export type ImageKind = "paper" | "graphic" | "photo";
 
-interface Analysis {
+export interface Analysis {
   kind: ImageKind;
   opaque: boolean;
 }
@@ -67,36 +67,81 @@ function analyze(source: CanvasImageSource, width: number, height: number): Anal
   sample.height = h;
   const ctx = sample.getContext("2d", { willReadFrequently: true })!;
   ctx.drawImage(source, 0, 0, width, height, 0, 0, w, h);
-  const data = ctx.getImageData(0, 0, w, h).data;
+  return classifyPixels(ctx.getImageData(0, 0, w, h).data);
+}
+
+/**
+ * Pixels with at least this much colour (max − min channel) are "colourful". A picture with a
+ * real share of them (a logo, an illustration, a portrait, pixel art) keeps its colours: the
+ * reader looks at it, and recolouring it the way paper is recoloured made whites black and
+ * shifted every hue. Scans and charts have almost none (a coloured line here and there).
+ */
+const COLORFUL_SPREAD = 48;
+const PICTURE_COLORFUL_SHARE = 0.1;
+/** Paper is light background and dark ink; a page full of mid-tones is an engraving or a photo. */
+const MID_MIN = 70;
+const MID_MAX = 175;
+const PAPER_MAX_MIDTONES = 0.3;
+
+/** What kind of image these RGBA pixels (a small sample of it) are. Exported for tests. */
+export function classifyPixels(data: Uint8ClampedArray): Analysis {
   let light = 0;
+  let colorful = 0;
+  let mid = 0;
   let opaque = true;
   let counted = 0;
   const bins = new Map<number, number>(); // colours quantised to 4 bits per channel
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i]!, g = data[i + 1]!, b = data[i + 2]!, a = data[i + 3]!;
     if (a < 255) opaque = false;
-    if (a > 0) {
-      const bin = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
-      bins.set(bin, (bins.get(bin) ?? 0) + 1);
-      counted++;
-    }
+    if (a === 0) continue;
+    counted++;
+    const bin = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+    bins.set(bin, (bins.get(bin) ?? 0) + 1);
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
-    if (a > 0 && min > LIGHT_MIN_CHANNEL && max - min < LIGHT_MAX_SPREAD) light++;
+    const spread = max - min;
+    if (spread >= COLORFUL_SPREAD) colorful++;
+    else if (min > LIGHT_MIN_CHANNEL && spread < LIGHT_MAX_SPREAD) light++;
+    const lum = (r * 3 + g * 6 + b) / 10;
+    if (lum >= MID_MIN && lum <= MID_MAX) mid++;
   }
-  if (light / (w * h) >= PAPER_RATIO) return { kind: "paper", opaque };
+  if (counted === 0) return { kind: "paper", opaque };
+  if (colorful / counted >= PICTURE_COLORFUL_SHARE) return { kind: "photo", opaque };
+  if (light / counted >= PAPER_RATIO && mid / counted <= PAPER_MAX_MIDTONES) return { kind: "paper", opaque };
   const top = [...bins.values()].sort((x, y) => y - x).slice(0, GRAPHIC_TOP_COLORS);
-  const coverage = counted > 0 ? top.reduce((sum, n) => sum + n, 0) / counted : 0;
+  const coverage = top.reduce((sum, n) => sum + n, 0) / counted;
   return { kind: coverage >= GRAPHIC_COVERAGE ? "graphic" : "photo", opaque };
 }
 
-function recolor(source: CanvasImageSource, width: number, height: number, mapper: ColorMapper): HTMLCanvasElement {
+/**
+ * Scans: paper isn't pure white and ink isn't pure black, and the grey noise around letters
+ * (scanner blur, JPEG) became a glow on dark pages. Grey pixels are stretched so near-white
+ * becomes white (background) and near-black becomes black (text); coloured pixels are left alone.
+ * Exported for tests.
+ */
+export function cleanScan(data: Uint8ClampedArray): void {
+  const lo = SCAN_BLACK;
+  const span = SCAN_WHITE - SCAN_BLACK;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i]!, g = data[i + 1]!, b = data[i + 2]!;
+    if (Math.max(r, g, b) - Math.min(r, g, b) >= COLORFUL_SPREAD) continue;
+    data[i] = ((r - lo) * 255) / span;
+    data[i + 1] = ((g - lo) * 255) / span;
+    data[i + 2] = ((b - lo) * 255) / span;
+  }
+}
+const SCAN_BLACK = 50;
+const SCAN_WHITE = 215;
+
+function recolor(source: CanvasImageSource, width: number, height: number, mapper: ColorMapper, scan: boolean): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   ctx.drawImage(source, 0, 0);
   const pixels = ctx.getImageData(0, 0, width, height);
+  if (scan) cleanScan(pixels.data);
   mapper.mapPixels(pixels.data);
   ctx.putImageData(pixels, 0, 0);
   return canvas;
@@ -142,7 +187,7 @@ export function prepareImage(source: CanvasImageSource, mapper: ColorMapper, dim
   const { kind, opaque } = analyze(source, width, height);
   let prepared: Prepared = { source, opaque };
   if (width * height <= MAX_RECOLOR_PIXELS) {
-    if (kind === "paper" || kind === "graphic") prepared = { source: recolor(source, width, height, mapper), opaque };
+    if (kind === "paper" || kind === "graphic") prepared = { source: recolor(source, width, height, mapper, kind === "paper"), opaque };
     else if (dimPhotos) prepared = { source: dim(source, width, height), opaque };
   }
   const bytes = prepared.source === source ? 0 : width * height * 4;

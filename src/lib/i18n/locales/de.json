@@ -617,5 +617,7 @@
   "open.dropHereHint": "Jedes PDF öffnet sich in einem eigenen Tab.",
   "settings.beta.welcome": "Willkommen, von vorn",
   "settings.beta.welcomeHint": "Nur in der Beta: zeigt das ganze Willkommen noch einmal, wie auf einem neuen Computer. Deine Einstellungen bleiben.",
-  "settings.beta.welcomeButton": "Willkommen zeigen"
+  "settings.beta.welcomeButton": "Willkommen zeigen",
+  "settings.beta.perf": "Leistungsanzeige",
+  "settings.beta.perfHint": "Nur in der Beta: zeigt Bildrate und Zeichenzeiten und schreibt LumiPDF-performance.log auf den Schreibtisch, um es dem Entwickler zu schicken."
 }

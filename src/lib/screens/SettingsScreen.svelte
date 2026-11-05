@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { perf } from "../perf/perf.svelte";
   import { formatWhen, t, tn, type MessageKey } from "../i18n";
   import { CLOUD_KINDS } from "../ipc/library";
   import { AVAILABLE_LOCALES, languageName } from "../i18n";
@@ -248,6 +249,10 @@
               <span class="label"><span>{t("settings.beta.welcome")}</span><span class="hint">{t("settings.beta.welcomeHint")}</span></span>
               <button class="btn small" onclick={() => whatsNew.replayFirstLaunch()}>{t("settings.beta.welcomeButton")}</button>
             </div>
+            <label class="row">
+              <span class="label"><span>{t("settings.beta.perf")}</span><span class="hint">{t("settings.beta.perfHint")}</span></span>
+              <input type="checkbox" class="switch" checked={perf.on} onchange={(e) => perf.setOn(e.currentTarget.checked)} />
+            </label>
           {/if}
         </section>
 

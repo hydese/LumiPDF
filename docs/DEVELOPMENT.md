@@ -36,6 +36,9 @@ rebuilds `docs/images/` (needs Pillow).
 > **Before a stable release:** the beta-only "Welcome, from the start" button (Settings → General)
 > hides itself when the version has no `-beta`, but check it's gone, and decide whether to remove
 > it from `SettingsScreen.svelte` (`updates.isBeta` block) and `whatsNew.replayFirstLaunch`.
+> The same goes for the beta-only performance panel: `src/lib/perf/`, its switch in the same
+> block, `<PerfPanel />` and `perf.restore()` in `App.svelte`, `perf.attach` in `ReaderScreen.svelte`
+> and the `perf_log` command (`src-tauri/src/perf.rs`). Keep `ViewerController.stats()` (harmless).
 
 1. Update `version` in `package.json` and `src-tauri/Cargo.toml`, and add its entry to
    `src/lib/whatsnew/releases.json` (shown in the app after updating, and used as the release

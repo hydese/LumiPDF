@@ -617,5 +617,7 @@
   "open.dropHereHint": "Chaque PDF s’ouvre dans son propre onglet.",
   "settings.beta.welcome": "Accueil, depuis le début",
   "settings.beta.welcomeHint": "Bêta uniquement : affiche à nouveau tout l’accueil, comme sur un nouvel ordinateur. Vos réglages restent.",
-  "settings.beta.welcomeButton": "Afficher l’accueil"
+  "settings.beta.welcomeButton": "Afficher l’accueil",
+  "settings.beta.perf": "Panneau de performances",
+  "settings.beta.perfHint": "Bêta uniquement : affiche les images par seconde et les temps de dessin, et écrit LumiPDF-performance.log sur le Bureau, à envoyer au développeur."
 }

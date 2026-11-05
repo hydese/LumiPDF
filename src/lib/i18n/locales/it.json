@@ -617,5 +617,7 @@
   "open.dropHereHint": "Ogni PDF si apre in una scheda.",
   "settings.beta.welcome": "Benvenuto, dall’inizio",
   "settings.beta.welcomeHint": "Solo beta: mostra di nuovo tutto il benvenuto, come su un computer nuovo. Le impostazioni restano.",
-  "settings.beta.welcomeButton": "Mostra il benvenuto"
+  "settings.beta.welcomeButton": "Mostra il benvenuto",
+  "settings.beta.perf": "Pannello prestazioni",
+  "settings.beta.perfHint": "Solo beta: mostra fotogrammi al secondo e tempi di disegno, e scrive LumiPDF-performance.log sulla Scrivania da mandare allo sviluppatore."
 }

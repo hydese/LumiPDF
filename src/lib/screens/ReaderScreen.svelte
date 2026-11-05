@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { perf } from "../perf/perf.svelte";
   /**
    * The reader. While pages are shown dark, the whole reader turns dark too, so no bright
    * toolbar glares next to a dark page.
@@ -161,6 +162,7 @@
   $effect(() => {
     const controller = session.controller;
     if (!controller) return;
+    perf.attach(controller);
     const l = new AnnotationLayer(controller, {
       onNoteOpen: (id, anchor) => {
         menu = null;
@@ -194,6 +196,7 @@
       controller.container.removeEventListener("scroll", onScroll);
       controller.container.removeEventListener("pointerup", onUp);
       previews.destroy();
+      perf.attach(null);
       l.destroy();
       layer = null;
     };

@@ -1,7 +1,7 @@
 {
   "name": "lumipdf",
   "private": true,
-  "version": "2.1.0-beta.1",
+  "version": "2.1.0-beta.2",
   "description": "A lightweight PDF reader for studying, with a dark mode that stays as crisp as the original.",
   "author": "hydese",
   "license": "GPL-3.0-or-later",

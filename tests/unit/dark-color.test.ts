@@ -82,3 +82,20 @@ describe("colour mapper", () => {
     }
   });
 });
+
+describe("contrast slider", () => {
+  const theme = getTheme("lumina-black");
+  const lum = (rgb: [number, number, number]) => srgbToOklab(rgb).L;
+  it("changes the gap between text and background, and leaves the default as designed", () => {
+    const low = createColorMapper(theme, { ...DEFAULT_TUNING, contrast: 0.7 });
+    const mid = createColorMapper(theme, DEFAULT_TUNING);
+    const high = createColorMapper(theme, { ...DEFAULT_TUNING, contrast: 1.4 });
+    const gap = (m: typeof mid) => lum(m.mapRgb([0, 0, 0])) - lum(m.background);
+    expect(gap(high)).toBeGreaterThan(gap(mid));
+    expect(gap(mid)).toBeGreaterThan(gap(low));
+    expect(lum(high.background)).toBeLessThan(lum(mid.background));
+    // Grey text moves further from the background at high contrast.
+    const grey = (m: typeof mid) => lum(m.mapRgb([120, 120, 120])) - lum(m.background);
+    expect(grey(high)).toBeGreaterThan(grey(low));
+  });
+});
