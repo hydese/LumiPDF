@@ -79,7 +79,8 @@ export class AnnotationLayer {
   /** While true, annotations are painted in their original colours (white-paper renders). */
   #plain = false;
   /** Hand tool: the drag in progress. */
-  #pan: { x: number; y: number; left: number; top: number; id: number } | null = null;
+  #pan: { x: number; y: number; left: number; top: number; id: number; cx: number; cy: number; frame: number; v: number[] } | null = null;
+  #glide = 0;
 
   constructor(
     private readonly controller: ViewerController,
@@ -136,6 +137,7 @@ export class AnnotationLayer {
   }
 
   destroy(): void {
+    cancelAnimationFrame(this.#glide);
     this.#finishErase();
     cancelAnimationFrame(this.#frame);
     this.#snipBox?.remove();
@@ -668,7 +670,8 @@ export class AnnotationLayer {
       // Hand: drag to scroll. Links, notes and buttons still work with a click.
       if (e.button !== 0 || (e.target as Element).closest("a, button, .lumi-note, input, textarea")) return;
       const c = this.controller.container;
-      this.#pan = { x: e.clientX, y: e.clientY, left: c.scrollLeft, top: c.scrollTop, id: e.pointerId };
+      cancelAnimationFrame(this.#glide);
+      this.#pan = { x: e.clientX, y: e.clientY, left: c.scrollLeft, top: c.scrollTop, id: e.pointerId, cx: e.clientX, cy: e.clientY, frame: 0, v: [] };
       c.setPointerCapture?.(e.pointerId);
       c.classList.add("panning");
       e.preventDefault();
@@ -714,9 +717,17 @@ export class AnnotationLayer {
   #onMove(e: PointerEvent): void {
     const pan = this.#pan;
     if (pan && e.pointerId === pan.id) {
-      const c = this.controller.container;
-      c.scrollLeft = pan.left - (e.clientX - pan.x);
-      c.scrollTop = pan.top - (e.clientY - pan.y);
+      // Trackpads and pens report moves faster than the screen refreshes: scroll once per frame.
+      pan.v.push(e.timeStamp, e.clientX, e.clientY);
+      if (pan.v.length > 30) pan.v.splice(0, pan.v.length - 30);
+      pan.cx = e.clientX;
+      pan.cy = e.clientY;
+      pan.frame ||= requestAnimationFrame(() => {
+        pan.frame = 0;
+        const c = this.controller.container;
+        c.scrollLeft = pan.left - (pan.cx - pan.x);
+        c.scrollTop = pan.top - (pan.cy - pan.y);
+      });
       return;
     }
     const snip = this.#snip;
@@ -757,10 +768,33 @@ export class AnnotationLayer {
     this.#schedule(live.page, true);
   }
 
+  /** A quick flick keeps the page gliding for a moment, slowing down like a real sheet. */
+  #flick(pan: { v: number[] }, now: number): void {
+    const v = pan.v;
+    let i = v.length - 3;
+    while (i >= 3 && now - v[i - 3]! < 80) i -= 3;
+    const dt = now - v[i]!;
+    if (v.length < 6 || dt <= 0 || now - v[v.length - 3]! > 60) return; // stopped before letting go
+    let vx = ((v[i + 1]! - v[v.length - 2]!) / dt) * 16;
+    let vy = ((v[i + 2]! - v[v.length - 1]!) / dt) * 16;
+    const c = this.controller.container;
+    const step = () => {
+      vx *= 0.94;
+      vy *= 0.94;
+      if (Math.abs(vx) < 0.5 && Math.abs(vy) < 0.5) return;
+      c.scrollLeft += vx;
+      c.scrollTop += vy;
+      this.#glide = requestAnimationFrame(step);
+    };
+    this.#glide = requestAnimationFrame(step);
+  }
+
   #onUp(e: PointerEvent): void {
     if (this.#pan && e.pointerId === this.#pan.id) {
+      const pan = this.#pan;
       this.#pan = null;
       this.controller.container.classList.remove("panning");
+      this.#flick(pan, e.timeStamp);
       return;
     }
     const down = this.#down;

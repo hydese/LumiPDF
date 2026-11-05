@@ -67,6 +67,7 @@ const shotsAll = [
   { name: "library-today", settings: { app: { appearance: "light", ...seen } } },
   { name: "link-preview", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Controlli — Appunti"], linkHover: 0 },
   { name: "link-preview-dark", settings: { app: { appearance: "light", ...seen } }, open: ["Controlli — Appunti"], linkHover: 3 },
+  { name: "back-to-page", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Controlli — Appunti"], linkHover: 0, after: '.layer:not([hidden]) .page[data-page-number="2"] [data-internal-link] a >> nth=0' },
   { name: "link-preview-toc", settings: { app: { appearance: "light", ...seen } }, open: ["Controlli — Appunti"], linkHover: "toc" },
   { name: "sheet", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], sheetFlow: true },
   { name: "sheet-light", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], sheetFlow: true },
@@ -224,12 +225,15 @@ for (const shot of shots) {
       await drag(box.x + 2, box.y + box.height / 2, box.x + 330, box.y + box.height / 2 + 22);
       await page.waitForTimeout(300);
     } else {
-      // Highlight a line of text with the highlight tool.
+      // Highlight a line of text: select it, then pick a colour in the menu that pops up.
       await page.keyboard.press("h");
       await drag(box.x + 2, box.y + box.height / 2, box.x + 420, box.y + box.height / 2);
-      // Underline the next line in blue.
-      await page.click('.options button[aria-label="Underline"]');
+      await page.waitForTimeout(200);
+      await page.locator('[role="menu"] .swatch').first().click();
+      // Underline the next line.
       await drag(box.x + 2, box.y + box.height * 1.6, box.x + 300, box.y + box.height * 1.6);
+      await page.waitForTimeout(200);
+      await page.click('[role="menu"] button[aria-label="Underline"]');
       // Pen: circle an equation and an arrow.
       await page.keyboard.press("p");
       await page.mouse.move(box.x + 250, box.y + 80);
@@ -390,6 +394,16 @@ for (const shot of shots) {
     await page.mouse.up();
     await page.waitForTimeout(300);
     await page.screenshot({ path: path.join(out, `${shot.name}-3.png`) });
+    // A text box and a picture from a file.
+    await page.click('.bar .btn:has-text("Text")');
+    await page.keyboard.press("Control+a");
+    await page.keyboard.type("Linearity: L{a f + b g} = a F + b G.\nShift in s: L{e^(at) f(t)} = F(s - a), valid for Re(s) > a.");
+    await page.mouse.click(5, 300);
+    await page.waitForTimeout(200);
+    await page.setInputFiles(".bar input.file", path.join(out, `${shot.name}-1.png`));
+    await page.waitForTimeout(1200);
+    await page.screenshot({ path: path.join(out, `${shot.name}-4.png`) });
+    console.log("text lines:", await page.locator(".sheet-page .item.text .line").count(), "items:", await page.locator(".sheet-page .item").count());
     if (shot.sheetZoom) {
       await page.click('.zoom button[aria-label="Zoom out"]');
       await page.click('.zoom button[aria-label="Zoom out"]');

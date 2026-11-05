@@ -8,6 +8,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { annotationsLoad, annotationsSave } from "../ipc/annotations";
 import { parseAnnotations, type Annotation, type AnnotationFile } from "./model";
 
+/** "highlight" is the old separate highlight tool, now part of "select" (kept so old code paths type-check). */
 export type Tool = "hand" | "select" | "highlight" | "pen" | "marker" | "eraser" | "note" | "snip";
 
 const SAVE_DELAY_MS = 800;

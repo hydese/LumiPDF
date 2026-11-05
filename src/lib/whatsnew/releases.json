@@ -2,6 +2,310 @@
   "$comment": "What's new after an update. Add an entry for every version you release, newest first. The app shows the entry for its own version once, on the first launch after updating; the GitHub release notes are generated from it. A test fails if the version in package.json has no entry. Tags: new, better, fixed. Optional \"welcome\": [\"language\" | \"usage\" | \"appearance\" | \"reading\" | \"library\" | \"updates\"] shows those welcome steps again after updating, when a change needs the user to choose something.",
   "releases": [
     {
+      "version": "2.1.0-beta.3",
+      "date": "2026-11-05",
+      "title": "LumiPDF 2.1.0 Beta 3 – macOS",
+      "items": [
+        {
+          "tag": "new",
+          "title": "Photos stay photos in dark mode",
+          "text": "Pages that are one big picture (brochures, magazines, slides saved as images) now go dark around their photos, while the photos keep their real colours, with clean edges.",
+          "tr": {
+            "it": {
+              "title": "Le foto restano foto in modalità scura",
+              "text": "Le pagine fatte di un’unica immagine (brochure, riviste, slide salvate come immagini) ora diventano scure intorno alle foto, mentre le foto mantengono i colori reali, con bordi netti."
+            },
+            "pt-BR": {
+              "title": "Fotos continuam fotos no modo escuro",
+              "text": "Páginas que são uma única imagem (folhetos, revistas, slides salvos como imagem) agora ficam escuras ao redor das fotos, e as fotos mantêm as cores reais, com bordas limpas."
+            },
+            "fr": {
+              "title": "Les photos restent des photos en mode sombre",
+              "text": "Les pages faites d’une seule image (brochures, magazines, diapositives enregistrées en image) deviennent sombres autour des photos, qui gardent leurs vraies couleurs, avec des bords nets."
+            },
+            "de": {
+              "title": "Fotos bleiben im Dunkelmodus Fotos",
+              "text": "Seiten, die ein einziges Bild sind (Broschüren, Zeitschriften, als Bild gespeicherte Folien), werden jetzt um die Fotos herum dunkel, und die Fotos behalten ihre echten Farben, mit sauberen Kanten."
+            },
+            "es": {
+              "title": "Las fotos siguen siendo fotos en modo oscuro",
+              "text": "Las páginas que son una sola imagen (folletos, revistas, diapositivas guardadas como imagen) ahora se oscurecen alrededor de las fotos, que mantienen sus colores reales, con bordes limpios."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "Select and highlight in one tool",
+          "text": "Select text and a menu appears: highlight, underline, strike through, comment or copy. Pressing H or V picks the same tool.",
+          "tr": {
+            "it": {
+              "title": "Seleziona ed evidenzia in un solo strumento",
+              "text": "Seleziona il testo e appare un menu: evidenzia, sottolinea, barra, commenta o copia. H o V scelgono lo stesso strumento."
+            },
+            "pt-BR": {
+              "title": "Selecionar e destacar numa só ferramenta",
+              "text": "Selecione texto e aparece um menu: destacar, sublinhar, riscar, comentar ou copiar. H ou V escolhem a mesma ferramenta."
+            },
+            "fr": {
+              "title": "Sélectionner et surligner avec un seul outil",
+              "text": "Sélectionnez du texte et un menu apparaît : surligner, souligner, barrer, commenter ou copier. H ou V choisissent le même outil."
+            },
+            "de": {
+              "title": "Auswählen und markieren mit einem Werkzeug",
+              "text": "Text auswählen, und ein Menü erscheint: markieren, unterstreichen, durchstreichen, kommentieren oder kopieren. H oder V wählen dasselbe Werkzeug."
+            },
+            "es": {
+              "title": "Seleccionar y resaltar con una sola herramienta",
+              "text": "Selecciona texto y aparece un menú: resaltar, subrayar, tachar, comentar o copiar. H o V eligen la misma herramienta."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "Back to where you were",
+          "text": "After following a link, “Back to page X” takes you back. Shortcut: Alt+← (⌘[ on the Mac). Link previews now work with every tool.",
+          "tr": {
+            "it": {
+              "title": "Torna dov’eri",
+              "text": "Dopo aver seguito un link, “Torna a pagina X” ti riporta indietro. Scorciatoia: Alt+← (⌘[ su Mac). Le anteprime dei link ora funzionano con ogni strumento."
+            },
+            "pt-BR": {
+              "title": "Voltar para onde você estava",
+              "text": "Depois de seguir um link, “Voltar à página X” leva você de volta. Atalho: Alt+← (⌘[ no Mac). As prévias de links agora funcionam com qualquer ferramenta."
+            },
+            "fr": {
+              "title": "Revenir là où vous étiez",
+              "text": "Après avoir suivi un lien, « Retour à la page X » vous ramène. Raccourci : Alt+← (⌘[ sur Mac). Les aperçus de liens fonctionnent maintenant avec tous les outils."
+            },
+            "de": {
+              "title": "Zurück, wo du warst",
+              "text": "Nachdem du einem Link gefolgt bist, bringt dich „Zurück zu Seite X“ zurück. Kurzbefehl: Alt+← (⌘[ auf dem Mac). Link-Vorschauen funktionieren jetzt mit jedem Werkzeug."
+            },
+            "es": {
+              "title": "Volver a donde estabas",
+              "text": "Después de seguir un enlace, «Volver a la página X» te lleva de vuelta. Atajo: Alt+← (⌘[ en el Mac). Las vistas previas de enlaces ahora funcionan con cualquier herramienta."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "Remembered passwords",
+          "text": "Locked PDFs can remember their password in Windows Credential Manager or the Mac Keychain, so they open without asking.",
+          "tr": {
+            "it": {
+              "title": "Password ricordate",
+              "text": "I PDF protetti possono ricordare la password in Gestione credenziali di Windows o nel Portachiavi del Mac, così si aprono senza chiederla."
+            },
+            "pt-BR": {
+              "title": "Senhas lembradas",
+              "text": "PDFs protegidos podem lembrar a senha no Gerenciador de Credenciais do Windows ou nas Chaves do Mac, e abrem sem pedir."
+            },
+            "fr": {
+              "title": "Mots de passe mémorisés",
+              "text": "Les PDF verrouillés peuvent mémoriser leur mot de passe dans le Gestionnaire d’identification de Windows ou le trousseau du Mac, et s’ouvrent sans le demander."
+            },
+            "de": {
+              "title": "Gemerkte Passwörter",
+              "text": "Geschützte PDFs können ihr Passwort in der Windows-Anmeldeinformationsverwaltung oder im Mac-Schlüsselbund speichern und öffnen sich ohne Nachfrage."
+            },
+            "es": {
+              "title": "Contraseñas recordadas",
+              "text": "Los PDF protegidos pueden recordar su contraseña en el Administrador de credenciales de Windows o en el Llavero del Mac, y se abren sin pedirla."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "Print",
+          "text": "Print a PDF with its annotations from the Export window, and formula sheets from their Export menu.",
+          "tr": {
+            "it": {
+              "title": "Stampa",
+              "text": "Stampa un PDF con le sue annotazioni dalla finestra Esporta, e i formulari dal loro menu Esporta."
+            },
+            "pt-BR": {
+              "title": "Imprimir",
+              "text": "Imprima um PDF com as anotações pela janela Exportar, e as folhas de fórmulas pelo menu Exportar delas."
+            },
+            "fr": {
+              "title": "Imprimer",
+              "text": "Imprimez un PDF avec ses annotations depuis la fenêtre Exporter, et les fiches de formules depuis leur menu Exporter."
+            },
+            "de": {
+              "title": "Drucken",
+              "text": "Drucke ein PDF mit seinen Anmerkungen aus dem Exportfenster und Formelblätter aus ihrem Exportmenü."
+            },
+            "es": {
+              "title": "Imprimir",
+              "text": "Imprime un PDF con sus anotaciones desde la ventana Exportar, y las hojas de fórmulas desde su menú Exportar."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "Formula sheets: text, pictures, zoom",
+          "text": "Add text boxes and pictures (from a file or pasted), and zoom from 25% to 400%, also by pinching.",
+          "tr": {
+            "it": {
+              "title": "Formulari: testo, immagini, zoom",
+              "text": "Aggiungi caselle di testo e immagini (da file o incollate) e ingrandisci dal 25% al 400%, anche con il pizzico."
+            },
+            "pt-BR": {
+              "title": "Folhas de fórmulas: texto, imagens, zoom",
+              "text": "Adicione caixas de texto e imagens (de um arquivo ou coladas) e use zoom de 25% a 400%, também com pinça."
+            },
+            "fr": {
+              "title": "Fiches de formules : texte, images, zoom",
+              "text": "Ajoutez des zones de texte et des images (depuis un fichier ou collées), et zoomez de 25 % à 400 %, aussi en pinçant."
+            },
+            "de": {
+              "title": "Formelblätter: Text, Bilder, Zoom",
+              "text": "Füge Textfelder und Bilder hinzu (aus einer Datei oder eingefügt) und zoome von 25 % bis 400 %, auch per Zwei-Finger-Geste."
+            },
+            "es": {
+              "title": "Hojas de fórmulas: texto, imágenes, zoom",
+              "text": "Añade cuadros de texto e imágenes (desde un archivo o pegadas) y haz zoom del 25 % al 400 %, también pellizcando."
+            }
+          }
+        },
+        {
+          "tag": "better",
+          "title": "Smoother zoom and hand tool",
+          "text": "Pinch zoom stretches the page and draws it sharp when you stop, at a gentler speed. The hand tool follows your finger every frame and glides after a flick.",
+          "tr": {
+            "it": {
+              "title": "Zoom e mano più fluidi",
+              "text": "Lo zoom con il pizzico allarga la pagina e la ridisegna nitida quando ti fermi, con una velocità più dolce. La mano segue il dito a ogni fotogramma e scivola dopo uno scatto."
+            },
+            "pt-BR": {
+              "title": "Zoom e mão mais fluidos",
+              "text": "O zoom com pinça estica a página e a redesenha nítida quando você para, numa velocidade mais suave. A mão acompanha o dedo a cada quadro e desliza depois de um toque rápido."
+            },
+            "fr": {
+              "title": "Zoom et main plus fluides",
+              "text": "Le zoom au pincement étire la page et la redessine nette quand vous vous arrêtez, à une vitesse plus douce. La main suit votre doigt à chaque image et glisse après un mouvement rapide."
+            },
+            "de": {
+              "title": "Flüssigerer Zoom und Hand",
+              "text": "Der Zwei-Finger-Zoom dehnt die Seite und zeichnet sie scharf, wenn du aufhörst, mit sanfterer Geschwindigkeit. Die Hand folgt deinem Finger in jedem Bild und gleitet nach einem Wisch weiter."
+            },
+            "es": {
+              "title": "Zoom y mano más fluidos",
+              "text": "El zoom con pellizco estira la página y la redibuja nítida al parar, a una velocidad más suave. La mano sigue tu dedo en cada fotograma y se desliza tras un gesto rápido."
+            }
+          }
+        },
+        {
+          "tag": "better",
+          "title": "Graphics chip everywhere, less memory",
+          "text": "Pages are drawn on the graphics chip on every computer that has one, and pages far from where you read are let go, so long sessions don't slow down.",
+          "tr": {
+            "it": {
+              "title": "Scheda grafica ovunque, meno memoria",
+              "text": "Le pagine vengono disegnate dalla scheda grafica su ogni computer che ne ha una, e quelle lontane da dove leggi vengono liberate, così le sessioni lunghe non rallentano."
+            },
+            "pt-BR": {
+              "title": "Chip gráfico em todo lugar, menos memória",
+              "text": "As páginas são desenhadas pelo chip gráfico em todo computador que tiver um, e as páginas longe de onde você lê são liberadas, então sessões longas não ficam lentas."
+            },
+            "fr": {
+              "title": "Puce graphique partout, moins de mémoire",
+              "text": "Les pages sont dessinées par la puce graphique sur tout ordinateur qui en a une, et les pages éloignées de votre lecture sont libérées : les longues sessions ne ralentissent plus."
+            },
+            "de": {
+              "title": "Grafikchip überall, weniger Speicher",
+              "text": "Seiten werden auf jedem Computer mit Grafikchip von diesem gezeichnet, und Seiten weit weg von deiner Leseposition werden freigegeben, damit lange Sitzungen nicht langsamer werden."
+            },
+            "es": {
+              "title": "Chip gráfico en todas partes, menos memoria",
+              "text": "Las páginas se dibujan con el chip gráfico en todo ordenador que tenga uno, y las páginas lejos de donde lees se liberan, así las sesiones largas no se ralentizan."
+            }
+          }
+        },
+        {
+          "tag": "better",
+          "title": "Mac: full screen and window buttons",
+          "text": "Full screen no longer slides a white title bar over the tools, and the window buttons sit centred in the top bar.",
+          "tr": {
+            "it": {
+              "title": "Mac: schermo intero e pulsanti della finestra",
+              "text": "Lo schermo intero non fa più scendere una barra bianca sopra gli strumenti, e i pulsanti della finestra sono centrati nella barra in alto."
+            },
+            "pt-BR": {
+              "title": "Mac: tela cheia e botões da janela",
+              "text": "A tela cheia não desliza mais uma barra branca sobre as ferramentas, e os botões da janela ficam centralizados na barra superior."
+            },
+            "fr": {
+              "title": "Mac : plein écran et boutons de fenêtre",
+              "text": "Le plein écran ne fait plus glisser une barre blanche sur les outils, et les boutons de fenêtre sont centrés dans la barre du haut."
+            },
+            "de": {
+              "title": "Mac: Vollbild und Fenstertasten",
+              "text": "Im Vollbild schiebt sich keine weiße Titelleiste mehr über die Werkzeuge, und die Fenstertasten sitzen mittig in der oberen Leiste."
+            },
+            "es": {
+              "title": "Mac: pantalla completa y botones de ventana",
+              "text": "La pantalla completa ya no desliza una barra blanca sobre las herramientas, y los botones de la ventana quedan centrados en la barra superior."
+            }
+          }
+        },
+        {
+          "tag": "better",
+          "title": "Colours, notes and timers",
+          "text": "A small built-in colour picker; one Notes entry per page for pen strokes; the window comes to the front when a timer ends; “Continue reading” shows your page at once.",
+          "tr": {
+            "it": {
+              "title": "Colori, note e timer",
+              "text": "Un piccolo selettore di colori integrato; una voce nelle Note per pagina per i tratti di penna; la finestra torna in primo piano quando finisce un timer; “Continua a leggere” mostra subito la tua pagina."
+            },
+            "pt-BR": {
+              "title": "Cores, notas e timers",
+              "text": "Um pequeno seletor de cores próprio; uma entrada nas Notas por página para os traços de caneta; a janela vem para a frente quando um timer termina; “Continuar lendo” mostra sua página na hora."
+            },
+            "fr": {
+              "title": "Couleurs, notes et minuteurs",
+              "text": "Un petit sélecteur de couleur intégré ; une entrée de Notes par page pour les traits de stylo ; la fenêtre passe au premier plan à la fin d’un minuteur ; « Continuer la lecture » affiche aussitôt votre page."
+            },
+            "de": {
+              "title": "Farben, Notizen und Timer",
+              "text": "Eine kleine eingebaute Farbauswahl; ein Notizen-Eintrag pro Seite für Stiftstriche; das Fenster kommt nach vorn, wenn ein Timer endet; „Weiterlesen“ zeigt sofort deine Seite."
+            },
+            "es": {
+              "title": "Colores, notas y temporizadores",
+              "text": "Un pequeño selector de color integrado; una entrada de Notas por página para los trazos de lápiz; la ventana pasa al frente cuando termina un temporizador; «Seguir leyendo» muestra tu página al instante."
+            }
+          }
+        },
+        {
+          "tag": "fixed",
+          "title": "Smaller exports of scanned books",
+          "text": "Compression now also shrinks scans stored as palette images or wrapped JPEGs. The snip box no longer stays over the Library.",
+          "tr": {
+            "it": {
+              "title": "Esportazioni più leggere dei libri scansionati",
+              "text": "La compressione ora riduce anche le scansioni salvate come immagini a tavolozza o JPEG incapsulati. Il riquadro di ritaglio non resta più sopra la Libreria."
+            },
+            "pt-BR": {
+              "title": "Exportações menores de livros digitalizados",
+              "text": "A compressão agora também reduz digitalizações salvas como imagens de paleta ou JPEGs embrulhados. A caixa de recorte não fica mais sobre a Biblioteca."
+            },
+            "fr": {
+              "title": "Exports plus légers des livres numérisés",
+              "text": "La compression réduit aussi les numérisations enregistrées en images à palette ou en JPEG enveloppés. Le cadre de capture ne reste plus au-dessus de la Bibliothèque."
+            },
+            "de": {
+              "title": "Kleinere Exporte gescannter Bücher",
+              "text": "Die Komprimierung verkleinert jetzt auch Scans, die als Palettenbilder oder verpackte JPEGs gespeichert sind. Der Ausschnittrahmen bleibt nicht mehr über der Bibliothek."
+            },
+            "es": {
+              "title": "Exportaciones más ligeras de libros escaneados",
+              "text": "La compresión ahora también reduce escaneos guardados como imágenes de paleta o JPEG envueltos. El recuadro de recorte ya no se queda sobre la Biblioteca."
+            }
+          }
+        }
+      ]
+    },
+    {
       "version": "2.1.0-beta.2",
       "date": "2026-11-05",
       "title": "LumiPDF 2.1.0 Beta 2 – macOS",

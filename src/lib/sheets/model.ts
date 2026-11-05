@@ -44,7 +44,17 @@ export interface TitleItem {
   free?: FreeSpot;
 }
 
-export type SheetItem = SnipItem | TitleItem;
+/** A text box: several lines, wrapped to its width, in Helvetica like the exported PDF. */
+export interface TextItem {
+  id: string;
+  type: "text";
+  text: string;
+  /** Font size in points. */
+  size: number;
+  free?: FreeSpot;
+}
+
+export type SheetItem = SnipItem | TitleItem | TextItem;
 
 export interface Sheet {
   version: 1;
@@ -72,6 +82,60 @@ export const TITLE_HEIGHT = 22;
 export const MIN_SCALE = 0.2;
 export const MAX_SCALE = 3;
 export const MAX_PAGES = 200;
+export const TEXT_SIZE = 10;
+export const TEXT_MIN_SIZE = 6;
+export const TEXT_MAX_SIZE = 36;
+export const TEXT_LINE = 1.3;
+export const TEXT_MAX_CHARS = 4000;
+
+/** Helvetica advance widths (1/1000 em) for ASCII 32–126; other characters use 556. */
+const HELVETICA = [
+  278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584,
+  584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278,
+  278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500,
+  500, 334, 260, 334, 584,
+];
+
+/** Width of `text` in Helvetica at `size` points. */
+export function textWidth(text: string, size: number): number {
+  let units = 0;
+  for (const ch of text) {
+    const c = ch.codePointAt(0)!;
+    units += c >= 32 && c <= 126 ? HELVETICA[c - 32]! : 556;
+  }
+  return (units * size) / 1000;
+}
+
+/** The lines of a text box `width` points wide (explicit line breaks kept; long words split). */
+export function wrapText(text: string, size: number, width: number): string[] {
+  const lines: string[] = [];
+  for (const paragraph of text.split("\n")) {
+    let line = "";
+    for (const word of paragraph.split(/(?<= )/)) {
+      if (line && textWidth((line + word).trimEnd(), size) > width) {
+        lines.push(line.trimEnd());
+        line = "";
+      }
+      line += word;
+      // A single word longer than the box: break it.
+      while (line.length > 1 && textWidth(line.trimEnd(), size) > width) {
+        let cut = line.length - 1;
+        while (cut > 1 && textWidth(line.slice(0, cut), size) > width) cut--;
+        lines.push(line.slice(0, cut));
+        line = line.slice(cut);
+      }
+    }
+    lines.push(line.trimEnd());
+  }
+  return lines;
+}
+
+/** Height of an item drawn `w` points wide. */
+export function itemHeight(item: SheetItem, w: number): number {
+  if (item.type === "title") return TITLE_HEIGHT;
+  if (item.type === "text") return Math.max(1, wrapText(item.text, item.size, w).length) * item.size * TEXT_LINE;
+  return (w * item.natural[1]) / item.natural[0];
+}
 
 export interface Placed {
   item: SheetItem;
@@ -106,6 +170,7 @@ function columnWidth(sheet: Sheet): number {
 /** Size of an item inside a column of `column` points (flow layout). */
 export function flowSize(item: SheetItem, column: number): { w: number; h: number } {
   if (item.type === "title") return { w: column, h: TITLE_HEIGHT };
+  if (item.type === "text") return { w: column, h: itemHeight(item, column) };
   const [nw, nh] = item.natural;
   const w = Math.min(column, Math.max(12, nw * item.scale));
   return { w, h: (w * nh) / nw };
@@ -118,8 +183,8 @@ export function layoutSheet(sheet: Sheet): Layout {
   if (sheet.layout === "free") {
     const placed = sheet.items.map((item) => {
       const spot = item.free ?? { page: 0, x: MARGIN, y: MARGIN, w: column };
-      const h = item.type === "title" ? TITLE_HEIGHT : (spot.w * item.natural[1]) / item.natural[0];
-      return { item, page: spot.page, x: spot.x, y: spot.y, w: item.type === "title" ? Math.max(40, spot.w) : spot.w, h };
+      const w = item.type === "snip" ? spot.w : Math.max(40, spot.w);
+      return { item, page: spot.page, x: spot.x, y: spot.y, w, h: itemHeight(item, w) };
     });
     const pages = Math.max(sheet.pages, 1, ...placed.map((p) => p.page + 1));
     return { pages: Math.min(pages, MAX_PAGES), placed, column };
@@ -175,8 +240,8 @@ export function toFlow(sheet: Sheet): Sheet {
 /** Keeps a free spot on its page. */
 export function clampSpot(sheet: Sheet, item: SheetItem, spot: FreeSpot): FreeSpot {
   const paper = PAPER[sheet.paper];
-  const w = Math.min(paper.w, Math.max(item.type === "title" ? 40 : 12, spot.w));
-  const h = item.type === "title" ? TITLE_HEIGHT : (w * item.natural[1]) / item.natural[0];
+  const w = Math.min(paper.w, Math.max(item.type === "snip" ? 12 : 40, spot.w));
+  const h = itemHeight(item, w);
   return {
     page: Math.max(0, Math.min(MAX_PAGES - 1, Math.round(spot.page))),
     w,
@@ -213,6 +278,8 @@ export function parseSheet(raw: unknown, id: string): Sheet | null {
     const itemId = str(it.id, 40) || newId();
     if (it.type === "title") {
       items.push({ id: itemId, type: "title", text: str(it.text, 200), free: parseSpot(it.free) });
+    } else if (it.type === "text") {
+      items.push({ id: itemId, type: "text", text: str(it.text, TEXT_MAX_CHARS), size: num(it.size, TEXT_MIN_SIZE, TEXT_MAX_SIZE, TEXT_SIZE), free: parseSpot(it.free) });
     } else if (it.type === "snip" && typeof it.image === "string" && /^[0-9a-f]{32}\.png$/.test(it.image)) {
       const px = pair(it.px, 1, 100000);
       const natural = pair(it.natural, 0.5, 5000);
@@ -225,7 +292,7 @@ export function parseSheet(raw: unknown, id: string): Sheet | null {
         px,
         natural,
         scale: num(it.scale, MIN_SCALE, MAX_SCALE, 1),
-        source: { path: str(src.path, 4000), name: str(src.name, 400), page: Math.round(num(src.page, 1, 100000, 1)) },
+        source: { path: str(src.path, 4000), name: str(src.name, 400), page: Math.round(num(src.page, 0, 100000, 1)) },
         free: parseSpot(it.free),
       });
     }

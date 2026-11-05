@@ -5,6 +5,7 @@
 //! study stats, export and compression. Each area lives in its own module.
 
 mod annotations;
+mod attention;
 mod cloud;
 mod commands;
 mod documents;
@@ -12,6 +13,7 @@ mod error;
 mod export;
 mod library;
 mod menu;
+mod passwords;
 mod pdf_export;
 mod perf;
 mod settings;
@@ -63,6 +65,12 @@ pub fn run() {
             commands::app_info,
             menu::set_menu,
             perf::perf_log,
+            export::print_prepare,
+            export::print_window,
+            attention::bring_to_front,
+            passwords::pdf_password_get,
+            passwords::pdf_password_set,
+            passwords::pdf_password_forget,
             updater::update_installable,
             updater::update_check,
             updater::update_download,

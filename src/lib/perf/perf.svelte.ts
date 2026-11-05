@@ -37,6 +37,11 @@ class PerfMonitor {
   #windowStart = 0;
   #lastScroll = 0;
   #pending: string[] = [];
+  #shownAt = 0;
+  #onVisibility = () => {
+    if (!document.hidden) this.#shownAt = performance.now();
+    this.#log(document.hidden ? "window hidden (minimised, other space or app in full screen)" : "window shown");
+  };
 
   /** The reader's viewer (or null when it closes). */
   attach(viewer: ViewerController | null): void {
@@ -77,6 +82,7 @@ class PerfMonitor {
     }
     cancelAnimationFrame(this.#frame);
     clearInterval(this.#timer);
+    document.removeEventListener("visibilitychange", this.#onVisibility);
     if (!on) {
       this.#flush();
       return;
@@ -100,6 +106,7 @@ class PerfMonitor {
     };
     this.#frame = requestAnimationFrame(tick);
     this.#timer = setInterval(() => this.#sample(), SAMPLE_MS);
+    document.addEventListener("visibilitychange", this.#onVisibility);
   }
 
   /** What the user and the viewer were doing (for slow frames). */
@@ -107,7 +114,9 @@ class PerfMonitor {
     const parts = [`tool ${annotations.tool}`];
     if (performance.now() - this.#lastScroll < 300) parts.push("scrolling");
     if (this.drawing) parts.push(`${this.drawing} page(s) drawing`);
-    if (document.fullscreenElement || innerHeight === screen.height) parts.push("full screen");
+    if (document.fullscreenElement || (innerWidth === screen.width && innerHeight >= screen.height - 60)) parts.push("full screen");
+    if (document.hidden) parts.push("window hidden");
+    else if (performance.now() - this.#shownAt < 1000) parts.push("window just shown again");
     return parts.join(" · ");
   }
 

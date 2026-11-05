@@ -241,7 +241,14 @@ pub enum Placed {
         y: f32,
         size: f32,
         text: String,
+        /// Titles are bold (the default); text boxes are regular.
+        #[serde(default = "bold_default")]
+        bold: bool,
     },
+}
+
+fn bold_default() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize)]
@@ -313,6 +320,12 @@ pub fn build_pdf(root: &Path, request: &SheetExport) -> Result<Document, AppErro
         "BaseFont" => "Helvetica-Bold",
         "Encoding" => "WinAnsiEncoding",
     });
+    let regular_id = doc.add_object(dictionary! {
+        "Type" => "Font",
+        "Subtype" => "Type1",
+        "BaseFont" => "Helvetica",
+        "Encoding" => "WinAnsiEncoding",
+    });
 
     let mut contents: Vec<Vec<u8>> = vec![Vec::new(); pages];
     let mut xobjects: Vec<lopdf::Dictionary> = vec![lopdf::Dictionary::new(); pages];
@@ -348,14 +361,16 @@ pub fn build_pdf(root: &Path, request: &SheetExport) -> Result<Document, AppErro
                 y,
                 size,
                 text,
+                bold,
             } => {
                 let Some(ops) = contents.get_mut(*page) else {
                     continue;
                 };
                 let size = size.clamp(4.0, 72.0);
                 let baseline = h - y - size * 0.95;
+                let font = if *bold { "F1" } else { "F2" };
                 ops.extend(
-                    format!("BT /F1 {size:.2} Tf 0.11 0.11 0.12 rg {x:.3} {baseline:.3} Td ")
+                    format!("BT /{font} {size:.2} Tf 0.11 0.11 0.12 rg {x:.3} {baseline:.3} Td ")
                         .bytes(),
                 );
                 ops.extend(pdf_literal(&win_ansi(text)));
@@ -373,7 +388,7 @@ pub fn build_pdf(root: &Path, request: &SheetExport) -> Result<Document, AppErro
             "MediaBox" => vec![0.into(), 0.into(), Object::Real(w), Object::Real(h)],
             "Contents" => content_id,
             "Resources" => dictionary! {
-                "Font" => dictionary! { "F1" => font_id },
+                "Font" => dictionary! { "F1" => font_id, "F2" => regular_id },
                 "XObject" => xobjects,
             },
         });
@@ -557,6 +572,7 @@ mod tests {
                     y: 40.0,
                     size: 14.0,
                     text: "Trasformate – Laplace".into(),
+                    bold: true,
                 },
                 Placed::Image {
                     page: 0,

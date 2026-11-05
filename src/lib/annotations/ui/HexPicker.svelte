@@ -41,6 +41,48 @@
     return out;
   }
 
+  // A small in-app picker (saturation/brightness square and a hue strip) instead of the
+  // system colour window, which on the Mac is a big separate panel.
+  let hue = $state(0);
+  let sat = $state(1);
+  let val = $state(1);
+  function toHsv(hex: string): [number, number, number] {
+    const [r, g, b] = rgb(hex).map((x) => x / 255) as [number, number, number];
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    let h = 0;
+    if (d) h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    return [((h * 60) + 360) % 360, max ? d / max : 0, max];
+  }
+  function fromHsv(h: number, s: number, v: number): string {
+    const f = (n: number) => {
+      const k = (n + h / 60) % 6;
+      return Math.round((v - v * s * Math.max(0, Math.min(k, 4 - k, 1))) * 255);
+    };
+    return "#" + [f(5), f(3), f(1)].map((x) => x.toString(16).padStart(2, "0")).join("");
+  }
+  function drag(e: PointerEvent, area: "sv" | "hue") {
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    const apply = (ev: PointerEvent) => {
+      const r = el.getBoundingClientRect();
+      const x = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
+      const y = Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height));
+      if (area === "sv") {
+        sat = x;
+        val = 1 - y;
+      } else hue = x * 360;
+      pick(fromHsv(hue, sat, val), false);
+    };
+    apply(e);
+    const up = () => {
+      el.removeEventListener("pointermove", apply);
+      el.removeEventListener("pointerup", up);
+      remember(fromHsv(hue, sat, val));
+    };
+    el.addEventListener("pointermove", apply);
+    el.addEventListener("pointerup", up);
+  }
+
   function normalize(input: string): string | null {
     let v = input.trim().replace(/^#/, "").toLowerCase();
     if (/^[0-9a-f]{3}$/.test(v)) v = v.replace(/./g, (c) => c + c);
@@ -65,6 +107,7 @@
   function toggle() {
     open = !open;
     draft = value.replace(/^#/, "");
+    [hue, sat, val] = toHsv(normalize(value) ?? "#ff0000");
   }
   const valid = $derived(normalize(draft) !== null);
 
@@ -95,10 +138,14 @@
   ></button>
   {#if open}
     <div class="panel" class:up role="dialog" aria-label={t("tools.customColor")}>
+      <div class="sv" role="slider" aria-label={t("tools.pickColor")} aria-valuenow={Math.round(sat * 100)} tabindex="-1" style:--hue={hue} onpointerdown={(e) => drag(e, "sv")}>
+        <span class="knob" style:left="{sat * 100}%" style:top="{(1 - val) * 100}%" style:--c={value}></span>
+      </div>
+      <div class="hue" role="slider" aria-label={t("tools.pickColor")} aria-valuenow={Math.round(hue)} tabindex="-1" onpointerdown={(e) => drag(e, "hue")}>
+        <span class="knob" style:left="{(hue / 360) * 100}%" style:top="50%" style:--c="hsl({hue} 100% 50%)"></span>
+      </div>
       <div class="row">
-        <label class="native" title={t("tools.pickColor")} style:--c={value}>
-          <input type="color" value={value} aria-label={t("tools.pickColor")} oninput={(e) => pick(e.currentTarget.value, false)} onchange={(e) => pick(e.currentTarget.value)} />
-        </label>
+        <span class="native" style:--c={value}></span>
         <label class="hex" class:invalid={!valid}>
           <span>#</span>
           <input
@@ -189,13 +236,40 @@
     cursor: pointer;
     overflow: hidden;
   }
-  .native input {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
+  .sv {
+    position: relative;
+    width: 168px;
+    height: 104px;
+    border-radius: 7px;
+    background:
+      linear-gradient(to top, #000, transparent),
+      linear-gradient(to right, #fff, hsl(var(--hue) 100% 50%));
+    cursor: crosshair;
+    touch-action: none;
+  }
+  .hue {
+    position: relative;
+    width: 168px;
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
     cursor: pointer;
+    touch-action: none;
+  }
+  .knob {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    border-radius: 50%;
+    background: var(--c);
+    box-shadow:
+      0 0 0 2px #fff,
+      0 0 0 3px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+  }
+  .native {
+    cursor: default;
   }
   .hex {
     display: flex;

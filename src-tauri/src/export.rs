@@ -245,3 +245,56 @@ pub async fn pdf_protection<R: Runtime>(
     .await
     .map_err(|e| AppError::InvalidInput(e.to_string()))?
 }
+
+/// Printing: a temporary copy of the open document with its annotations, returned as bytes for
+/// the app to draw page by page. Refused when the PDF's own permissions don't allow printing
+/// (LumiPDF never lifts a restriction it wasn't given the owner password for).
+#[tauri::command]
+pub async fn print_prepare<R: Runtime>(
+    app: AppHandle<R>,
+    source: String,
+    annotations: Vec<crate::pdf_export::ExportAnnotation>,
+    open_password: Option<String>,
+) -> Result<tauri::ipc::Response, AppError> {
+    use crate::pdf_export::{export, protection, Compression, ProtectionRequest};
+    let source = std::path::PathBuf::from(source);
+    if !app.asset_protocol_scope().is_allowed(&source) {
+        return Err(AppError::InvalidInput("This document is not open".into()));
+    }
+    let temp = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| AppError::InvalidInput(e.to_string()))?
+        .join(format!("print-{}.pdf", std::process::id()));
+    let bytes = tauri::async_runtime::spawn_blocking(move || {
+        let info = protection(&source, open_password.as_deref())?;
+        if info.restrictions.print {
+            return Err(AppError::InvalidInput(
+                "This PDF doesn't allow printing".into(),
+            ));
+        }
+        if let Some(dir) = temp.parent() {
+            std::fs::create_dir_all(dir)?;
+        }
+        let request = ProtectionRequest {
+            open_password,
+            ..Default::default()
+        };
+        let result = export(&source, &temp, &annotations, Compression::None, &request)
+            .and_then(|_| Ok(std::fs::read(&temp)?));
+        let _ = std::fs::remove_file(&temp);
+        result
+    })
+    .await
+    .map_err(|e| AppError::InvalidInput(e.to_string()))??;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+/// Opens the system print dialog for what the page shows in print (macOS: WebKit's own
+/// window.print() does nothing in an app, so the native print operation is used).
+#[tauri::command]
+pub fn print_window<R: Runtime>(window: tauri::WebviewWindow<R>) -> Result<(), AppError> {
+    window
+        .print()
+        .map_err(|e| AppError::InvalidInput(e.to_string()))
+}

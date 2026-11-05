@@ -6,6 +6,7 @@
    */
   import type { Snippet } from "svelte";
   import { t } from "../i18n";
+  import { fullscreen } from "../app/fullscreen.svelte";
   import { closeWindow, customCaptionButtons, minimizeWindow, platform, toggleMaximizeWindow, watchMaximized } from "../platform/window";
 
   interface Props {
@@ -21,7 +22,7 @@
   $effect(() => watchMaximized((m) => (maximized = m)));
 </script>
 
-<header class="bar" class:mac={platform === "macos"} class:tabs={layout === "tabs"} data-tauri-drag-region>
+<header class="bar" class:mac={platform === "macos" && !fullscreen.on} class:tabs={layout === "tabs"} data-tauri-drag-region>
   <div class="side left" data-tauri-drag-region>{@render left?.()}</div>
   <div class="center" data-tauri-drag-region>{@render center?.()}</div>
   <div class="side right" data-tauri-drag-region>

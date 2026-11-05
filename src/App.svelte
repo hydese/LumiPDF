@@ -21,6 +21,7 @@
   import { guardClose, minimizeWindow, platform, quitApp, watchFileDrag } from "./lib/platform/window";
   import Icon from "./lib/ui/Icon.svelte";
   import PerfPanel from "./lib/perf/PerfPanel.svelte";
+  import { keepTimersAwake } from "./lib/timer/keepAwake";
   import { perf } from "./lib/perf/perf.svelte";
   import RingingDialog from "./lib/timer/ui/RingingDialog.svelte";
   import Dialog from "./lib/ui/Dialog.svelte";
@@ -151,8 +152,13 @@
     }
     const typing = (event.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable='true']");
     const reading = navigation.screen === "reader" && session.current !== null;
+    // Back to where a followed link was clicked: Alt+← (⌘[ on the Mac, below).
+    if (reading && !typing && event.altKey && event.key === "ArrowLeft" && !event.ctrlKey && !event.metaKey) {
+      if (session.controller?.goBack()) event.preventDefault();
+      return;
+    }
     if (reading && !typing && !event.ctrlKey && !event.metaKey && !event.altKey) {
-      const tools: Record<string, Tool> = { g: "hand", v: "select", h: "highlight", p: "pen", m: "marker", e: "eraser", n: "note", s: "snip" };
+      const tools: Record<string, Tool> = { g: "hand", v: "select", h: "select", p: "pen", m: "marker", e: "eraser", n: "note", s: "snip" };
       const tool = tools[event.key.toLowerCase()];
       if (tool) {
         event.preventDefault();
@@ -228,6 +234,8 @@
         return run(() => c?.zoomOut());
       case "0":
         return run(() => c?.setScale("page-width"));
+      case "[":
+        return run(() => c?.goBack());
       case "w":
         return run(() => void session.close());
     }
@@ -285,6 +293,8 @@
       void unlisten.then((stop) => stop());
     };
   });
+  // Timers ring on time even while the window is hidden or minimised.
+  $effect(() => keepTimersAwake(timers.busy));
   // Beta only: bring the performance panel back if it was on last time.
   $effect(() => {
     if (updates.isBeta) perf.restore();
@@ -333,7 +343,7 @@
     </div>
 
     {#if session.password}
-      <PasswordDialog name={session.password.name} retry={session.password.retry} onSubmit={(p) => session.answerPassword(p)} />
+      <PasswordDialog name={session.password.name} retry={session.password.retry} onSubmit={(p, keep) => session.answerPassword(p, keep)} />
     {/if}
     {#if ringer.ringing}
       <RingingDialog />

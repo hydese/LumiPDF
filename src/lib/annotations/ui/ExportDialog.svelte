@@ -8,6 +8,7 @@
   import Icon from "../../ui/Icon.svelte";
   import { annotations } from "../store.svelte";
   import { toExport } from "../export";
+  import { printPdf, PrintCancelled } from "../../print/print";
 
   interface Props {
     onClose: () => void;
@@ -104,10 +105,33 @@
     }
   }
 
+  // Printing: the copy with annotations (as chosen above), never compressed.
+  let printing = $state<{ done: number; total: number } | null>(null);
+  let cancelPrint = false;
+  const printBlocked = $derived(!!protection?.restrictions.print);
+  async function print() {
+    if (!tab || printing) return;
+    error = null;
+    cancelPrint = false;
+    printing = { done: 0, total: 0 };
+    try {
+      await printPdf(
+        { source: tab.path, annotations: include && !annotationsBlocked ? toExport(annotations.list) : [], openPassword: tab.password },
+        (d, total) => (printing = { done: d, total }),
+        () => cancelPrint,
+      );
+      onClose();
+    } catch (err) {
+      if (!(err instanceof PrintCancelled)) error = t("export.printFailed", { reason: message(err) });
+    } finally {
+      printing = null;
+    }
+  }
+
   const saved = $derived(done ? Math.round((1 - done.exportedBytes / Math.max(1, done.originalBytes)) * 100) : 0);
 </script>
 
-<Dialog labelledBy="export-title" width={460} onClose={phase === "working" ? undefined : onClose}>
+<Dialog labelledBy="export-title" width={460} onClose={phase === "working" || printing ? undefined : onClose}>
   {#if phase === "done" && done}
     <div class="done">
       <span class="ok"><Icon name="check" size={26} stroke={2.4} /></span>
@@ -221,7 +245,11 @@
     <div class="actions">
       {#if phase === "working"}
         <span class="working"><span class="spinner"></span>{t("export.working")}</span>
+      {:else if printing}
+        <span class="working"><span class="spinner"></span>{printing.total ? t("export.printPreparing", { done: printing.done, total: printing.total }) : t("export.working")}</span>
+        <button class="btn" onclick={() => (cancelPrint = true)}>{t("export.cancel")}</button>
       {:else}
+        <button class="btn print" onclick={print} disabled={printBlocked} title={printBlocked ? t("export.printBlocked") : t("export.printTitle")}><Icon name="print" size={14} stroke={2} />{t("export.print")}</button>
         <button class="btn" onclick={onClose}>{t("export.cancel")}</button>
         <button class="btn primary" onclick={run} disabled={needsOwner && !ownerPassword}><Icon name="export" size={14} stroke={2} />{t("export.save")}</button>
       {/if}

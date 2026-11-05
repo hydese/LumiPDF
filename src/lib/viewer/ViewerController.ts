@@ -17,6 +17,8 @@ export interface ViewerState {
   /** Zoom factor, 1 = 100%. */
   scale: number;
   findMatches: { current: number; total: number } | null;
+  /** The page a followed link came from, while "Back" can return there. */
+  backPage: number | null;
 }
 
 /** Where the reader is in a document: page, zoom, and how far down that page. */
@@ -84,7 +86,9 @@ export class ViewerController {
   /** pdf.js has laid out the current document's pages (zoom can be applied). */
   private pagesReady = false;
   private readonly cleanups: Array<() => void> = [];
-  private state: ViewerState = { page: 1, pages: 0, scale: 1, findMatches: null };
+  private state: ViewerState = { page: 1, pages: 0, scale: 1, findMatches: null, backPage: null };
+  /** Places left by following links, newest last. */
+  private backStack: ReadingPlace[] = [];
 
   constructor(options: ViewerOptions) {
     this.options = options;
@@ -118,6 +122,11 @@ export class ViewerController {
 
     this.listen(options.container, "click", (e) => this.interceptExternalLink(e as MouseEvent), true);
     this.listen(options.container, "wheel", (e) => this.zoomWithWheel(e as WheelEvent), { passive: false });
+    // WebKit also sends its own pinch gestures; the wheel events above already handle the zoom.
+    for (const type of ["gesturestart", "gesturechange", "gestureend"]) {
+      this.listen(options.container, type, (e) => e.preventDefault(), { passive: false });
+    }
+    this.cleanups.push(() => clearTimeout(this.pinch?.timer));
     // Fit-to-window zoom follows resizes once they settle: re-zooming (and so redrawing every
     // page) on each frame of a window drag or of the macOS full-screen animation made them laggy.
     const resize = new ResizeObserver(() => {
@@ -148,7 +157,8 @@ export class ViewerController {
     this.viewer.setDocument(doc as PDFDocumentProxy);
     this.linkService.setDocument(doc);
     const page = Math.min(this.pendingPlace.page, doc?.numPages ?? 1);
-    this.update({ page, pages: doc?.numPages ?? 0, findMatches: null });
+    this.backStack = [];
+    this.update({ page, pages: doc?.numPages ?? 0, findMatches: null, backPage: null });
   }
 
   /** The scrolling element that holds the pages. */
@@ -325,9 +335,38 @@ export class ViewerController {
     this.aheadTimer = setTimeout(() => void this.renderAhead(), 120);
   }
 
+  /**
+   * pdf.js keeps the last ten drawn pages. Zoomed in on a high-density screen that is ~200
+   * megapixels of canvas, and the system pauses the app to reclaim it. Over the budget, drop the
+   * drawn pages farthest from the reader (never the ones around the current page).
+   */
+  private trimMemory(): void {
+    type View = { id: number; renderingState: number; div: HTMLElement; reset(): void };
+    const views = (this.viewer as unknown as { _pages?: View[] })._pages ?? [];
+    const current = this.viewer.currentPageNumber || 1;
+    const FINISHED = 3;
+    const drawn = views
+      .filter((v) => v.renderingState === FINISHED)
+      .map((v) => {
+        const c = v.div.querySelector<HTMLCanvasElement>(".canvasWrapper canvas");
+        return { v, pixels: c ? c.width * c.height : 0, distance: Math.abs(v.id - current) };
+      })
+      .sort((a, b) => b.distance - a.distance);
+    let total = drawn.reduce((sum, d) => sum + d.pixels, 0);
+    for (const d of drawn) {
+      if (total <= ViewerController.CANVAS_BUDGET) break;
+      if (d.v.id >= current - ViewerController.BEHIND - 1 && d.v.id <= current + ViewerController.AHEAD + 1) continue;
+      d.v.reset();
+      total -= d.pixels;
+    }
+  }
+
+  private static readonly CANVAS_BUDGET = 90e6;
+
   private async renderAhead(): Promise<void> {
     const doc = this.doc;
     if (!doc || !this.pagesReady) return;
+    this.trimMemory();
     if (performance.now() - this.lastScroll < 250) return this.scheduleRenderAhead();
     type View = { id: number; renderingState: number; pdfPage: unknown; setPdfPage(p: unknown): void };
     const viewer = this.viewer as unknown as { _pages: View[]; renderingQueue: { renderView(v: View): boolean } };
@@ -375,7 +414,34 @@ export class ViewerController {
 
   /** Jumps to an outline entry. */
   goToDestination(dest: OutlineItem["dest"]): void {
-    if (dest) void this.linkService.goToDestination(dest);
+    if (!dest) return;
+    this.rememberPlace();
+    void this.linkService.goToDestination(dest);
+  }
+
+  /** Remembers where the reader is before a link jump, so "Back" can return. */
+  private rememberPlace(): void {
+    if (!this.doc) return;
+    const here = this.place();
+    const last = this.backStack.at(-1);
+    if (last && last.page === here.page && Math.abs(last.offset - here.offset) < 0.02) return;
+    this.backStack.push(here);
+    if (this.backStack.length > ViewerController.BACK_LIMIT) this.backStack.shift();
+    this.update({ backPage: here.page });
+  }
+
+  private static readonly BACK_LIMIT = 30;
+
+  /** Returns to where the last followed link was clicked (keeping the current zoom). */
+  goBack(): boolean {
+    const place = this.backStack.pop();
+    if (!place || !this.doc) return false;
+    const page = Math.min(Math.max(1, place.page), this.doc.numPages);
+    this.viewer.currentPageNumber = page;
+    const div = this.viewer.getPageView(page - 1)?.div as HTMLElement | undefined;
+    if (div) this.options.container.scrollTop = div.offsetTop + place.offset * div.clientHeight;
+    this.update({ backPage: this.backStack.at(-1)?.page ?? null });
+    return true;
   }
 
   destroy(): void {
@@ -405,19 +471,62 @@ export class ViewerController {
     const anchor = (event.target as Element | null)?.closest("a[href]");
     if (!(anchor instanceof HTMLAnchorElement)) return;
     const href = anchor.getAttribute("href") ?? "";
-    if (href.startsWith("#")) return; // internal destination, handled by pdf.js
+    if (href.startsWith("#")) {
+      this.rememberPlace(); // internal destination, handled by pdf.js
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     if (SAFE_EXTERNAL_LINK.test(href)) this.options.onExternalLink(href);
   }
 
+  /**
+   * Ctrl/⌘ + wheel and trackpad pinch. While the gesture runs the pages are only stretched with a
+   * CSS transform (free, no redraw); the real zoom, and one sharp redraw, happens when it pauses.
+   * Pinch deltas are small and many, so they scale smoothly; a mouse wheel notch is one 10% step.
+   */
   private zoomWithWheel(event: WheelEvent): void {
     if (!event.ctrlKey && !event.metaKey) return;
     event.preventDefault();
+    const notch = event.deltaMode !== 0 || Math.abs(event.deltaY) >= 40;
+    const step = notch ? (event.deltaY < 0 ? 1.1 : 1 / 1.1) : Math.exp(-event.deltaY * ViewerController.PINCH_SPEED);
+    this.stretchZoom(step, event.clientX, event.clientY);
+  }
+
+  private static readonly PINCH_SPEED = 0.006;
+  private static readonly ZOOM_MIN = 0.1;
+  private static readonly ZOOM_MAX = 10;
+  private pinch: { factor: number; x: number; y: number; cx: number; cy: number; timer: ReturnType<typeof setTimeout> | undefined } | null = null;
+
+  private stretchZoom(step: number, clientX: number, clientY: number): void {
+    const el = this.viewer.viewer as HTMLElement | null;
+    if (!el || !this.doc) return;
+    const current = this.viewer.currentScale;
+    if (!this.pinch) {
+      const box = el.getBoundingClientRect();
+      this.pinch = { factor: 1, x: clientX - box.left, y: clientY - box.top, cx: clientX, cy: clientY, timer: undefined };
+      el.style.transformOrigin = `${this.pinch.x}px ${this.pinch.y}px`;
+    }
+    const pinch = this.pinch;
+    const target = Math.min(ViewerController.ZOOM_MAX, Math.max(ViewerController.ZOOM_MIN, current * pinch.factor * step));
+    pinch.factor = target / current;
+    el.style.transform = `scale(${pinch.factor})`;
+    clearTimeout(pinch.timer);
+    pinch.timer = setTimeout(() => this.commitZoom(), ViewerController.PINCH_SETTLE_MS);
+  }
+
+  private static readonly PINCH_SETTLE_MS = 140;
+
+  private commitZoom(): void {
+    const pinch = this.pinch;
+    this.pinch = null;
+    const el = this.viewer.viewer as HTMLElement | null;
+    if (!pinch || !el) return;
+    el.style.transform = "";
+    el.style.transformOrigin = "";
+    if (Math.abs(pinch.factor - 1) < 0.005) return;
     this.fit = null;
-    const origin: [number, number] = [event.clientX, event.clientY];
-    if (event.deltaY < 0) this.viewer.increaseScale({ origin, drawingDelay: 150 });
-    else this.viewer.decreaseScale({ origin, drawingDelay: 150 });
+    this.viewer.updateScale({ scaleFactor: pinch.factor, origin: [pinch.cx, pinch.cy], drawingDelay: 0 });
   }
 
   /** Re-render at the new pixel density when the window moves to a monitor with other scaling. */

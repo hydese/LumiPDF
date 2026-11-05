@@ -93,6 +93,20 @@
   let menu = $state<{ at: DOMRect; mark: TextMark | null } | null>(null);
   let editing = $state<{ id: string; anchor: HTMLElement } | null>(null);
   let snipAt = $state<DOMRect | null>(null);
+  // The snip box floats over the whole window: drop it when leaving the reader or switching tab.
+  $effect(() => {
+    void session.activeId;
+    if (navigation.screen === "reader") return;
+    layer?.clearSnip();
+    snipAt = null;
+  });
+  $effect(() => {
+    void session.activeId;
+    return () => {
+      layer?.clearSnip();
+      snipAt = null;
+    };
+  });
 
   /** Snips are rendered at 3× the on-screen size (crisp formulas), up to 8000 px wide. */
   async function snipBlob(): Promise<Blob> {
@@ -177,7 +191,7 @@
       onSnipClear: () => (snipAt = null),
     });
     layer = l;
-    const previews = new LinkPreview(controller, l, () => settings.value.reader.linkPreviews && (annotations.tool === "select" || annotations.tool === "hand"));
+    const previews = new LinkPreview(controller, l, () => settings.value.reader.linkPreviews && annotations.tool !== "snip");
     // Selecting text in select mode shows the mark menu above the selection.
     const onUp = () =>
       setTimeout(() => {

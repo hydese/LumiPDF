@@ -14,7 +14,8 @@
   import { library, message } from "../../library/library.svelte";
   import { settings } from "../../settings/store.svelte";
   import { savePng } from "../../ipc/export";
-  import { sheetExportPdf, sheetImageUrl, type ExportPlaced } from "../../ipc/sheets";
+  import { sheetAddImage, sheetExportPdf, sheetImageUrl, type ExportPlaced } from "../../ipc/sheets";
+  import { printPages } from "../../print/print";
   import { revealInFolder } from "../../ipc/export";
   import type { DocumentRef } from "../../ipc/documents";
   import Icon from "../../ui/Icon.svelte";
@@ -29,7 +30,12 @@
     PAPER,
     TITLE_HEIGHT,
     TITLE_SIZE,
+    TEXT_LINE,
+    TEXT_MAX_CHARS,
+    TEXT_SIZE,
     clampSpot,
+    itemHeight,
+    wrapText,
     snapBox,
     layoutSheet,
     newId,
@@ -69,7 +75,17 @@
   let zoomPick = $state<number | null>(null);
   const fitZoom = $derived(Math.max(0.4, Math.min(1.25, (areaWidth - 80) / paper.w)));
   const zoom = $derived(zoomPick ?? fitZoom);
-  const zoomSteps = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2];
+  const zoomSteps = [0.25, 0.33, 0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 3, 4];
+  const ZOOM_MIN = 0.25;
+  const ZOOM_MAX = 4;
+  /** Ctrl/⌘ + wheel and trackpad pinch zoom the sheet. */
+  function onWheel(e: WheelEvent) {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const notch = e.deltaMode !== 0 || Math.abs(e.deltaY) >= 40;
+    const factor = notch ? (e.deltaY < 0 ? 1.1 : 1 / 1.1) : Math.exp(-e.deltaY * 0.006);
+    zoomPick = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom * factor));
+  }
   function zoomBy(direction: 1 | -1) {
     const next = direction > 0 ? zoomSteps.find((z) => z > zoom + 0.01) : [...zoomSteps].reverse().find((z) => z < zoom - 0.01);
     if (next) zoomPick = next;
@@ -110,6 +126,75 @@
     await tick();
     startEditing(item.id);
   }
+  /** Where a new item goes: after the selected one (flow) or below it (free). */
+  function insertItem(item: SheetItem) {
+    if (!sheet || !layout) return;
+    const items = [...sheet.items];
+    if (sheet.layout === "free") {
+      const w = item.type === "snip" ? Math.min(layout.column, item.natural[0]) : layout.column;
+      let page = selectedPlaced?.page ?? Math.max(0, layout.pages - 1);
+      // Below the selected item, or below everything on the last page; a new page when full.
+      let y = selectedPlaced ? selectedPlaced.y + selectedPlaced.h + GAP : Math.max(MARGIN, ...layout.placed.filter((p) => p.page === page).map((p) => p.y + p.h + GAP));
+      if (!selectedPlaced && y + itemHeight(item, w) > paper.h - MARGIN && y > MARGIN) {
+        page = layout.pages;
+        y = MARGIN;
+        change((s) => ({ ...s, pages: Math.min(200, layout!.pages + 1) }));
+      }
+      item.free = clampSpot(sheet, item, { page, x: MARGIN, y, w });
+      items.push(item);
+    } else {
+      const at = selected ? items.findIndex((it) => it.id === selected) + 1 : items.length;
+      items.splice(at, 0, item);
+    }
+    change((s) => ({ ...s, items }));
+    selected = item.id;
+  }
+  async function addText() {
+    const item: SheetItem = { id: newId(), type: "text", text: t("sheets.newText"), size: TEXT_SIZE };
+    insertItem(item);
+    await tick();
+    startEditing(item.id);
+  }
+
+  // ---- Pictures from a file or the clipboard ---------------------------------------------------
+  let fileInput = $state<HTMLInputElement | null>(null);
+  /** Pictures are stored as PNG; their printed size assumes 150 dpi, capped at the column. */
+  async function addImage(file: Blob, name: string) {
+    if (!sheet || !layout) return;
+    try {
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement("canvas");
+      const scale = Math.min(1, 4000 / Math.max(bitmap.width, bitmap.height));
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close();
+      const png = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/png"));
+      if (!png) return;
+      const image = await sheetAddImage(png);
+      const naturalW = Math.min(layout.column, (canvas.width * 72) / 150);
+      const item: SheetItem = {
+        id: newId(),
+        type: "snip",
+        image,
+        px: [canvas.width, canvas.height],
+        natural: [naturalW, (naturalW * canvas.height) / canvas.width],
+        scale: 1,
+        source: { path: "", name: name.slice(0, 400), page: 0 },
+      };
+      insertItem(item);
+    } catch (err) {
+      notice = { text: t("sheets.imageFailed", { reason: message(err) }), error: true };
+    }
+  }
+  function onPaste(e: ClipboardEvent) {
+    if (session.activeSheet !== id || (e.target as HTMLElement | null)?.closest?.("input, textarea, [contenteditable='true']")) return;
+    const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith("image/"));
+    if (!file) return;
+    e.preventDefault();
+    void addImage(file, t("sheets.pastedImage"));
+  }
+
   function addPage() {
     if (sheet?.layout === "free") change((s) => ({ ...s, pages: Math.min(200, layout!.pages + 1) }));
   }
@@ -121,19 +206,23 @@
   let draft = $state("");
   function startEditing(itemId: string) {
     const item = sheet?.items.find((it) => it.id === itemId);
-    if (item?.type !== "title") return;
+    if (item?.type !== "title" && item?.type !== "text") return;
     editing = itemId;
     draft = item.text;
   }
   function finishEditing(save: boolean) {
     if (editing && save) {
-      const text = draft.trim().slice(0, 200);
+      const item = sheet?.items.find((it) => it.id === editing);
+      const text = item?.type === "text" ? draft.replace(/\s+$/, "").slice(0, TEXT_MAX_CHARS) : draft.trim().slice(0, 200);
       if (text) setItem(editing, { text });
       else removeItem(editing);
     }
     editing = null;
   }
-  function focusOnMount(node: HTMLInputElement) {
+  function setTextSize(itemId: string, size: number) {
+    setItem(itemId, { size } as Partial<SheetItem>);
+  }
+  function focusOnMount(node: HTMLInputElement | HTMLTextAreaElement) {
     node.focus();
     node.select();
   }
@@ -232,7 +321,7 @@
       // Smart guides (hold Alt to place freely).
       if (!e.altKey && layout) {
         const others = layout.placed.filter((p) => p.page === spot.page && p.item.id !== item.id);
-        const h = item.type === "title" ? TITLE_HEIGHT : (spot.w * item.natural[1]) / item.natural[0];
+        const h = itemHeight(item, spot.w);
         const snapped = snapBox({ x: spot.x, y: spot.y, w: spot.w, h }, others, paper, SNAP_PX / zoom);
         spot = clampSpot(sheet, item, { ...spot, x: snapped.x, y: snapped.y });
         guides = { page: spot.page, vertical: snapped.vertical, horizontal: snapped.horizontal };
@@ -293,11 +382,65 @@
   let notice = $state<{ text: string; doc?: DocumentRef; path?: string; error?: boolean } | null>(null);
 
   function exportItems(): ExportPlaced[] {
-    return (layout?.placed ?? []).map((p) =>
-      p.item.type === "snip"
-        ? { kind: "image", page: p.page, x: p.x, y: p.y, w: p.w, h: p.h, image: p.item.image }
-        : { kind: "text", page: p.page, x: p.x, y: p.y + (TITLE_HEIGHT - TITLE_SIZE) / 2 - 2, size: TITLE_SIZE, text: p.item.text },
-    );
+    return (layout?.placed ?? []).flatMap((p): ExportPlaced[] => {
+      if (p.item.type === "snip") return [{ kind: "image", page: p.page, x: p.x, y: p.y, w: p.w, h: p.h, image: p.item.image }];
+      if (p.item.type === "title") return [{ kind: "text", page: p.page, x: p.x, y: p.y + (TITLE_HEIGHT - TITLE_SIZE) / 2 - 2, size: TITLE_SIZE, text: p.item.text }];
+      const { size } = p.item;
+      // Each line, with its top where the line box starts (centred in the line height).
+      return wrapText(p.item.text, size, p.w).map((text, i) => ({ kind: "text", page: p.page, x: p.x, y: p.y + i * size * TEXT_LINE + (size * (TEXT_LINE - 1)) / 2, size, text, bold: false }));
+    });
+  }
+
+  /** One page as a white picture at `dpi` (PNG export and printing). */
+  async function renderPage(page: number, dpi: number): Promise<HTMLCanvasElement> {
+    const k = dpi / 72;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(paper.w * k);
+    canvas.height = Math.round(paper.h * k);
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingQuality = "high";
+    for (const p of layout?.placed.filter((x) => x.page === page) ?? []) {
+      if (p.item.type === "snip") {
+        const img = new Image();
+        img.src = await sheetImageUrl(p.item.image);
+        await img.decode();
+        ctx.drawImage(img, p.x * k, p.y * k, p.w * k, p.h * k);
+      } else if (p.item.type === "title") {
+        ctx.fillStyle = "#1c1c1f";
+        ctx.font = `600 ${TITLE_SIZE * k}px Inter, "Segoe UI", system-ui, sans-serif`;
+        ctx.textBaseline = "middle";
+        ctx.fillText(p.item.text, p.x * k, (p.y + TITLE_HEIGHT / 2) * k, p.w * k);
+      } else {
+        const { size } = p.item;
+        ctx.fillStyle = "#1c1c1f";
+        ctx.font = `${size * k}px Helvetica, Arial, sans-serif`;
+        ctx.textBaseline = "middle";
+        wrapText(p.item.text, size, p.w).forEach((line, i) => ctx.fillText(line, p.x * k, (p.y + (i + 0.5) * size * TEXT_LINE) * k));
+      }
+    }
+    return canvas;
+  }
+
+  async function printSheet() {
+    if (!sheet || !layout) return;
+    exportMenu = false;
+    exporting = true;
+    notice = null;
+    try {
+      const pages = [];
+      for (let page = 0; page < layout.pages; page++) {
+        const canvas = await renderPage(page, 150);
+        const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/png"));
+        if (blob) pages.push({ url: URL.createObjectURL(blob), landscape: false });
+      }
+      await printPages(pages);
+    } catch (err) {
+      notice = { text: t("export.printFailed", { reason: message(err) }), error: true };
+    } finally {
+      exporting = false;
+    }
   }
 
   async function exportPdf() {
@@ -340,27 +483,7 @@
     notice = null;
     try {
       const page = pageInView();
-      const k = 200 / 72; // 200 dpi
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(paper.w * k);
-      canvas.height = Math.round(paper.h * k);
-      const ctx = canvas.getContext("2d")!;
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.imageSmoothingQuality = "high";
-      for (const p of layout.placed.filter((x) => x.page === page)) {
-        if (p.item.type === "snip") {
-          const img = new Image();
-          img.src = await sheetImageUrl(p.item.image);
-          await img.decode();
-          ctx.drawImage(img, p.x * k, p.y * k, p.w * k, p.h * k);
-        } else {
-          ctx.fillStyle = "#1c1c1f";
-          ctx.font = `600 ${TITLE_SIZE * k}px Inter, "Segoe UI", system-ui, sans-serif`;
-          ctx.textBaseline = "middle";
-          ctx.fillText(p.item.text, p.x * k, (p.y + TITLE_HEIGHT / 2) * k, p.w * k);
-        }
-      }
+      const canvas = await renderPage(page, 200);
       const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/png"));
       if (blob && (await savePng(blob, layout.pages > 1 ? `${sheet.title} — ${page + 1}` : sheet.title))) notice = { text: t("sheets.pngSaved") };
     } catch (err) {
@@ -398,6 +521,14 @@
     }
   }
 
+  // Not an onwheel attribute: those are passive, and zooming must stop the page from scrolling.
+  $effect(() => {
+    const el = scroller;
+    if (!el) return;
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  });
+
   onMount(() => {
     const ro = new ResizeObserver(([entry]) => entry && (areaWidth = entry.contentRect.width));
     if (scroller) ro.observe(scroller);
@@ -409,7 +540,7 @@
   void library;
 </script>
 
-<svelte:window onkeydown={onKey} onpointermove={onMove} onpointerup={onUp} onpointercancel={() => ((drag = null), (guides = null))} />
+<svelte:window onkeydown={onKey} onpaste={onPaste} onpointermove={onMove} onpointerup={onUp} onpointercancel={() => ((drag = null), (guides = null))} />
 
 <div class="editor" class:dark>
   {#if sheet && layout}
@@ -435,6 +566,12 @@
             {/if}
           {:else}
             <button class="btn small" onclick={() => startEditing(sp.item.id)}>{t("sheets.edit")}</button>
+            {#if sp.item.type === "text"}
+              {@const ti = sp.item}
+              <IconButton icon="minus" size="s" label={t("sheets.smaller")} disabled={ti.size <= 6} onclick={() => setTextSize(ti.id, Math.max(6, ti.size - 1))} />
+              <span class="size">{ti.size} pt</span>
+              <IconButton icon="plus" size="s" label={t("sheets.larger")} disabled={ti.size >= 36} onclick={() => setTextSize(ti.id, Math.min(36, ti.size + 1))} />
+            {/if}
           {/if}
           <button class="btn small danger-text" onclick={() => removeItem(sp.item.id)}><Icon name="trash" size={12} stroke={2} />{t("sheets.delete")}</button>
         </div>
@@ -469,6 +606,19 @@
         </select>
         <span class="sep"></span>
         <button class="btn small" onclick={addTitle}><Icon name="title" size={13} stroke={2} />{t("sheets.addTitle")}</button>
+        <button class="btn small" onclick={addText}><Icon name="textbox" size={13} stroke={2} />{t("sheets.addText")}</button>
+        <button class="btn small" title={t("sheets.addImageHint")} onclick={() => fileInput?.click()}><Icon name="image" size={13} stroke={2} />{t("sheets.addImage")}</button>
+        <input
+          class="file"
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif,image/bmp"
+          bind:this={fileInput}
+          onchange={(e) => {
+            const f = e.currentTarget.files?.[0];
+            if (f) void addImage(f, f.name);
+            e.currentTarget.value = "";
+          }}
+        />
         {#if sheet.layout === "free"}
           <button class="btn small" onclick={addPage}><Icon name="plus" size={13} stroke={2} />{t("sheets.addPage")}</button>
         {/if}
@@ -488,6 +638,7 @@
             <div class="menu" role="menu">
               <button role="menuitem" onclick={exportPdf}><Icon name="file" size={14} />{t("sheets.exportPdf")}</button>
               <button role="menuitem" onclick={exportPng}><Icon name="image" size={14} />{t("sheets.exportPng")}</button>
+              <button role="menuitem" onclick={printSheet}><Icon name="print" size={14} />{t("export.print")}</button>
             </div>
           {/if}
         </div>
@@ -529,17 +680,39 @@
               class:lifted={dragging?.item.id === p.item.id}
               role="button"
               tabindex="-1"
-              aria-label={p.item.type === "title" ? p.item.text : t("sheets.snipFrom", { name: p.item.source.name, page: p.item.source.page })}
+              aria-label={p.item.type === "snip" ? (p.item.source.path ? t("sheets.snipFrom", { name: p.item.source.name, page: p.item.source.page }) : p.item.source.name) : p.item.text}
               style:left="{p.x * zoom}px"
               style:top="{p.y * zoom}px"
               style:width="{p.w * zoom}px"
               style:height="{p.h * zoom}px"
               style:font-size="{TITLE_SIZE * zoom}px"
               onpointerdown={(e) => onItemDown(e, p, "move")}
-              ondblclick={() => (p.item.type === "title" ? startEditing(p.item.id) : openSource(p))}
+              ondblclick={() => (p.item.type === "snip" ? openSource(p) : startEditing(p.item.id))}
             >
               {#if p.item.type === "snip"}
-                <SheetImage name={p.item.image} alt={t("sheets.snipFrom", { name: p.item.source.name, page: p.item.source.page })} />
+                <SheetImage name={p.item.image} alt={p.item.source.path ? t("sheets.snipFrom", { name: p.item.source.name, page: p.item.source.page }) : p.item.source.name} />
+              {:else if p.item.type === "text"}
+                {#if editing === p.item.id}
+                  <textarea
+                    class="text-edit"
+                    bind:value={draft}
+                    use:focusOnMount
+                    maxlength={TEXT_MAX_CHARS}
+                    style:font-size="{p.item.size * zoom}px"
+                    style:min-height="{p.h * zoom}px"
+                    onpointerdown={(e) => e.stopPropagation()}
+                    onblur={() => finishEditing(true)}
+                    onkeydown={(e) => {
+                      if (e.key === "Escape") finishEditing(false);
+                      else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) finishEditing(true);
+                      e.stopPropagation();
+                    }}
+                  ></textarea>
+                {:else}
+                  <div class="text-box" style:font-size="{p.item.size * zoom}px" style:line-height="{p.item.size * TEXT_LINE * zoom}px">
+                    {#each wrapText(p.item.text, p.item.size, p.w) as line, i (i)}<div class="line">{line || "\u00a0"}</div>{/each}
+                  </div>
+                {/if}
               {:else if editing === p.item.id}
                 <input
                   class="title-edit"
@@ -590,7 +763,7 @@
 
   {#if dragging && drag?.ghost}
     <div class="ghost {dragging.item.type}" style:left="{drag.ghost.x}px" style:top="{drag.ghost.y}px" style:width="{dragging.w * zoom}px" style:height="{dragging.h * zoom}px" style:font-size="{TITLE_SIZE * zoom}px">
-      {#if dragging.item.type === "snip"}<SheetImage name={dragging.item.image} />{:else}<span class="title-text">{dragging.item.text}</span>{/if}
+      {#if dragging.item.type === "snip"}<SheetImage name={dragging.item.image} />{:else}<span class="title-text">{dragging.item.text.split("\n")[0]}</span>{/if}
     </div>
   {/if}
 
@@ -608,6 +781,41 @@
 </div>
 
 <style>
+  .file {
+    display: none;
+  }
+  .size {
+    min-width: 34px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .text-box {
+    width: 100%;
+    font-family: Helvetica, Arial, sans-serif;
+    color: #1c1c1f;
+    white-space: pre;
+    overflow: hidden;
+  }
+  .editor.dark .text-box {
+    color: #e8e8ea;
+  }
+  .text-edit {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+    border: none;
+    outline: 2px solid var(--accent);
+    resize: none;
+    background: #fff;
+    color: #1c1c1f;
+    font-family: Helvetica, Arial, sans-serif;
+    line-height: 1.3;
+    z-index: 3;
+  }
   .editor {
     position: absolute;
     inset: 0;

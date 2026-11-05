@@ -15,6 +15,7 @@ import { navigation } from "../app/navigation.svelte";
 import { settings } from "../settings/store.svelte";
 import { annotations } from "../annotations/store.svelte";
 import { loadDocument, PasswordCancelledError, type LoadedPdf } from "../viewer/pdfjs";
+import { passwordForget, passwordRecall, passwordRemember } from "../ipc/passwords";
 import type { ReadingPlace, ViewerController, ViewerState } from "../viewer/ViewerController";
 
 const SAVE_PAGE_DELAY_MS = 1500;
@@ -50,7 +51,8 @@ export interface OpenDocument {
 export interface PasswordRequest {
   name: string;
   retry: boolean;
-  resolve: (password: string | null) => void;
+  /** `remember`: keep it in the system keychain so this file opens without asking next time. */
+  resolve: (password: string | null, remember?: boolean) => void;
 }
 
 let nextId = 1;
@@ -268,8 +270,8 @@ class DocumentSession {
     this.#persist();
   }
 
-  answerPassword(password: string | null): void {
-    this.password?.resolve(password);
+  answerPassword(password: string | null, remember = true): void {
+    this.password?.resolve(password, remember);
     this.password = null;
   }
 
@@ -348,22 +350,46 @@ class DocumentSession {
   async #load(path: string, name: string, knownPassword: string | null): Promise<{ pdf: LoadedPdf; password: string | null }> {
     let password = knownPassword;
     let triedKnown = false;
-    const pdf = await loadDocument(documentUrl({ path, name, size: 0 }), (retry) => {
+    let triedSaved = false;
+    let saved: string | null = null;
+    let remember = false;
+    /** The last password tried came from memory or the keychain, not from the user. */
+    let automatic = false;
+    const pdf = await loadDocument(documentUrl({ path, name, size: 0 }), async (retry) => {
       if (password && !triedKnown) {
         triedKnown = true;
-        return Promise.resolve(password);
+        automatic = true;
+        return password;
       }
-      return new Promise((resolve) => {
+      if (!triedSaved) {
+        triedSaved = true;
+        saved = await passwordRecall(path);
+        if (saved) {
+          password = saved;
+          automatic = true;
+          return saved;
+        }
+      }
+      // The remembered password no longer opens it (the file was re-protected): forget it.
+      if (saved && password === saved) {
+        void passwordForget(path);
+        saved = null;
+      }
+      const shownRetry = retry && !automatic;
+      automatic = false;
+      return new Promise<string | null>((resolve) => {
         this.password = {
           name,
-          retry: retry && !(knownPassword && triedKnown && password === knownPassword),
-          resolve: (p) => {
+          retry: shownRetry,
+          resolve: (p, keep = true) => {
             password = p;
+            remember = keep;
             resolve(p);
           },
         };
       });
     });
+    if (password && remember && password !== saved) void passwordRemember(path, password);
     return { pdf, password };
   }
 
@@ -375,6 +401,7 @@ class DocumentSession {
     if (!tab || tab.kind === "sheet" || !page || page === this.#savedPage) return;
     this.#savedPage = page;
     this.#patch(tab.id, { place: { ...tab.place, page } });
+    library.notePage(tab.path, page);
     await libraryUpdate(tab.path, { page }).catch(() => {});
   }
 

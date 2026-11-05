@@ -14,7 +14,6 @@
  *
  * When dark mode is off the hooks pass everything through unchanged.
  */
-import { detectPlatform } from "../platform/shortcuts";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import { pdfjs } from "../viewer/pdfjs";
 import { createColorMapper, type ColorMapper } from "./mapper";
@@ -350,15 +349,33 @@ const wrappedPages = new WeakSet<PDFPageProxy>();
 
 /**
  * Page canvases on the GPU. pdf.js asks for CPU canvases (willReadFrequently) unless hardware
- * acceleration is on; LumiPDF never reads pixels back from a page canvas, and on macOS (WebKit)
- * CPU-backed Retina pages are slow to scroll, resize and redraw. Windows keeps the CPU canvas,
- * which the rendering bench checks pixel for pixel.
+ * acceleration is on; LumiPDF never reads pixels back from a page canvas, and CPU-backed pages
+ * are slow to scroll, resize and redraw (above all on Retina Macs). Used on every system that
+ * has a real graphics chip; software renderers (no GPU, remote desktops, headless test browsers)
+ * keep the CPU canvas, which is faster there.
  */
-let gpuPages = typeof navigator !== "undefined" && detectPlatform(navigator.userAgent) === "macos";
+let gpuPages: boolean | null = null;
+
+/** True when WebGL runs on real graphics hardware rather than a software fallback. */
+function hasGraphicsChip(): boolean {
+  if (typeof document === "undefined") return false;
+  try {
+    const gl = document.createElement("canvas").getContext("webgl");
+    if (!gl) return false;
+    const info = gl.getExtension("WEBGL_debug_renderer_info");
+    const renderer = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    return !/swiftshader|llvmpipe|softpipe|software|basic render|microsoft basic/i.test(renderer);
+  } catch {
+    return false;
+  }
+}
+
 export function useGpuPageCanvases(on: boolean): void {
   gpuPages = on;
 }
 export function gpuPageCanvases(): boolean {
+  gpuPages ??= hasGraphicsChip();
   return gpuPages;
 }
 
@@ -371,7 +388,7 @@ function wrapPage(page: PDFPageProxy): void {
     if (canvas) {
       // Same options pdf.js uses (render task; enableHWA is set to match gpuPages), so it
       // receives this same context.
-      patchContext(canvas.getContext("2d", { alpha: false, willReadFrequently: !gpuPages })!);
+      patchContext(canvas.getContext("2d", { alpha: false, willReadFrequently: !gpuPageCanvases() })!);
     }
     return render(params);
   };

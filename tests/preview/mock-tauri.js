@@ -123,6 +123,10 @@
     },
     pdf_size_estimate: () => new Promise((r) => setTimeout(() => r({ originalBytes: 52_400_000, light: 31_200_000, recommended: 9_400_000, strong: 5_100_000 }), 300)),
     perf_log: () => Promise.resolve("/Users/you/Desktop/LumiPDF-performance.log"),
+    bring_to_front: () => Promise.resolve(),
+    pdf_password_get: () => Promise.resolve(null),
+    pdf_password_set: () => Promise.resolve(),
+    pdf_password_forget: () => Promise.resolve(),
     pdf_protection: () =>
       window.__PREVIEW__?.protection ?? { protected: false, openPassword: false, restrictions: { print: false, copy: false, edit: false, annotate: false }, removableWithOpenPassword: false },
     update_installable: () => scenario.installed !== false,

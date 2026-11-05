@@ -134,6 +134,360 @@ export function cleanScan(data: Uint8ClampedArray): void {
 const SCAN_BLACK = 50;
 const SCAN_WHITE = 215;
 
+/**
+ * Whole-page pictures (flattened brochures, slides exported as images, magazine scans) mix text
+ * on a plain background with photos, so one verdict for the whole picture is wrong for part of
+ * it. Big images are looked at in tiles: photo areas keep their colours, the rest is recoloured.
+ */
+const MIXED_MIN_SIDE = 300;
+const MASK_SAMPLE = 512;
+const MASK_TILE = 8;
+/** Below this share of photo tiles the picture is treated as a whole; above, as a photo. */
+const MIXED_MIN_SHARE = 0.02;
+const MIXED_MAX_SHARE = 0.9;
+/** Smallest photo area kept, in tiles (smaller colourful bits, like icons, are recoloured). */
+const MASK_MIN_TILES = 6;
+/** A photo area that fills this much of its bounding box becomes that whole rectangle. */
+const MASK_RECT_FILL = 0.55;
+/**
+ * Tiles are used only on pages with a plain light background around the photos (brochures,
+ * magazine pages); gradients, slides and charts are judged as a whole, as before.
+ */
+const MIXED_BG_SHARE = 0.25;
+const MIXED_BG_LUM = 190;
+/** Average luminance under which an area counts as already dark. */
+const MASK_DARK = 70;
+
+export interface PhotoMask {
+  cols: number;
+  rows: number;
+  /** 1 where the tile is part of a photo. Row-major, cols × rows. */
+  tiles: Uint8Array;
+  /** Share of tiles that are photo. */
+  share: number;
+  /** Share of the picture's width and height the tiles cover (the last partial tile is left out). */
+  coverX: number;
+  coverY: number;
+  /**
+   * Rectangular photos, with edges found to the pixel: [left, top, right, bottom] as shares of
+   * the picture's size. Their tiles are not in `tiles`.
+   */
+  rects: Array<[number, number, number, number]>;
+  /** Share of the picture that is plain page background, and whether that background is light. */
+  background: { share: number; light: boolean };
+}
+
+/** How far a photo's edge may move from its tile box while being refined, in tiles. */
+const EDGE_GROW_TILES = 12;
+const EDGE_SHRINK_TILES = 2;
+/** A pixel counts as page background within this distance (per channel) of its colour. */
+const BG_TOLERANCE = 9;
+
+/**
+ * Which tiles of an RGBA sample (`width` × `height`) belong to photos. Each tile is judged with
+ * its neighbours (a tile alone is too few pixels), then photo areas are cleaned up: specks are
+ * dropped, and areas that are nearly rectangular are filled to their rectangle, so a pale sky
+ * or a white wall inside a photo stays part of it. Exported for tests.
+ */
+export function photoMask(data: Uint8ClampedArray, width: number, height: number, tile = MASK_TILE): PhotoMask {
+  const cols = Math.max(1, Math.floor(width / tile));
+  const rows = Math.max(1, Math.floor(height / tile));
+  const n = cols * rows;
+  const colorful = new Float32Array(n);
+  const mid = new Float32Array(n);
+  const lumSum = new Float32Array(n);
+  const counts = new Float32Array(n);
+  const binsets: Array<Set<number>> = Array.from({ length: n }, () => new Set());
+  for (let y = 0; y < rows * tile; y++) {
+    const ty = Math.floor(y / tile);
+    for (let x = 0; x < cols * tile; x++) {
+      const i = (y * width + x) * 4;
+      if (data[i + 3]! === 0) continue;
+      const r = data[i]!, g = data[i + 1]!, b = data[i + 2]!;
+      const t = ty * cols + Math.floor(x / tile);
+      counts[t]!++;
+      if (Math.max(r, g, b) - Math.min(r, g, b) >= COLORFUL_SPREAD) colorful[t]!++;
+      const lum = (r * 3 + g * 6 + b) / 10;
+      lumSum[t]! += lum;
+      if (lum >= MID_MIN && lum <= MID_MAX) mid[t]!++;
+      binsets[t]!.add(((r >> 5) << 6) | ((g >> 5) << 3) | (b >> 5));
+    }
+  }
+  const raw = new Uint8Array(n);
+  for (let ty = 0; ty < rows; ty++) {
+    for (let tx = 0; tx < cols; tx++) {
+      let c = 0, m = 0, total = 0, l = 0;
+      const bins = new Set<number>();
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const x = tx + dx, y = ty + dy;
+          if (x < 0 || y < 0 || x >= cols || y >= rows) continue;
+          const t = y * cols + x;
+          c += colorful[t]!;
+          m += mid[t]!;
+          l += lumSum[t]!;
+          total += counts[t]!;
+          for (const b of binsets[t]!) bins.add(b);
+        }
+      }
+      if (total === 0) continue;
+      // Kept as they are: photos (real colour, or many mid-tones in many shades: black-and-white
+      // photos) and areas that are already dark (a dark cover, a dark band, a night photo), which
+      // recolouring would turn light. Text on a plain light background has few shades and is
+      // light on average; flat graphics have few colours.
+      const mean = l / total;
+      // Real photos have many shades; flat coloured shapes (chart bars, logos) don't.
+      const keep = (c / total >= 0.18 && bins.size >= 16) || (m / total >= 0.25 && bins.size >= 12) || (mean < MASK_DARK && bins.size >= 3) || mean < MASK_DARK / 2;
+      raw[ty * cols + tx] = keep ? 1 : 0;
+    }
+  }
+  // Close one-tile gaps (a pale wall inside a photo, a seam between photos), then look at the
+  // connected areas: drop specks, square off nearly rectangular ones.
+  const grown = new Uint8Array(n);
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const t = y * cols + x;
+      if (raw[t]) {
+        grown[t] = 1;
+        continue;
+      }
+      const h = x > 0 && x < cols - 1 && raw[t - 1] && raw[t + 1];
+      const v = y > 0 && y < rows - 1 && raw[t - cols] && raw[t + cols];
+      if (h || v) grown[t] = 1;
+    }
+  }
+  raw.set(grown);
+  const tiles = new Uint8Array(n);
+  const seen = new Uint8Array(n);
+  const stack: number[] = [];
+  const boxes: Array<[number, number, number, number]> = [];
+  for (let start = 0; start < n; start++) {
+    if (!raw[start] || seen[start]) continue;
+    const members: number[] = [];
+    let x0 = cols, y0 = rows, x1 = -1, y1 = -1;
+    stack.push(start);
+    seen[start] = 1;
+    while (stack.length) {
+      const t = stack.pop()!;
+      members.push(t);
+      const x = t % cols, y = (t - x) / cols;
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as const) {
+        if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+        const u = ny * cols + nx;
+        if (raw[u] && !seen[u]) {
+          seen[u] = 1;
+          stack.push(u);
+        }
+      }
+    }
+    if (members.length < MASK_MIN_TILES) continue;
+    const box = (x1 - x0 + 1) * (y1 - y0 + 1);
+    if (members.length / box >= MASK_RECT_FILL) {
+      boxes.push([x0 * tile, y0 * tile, (x1 + 1) * tile, (y1 + 1) * tile]);
+      continue;
+    }
+    // Irregular (a photo touching a dark band, an L of photos): take out the biggest rectangles
+    // it's made of; whatever is left stays as tiles.
+    const left = new Uint8Array(n);
+    for (const t of members) left[t] = 1;
+    for (;;) {
+      const r = largestRect(left, cols, x0, y0, x1, y1);
+      if (!r || (r[2] - r[0]) * (r[3] - r[1]) < MASK_MIN_TILES * 2) break;
+      for (let y = r[1]; y < r[3]; y++) left.fill(0, y * cols + r[0], y * cols + r[2]);
+      boxes.push([r[0] * tile, r[1] * tile, r[2] * tile, r[3] * tile]);
+    }
+    for (const t of members) if (left[t]) tiles[t] = 1;
+  }
+
+  // Page background: the commonest colour outside the kept areas.
+  const hist = new Map<number, [number, number, number, number]>();
+  for (let y = 0; y < rows * tile; y++) {
+    for (let x = 0; x < cols * tile; x++) {
+      if (raw[Math.floor(y / tile) * cols + Math.floor(x / tile)]) continue;
+      const i = (y * width + x) * 4;
+      const key = ((data[i]! >> 4) << 8) | ((data[i + 1]! >> 4) << 4) | (data[i + 2]! >> 4);
+      const e = hist.get(key) ?? [0, 0, 0, 0];
+      e[0] += data[i]!; e[1] += data[i + 1]!; e[2] += data[i + 2]!; e[3]++;
+      hist.set(key, e);
+    }
+  }
+  let best: [number, number, number, number] | null = null;
+  for (const e of hist.values()) if (!best || e[3] > best[3]) best = e;
+  const bg = best ? [best[0] / best[3], best[1] / best[3], best[2] / best[3]] : null;
+  const isBg = (x: number, y: number) => {
+    if (!bg) return false;
+    const i = (y * width + x) * 4;
+    return Math.abs(data[i]! - bg[0]!) <= BG_TOLERANCE && Math.abs(data[i + 1]! - bg[1]!) <= BG_TOLERANCE && Math.abs(data[i + 2]! - bg[2]!) <= BG_TOLERANCE;
+  };
+  /** Share of background pixels in column x (rows y0..y1) or row y (columns x0..x1). */
+  const colBg = (x: number, y0: number, y1: number) => {
+    let k = 0;
+    for (let y = y0; y < y1; y++) if (isBg(x, y)) k++;
+    return k / Math.max(1, y1 - y0);
+  };
+  const rowBg = (y: number, x0: number, x1: number) => {
+    let k = 0;
+    for (let x = x0; x < x1; x++) if (isBg(x, y)) k++;
+    return k / Math.max(1, x1 - x0);
+  };
+
+  // Rectangular photos: move each edge out over photo pixels (a pale ceiling or sky is still
+  // not page background) and in over background margins, to where the photo really ends.
+  const rects: PhotoMask["rects"] = [];
+  let rectArea = 0;
+  for (const b of boxes) {
+    let [x0, y0, x1, y1] = b;
+    if (bg) {
+      const grow = EDGE_GROW_TILES * tile, shrink = EDGE_SHRINK_TILES * tile;
+      for (let i = 0; i < 2; i++) {
+        let lim = Math.max(0, b[0] - grow);
+        while (x0 > lim && colBg(x0 - 1, y0, y1) < 0.5) x0--;
+        lim = Math.min(x1 - 1, b[0] + shrink);
+        while (x0 < lim && colBg(x0, y0, y1) >= 0.9) x0++;
+        lim = Math.min(width, b[2] + grow);
+        while (x1 < lim && colBg(x1, y0, y1) < 0.5) x1++;
+        lim = Math.max(x0 + 1, b[2] - shrink);
+        while (x1 > lim && colBg(x1 - 1, y0, y1) >= 0.9) x1--;
+        lim = Math.max(0, b[1] - grow);
+        while (y0 > lim && rowBg(y0 - 1, x0, x1) < 0.5) y0--;
+        lim = Math.min(y1 - 1, b[1] + shrink);
+        while (y0 < lim && rowBg(y0, x0, x1) >= 0.9) y0++;
+        lim = Math.min(height, b[3] + grow);
+        while (y1 < lim && rowBg(y1, x0, x1) < 0.5) y1++;
+        lim = Math.max(y0 + 1, b[3] - shrink);
+        while (y1 > lim && rowBg(y1 - 1, x0, x1) >= 0.9) y1--;
+      }
+    }
+    // Judge the rectangle as a whole: a photo, or an already-dark area. Flat graphics (chart
+    // bars and their background) and pale gradients (slide backgrounds) are not kept.
+    if (!keepRect(data, width, x0, y0, x1, y1)) continue;
+    rects.push([x0 / width, y0 / height, x1 / width, y1 / height]);
+    rectArea += (x1 - x0) * (y1 - y0);
+  }
+
+  // Leftover irregular bits are recoloured: soft tile edges looked like blotches on gradients.
+  tiles.fill(0);
+  const photo = 0;
+  const share = Math.min(1, (photo * tile * tile + rectArea) / (width * height));
+  let bgPixels = 0;
+  if (bg) for (let y = 0; y < height; y += 2) for (let x = 0; x < width; x += 2) if (isBg(x, y)) bgPixels++;
+  const background = { share: bgPixels / Math.max(1, Math.ceil(width / 2) * Math.ceil(height / 2)), light: !!bg && (bg[0]! * 3 + bg[1]! * 6 + bg[2]!) / 10 >= MIXED_BG_LUM };
+  return { cols, rows, tiles, share, coverX: Math.min(1, (cols * tile) / width), coverY: Math.min(1, (rows * tile) / height), rects, background };
+}
+
+/** Whether the area x0..x1 × y0..y1 of an RGBA sample should keep its original pixels. */
+function keepRect(data: Uint8ClampedArray, width: number, x0: number, y0: number, x1: number, y1: number): boolean {
+  const w = x1 - x0, h = y1 - y0;
+  if (w < 2 || h < 2) return false;
+  const step = Math.max(1, Math.floor(Math.max(w, h) / 64));
+  const out: number[] = [];
+  let lum = 0;
+  for (let y = y0; y < y1; y += step) {
+    for (let x = x0; x < x1; x += step) {
+      const i = (y * width + x) * 4;
+      out.push(data[i]!, data[i + 1]!, data[i + 2]!, data[i + 3]!);
+      lum += (data[i]! * 3 + data[i + 1]! * 6 + data[i + 2]!) / 10;
+    }
+  }
+  const px = new Uint8ClampedArray(out);
+  if (lum / (px.length / 4) < MASK_DARK) return true;
+  return classifyPixels(px).kind === "photo";
+}
+
+/** The largest all-ones rectangle of `grid` inside the box (x0..x1, y0..y1 inclusive): [x0, y0, x1, y1) or null. */
+function largestRect(grid: Uint8Array, cols: number, bx0: number, by0: number, bx1: number, by1: number): [number, number, number, number] | null {
+  const w = bx1 - bx0 + 1;
+  const heights = new Int32Array(w);
+  let best: [number, number, number, number] | null = null;
+  let bestArea = 0;
+  for (let y = by0; y <= by1; y++) {
+    for (let i = 0; i < w; i++) heights[i] = grid[y * cols + bx0 + i] ? heights[i]! + 1 : 0;
+    const stack: number[] = [];
+    for (let i = 0; i <= w; i++) {
+      const h = i < w ? heights[i]! : 0;
+      while (stack.length && heights[stack.at(-1)!]! >= h) {
+        const top = stack.pop()!;
+        const height = heights[top]!;
+        const start = stack.length ? stack.at(-1)! + 1 : 0;
+        const area = height * (i - start);
+        if (area > bestArea) {
+          bestArea = area;
+          best = [bx0 + start, y - height + 1, bx0 + i, y + 1];
+        }
+      }
+      stack.push(i);
+    }
+  }
+  return best;
+}
+
+function maskOf(source: CanvasImageSource, width: number, height: number): PhotoMask | null {
+  if (Math.min(width, height) < MIXED_MIN_SIDE) return null;
+  const k = Math.min(1, MASK_SAMPLE / Math.max(width, height));
+  const w = Math.max(1, Math.round(width * k));
+  const h = Math.max(1, Math.round(height * k));
+  const sample = document.createElement("canvas");
+  sample.width = w;
+  sample.height = h;
+  const ctx = sample.getContext("2d", { willReadFrequently: true })!;
+  ctx.drawImage(source, 0, 0, width, height, 0, 0, w, h);
+  return photoMask(ctx.getImageData(0, 0, w, h).data, w, h);
+}
+
+/**
+ * Recolours the picture and keeps the original pixels in photo areas. The tile mask is scaled
+ * up smoothly, so photo edges blend instead of showing steps; in that blend band, pixels that
+ * look like plain paper (light, no colour) are always recoloured, so no white halo shows around
+ * photos or along dark bands.
+ */
+function recolorMixed(source: CanvasImageSource, width: number, height: number, mapper: ColorMapper, mask: PhotoMask, dimPhotos: boolean, scan: boolean): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+
+  // The mask at full size (alpha 255 = keep the original).
+  const small = document.createElement("canvas");
+  small.width = mask.cols;
+  small.height = mask.rows;
+  const sctx = small.getContext("2d")!;
+  const img = sctx.createImageData(mask.cols, mask.rows);
+  for (let t = 0; t < mask.tiles.length; t++) img.data[t * 4 + 3] = mask.tiles[t] ? 255 : 0;
+  sctx.putImageData(img, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(small, 0, 0, mask.cols, mask.rows, 0, 0, mask.coverX * width, mask.coverY * height);
+  ctx.fillStyle = "#000";
+  for (const [l, t, r, b] of mask.rects) ctx.fillRect(Math.round(l * width), Math.round(t * height), Math.round((r - l) * width), Math.round((b - t) * height));
+  const keep = ctx.getImageData(0, 0, width, height).data;
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.drawImage(source, 0, 0);
+  const pixels = ctx.getImageData(0, 0, width, height);
+  const original = new Uint8ClampedArray(pixels.data);
+  if (scan) cleanScan(pixels.data);
+  mapper.mapPixels(pixels.data);
+  const out = pixels.data;
+  const shade = dimPhotos ? 1 - PHOTO_DIM : 1;
+  for (let i = 0; i < out.length; i += 4) {
+    let a = keep[i + 3]!;
+    if (a === 0) continue;
+    const r = original[i]!, g = original[i + 1]!, b = original[i + 2]!;
+    if (a < 255 && Math.min(r, g, b) > PAPER_EDGE_MIN && Math.max(r, g, b) - Math.min(r, g, b) < PAPER_EDGE_SPREAD) continue;
+    if (a > 200) a = 255;
+    const k = a / 255;
+    out[i] = out[i]! + (r * shade - out[i]!) * k;
+    out[i + 1] = out[i + 1]! + (g * shade - out[i + 1]!) * k;
+    out[i + 2] = out[i + 2]! + (b * shade - out[i + 2]!) * k;
+  }
+  ctx.putImageData(pixels, 0, 0);
+  return canvas;
+}
+/** "Plain paper" at photo edges: every channel above this, and nearly grey. */
+const PAPER_EDGE_MIN = 196;
+const PAPER_EDGE_SPREAD = 28;
+
 function recolor(source: CanvasImageSource, width: number, height: number, mapper: ColorMapper, scan: boolean): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -186,7 +540,13 @@ export function prepareImage(source: CanvasImageSource, mapper: ColorMapper, dim
 
   const { kind, opaque } = analyze(source, width, height);
   let prepared: Prepared = { source, opaque };
-  if (width * height <= MAX_RECOLOR_PIXELS) {
+  const mask = width * height <= MAX_RECOLOR_PIXELS ? maskOf(source, width, height) : null;
+  if (mask && mask.share > MIXED_MAX_SHARE) {
+    // Almost all photo or already dark: keep it.
+    if (dimPhotos) prepared = { source: dim(source, width, height), opaque };
+  } else if (mask && mask.share >= MIXED_MIN_SHARE && mask.background.light && mask.background.share >= MIXED_BG_SHARE) {
+    prepared = { source: recolorMixed(source, width, height, mapper, mask, dimPhotos, kind === "paper"), opaque };
+  } else if (width * height <= MAX_RECOLOR_PIXELS) {
     if (kind === "paper" || kind === "graphic") prepared = { source: recolor(source, width, height, mapper, kind === "paper"), opaque };
     else if (dimPhotos) prepared = { source: dim(source, width, height), opaque };
   }

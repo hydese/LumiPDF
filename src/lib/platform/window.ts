@@ -2,6 +2,7 @@
  * The window frame. On Windows and Linux LumiPDF draws its own title bar (the window has no
  * system frame); on macOS the system traffic lights stay and sit over the title bar.
  */
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { detectPlatform } from "./shortcuts";
 
@@ -26,6 +27,13 @@ export function bringWindowToFront(): void {
   const win = current();
   if (!win) return;
   void (async () => {
+    try {
+      // Native: also gets past Windows' focus-stealing block and activates the Mac app.
+      await invoke("bring_to_front");
+      return;
+    } catch {
+      /* older backend: the webview's own requests below */
+    }
     try {
       await win.show();
       await win.unminimize();
@@ -64,6 +72,18 @@ export async function setFullscreen(on: boolean): Promise<boolean> {
     if (on) await document.documentElement.requestFullscreen?.().catch(() => {});
     else if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
     return on;
+  }
+  if (platform === "macos") {
+    // "Simple" full screen: the window covers the screen in its own space-less mode, with no
+    // title bar sliding down over the toolbar (macOS's native full screen reveals its white
+    // title bar over our tools whenever the pointer nears the top). The menu bar still appears
+    // when the pointer touches the top edge.
+    try {
+      await w.setSimpleFullscreen(on);
+      return on;
+    } catch {
+      /* fall back to native full screen */
+    }
   }
   await w.setFullscreen(on).catch(() => {});
   const state: unknown = await w.isFullscreen().catch(() => on);

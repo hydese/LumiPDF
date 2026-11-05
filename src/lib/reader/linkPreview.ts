@@ -39,8 +39,10 @@ export class LinkPreview {
     const over = (e: PointerEvent) => this.#onOver(e);
     const out = (e: PointerEvent) => this.#onOut(e);
     const close = () => this.close();
+    const move = (e: PointerEvent) => this.#onMove(e);
     c.addEventListener("pointerover", over);
     c.addEventListener("pointerout", out);
+    c.addEventListener("pointermove", move, { passive: true });
     c.addEventListener("scroll", close, { passive: true });
     c.addEventListener("pointerdown", close, true);
     window.addEventListener("keydown", close, true);
@@ -48,6 +50,7 @@ export class LinkPreview {
     this.#cleanups.push(() => {
       c.removeEventListener("pointerover", over);
       c.removeEventListener("pointerout", out);
+      c.removeEventListener("pointermove", move);
       c.removeEventListener("scroll", close);
       c.removeEventListener("pointerdown", close, true);
       window.removeEventListener("keydown", close, true);
@@ -87,6 +90,31 @@ export class LinkPreview {
     this.#link = link;
     const token = this.#token;
     this.#openTimer = window.setTimeout(() => void this.#open(link, token), HOVER_DELAY_MS);
+  }
+
+  /**
+   * Drawing tools put the link layer out of reach of the pointer (so strokes can start on a
+   * link). There, links are found by position while the pointer hovers without pressing.
+   */
+  #onMove(e: PointerEvent): void {
+    if (e.pointerType === "touch" || e.buttons !== 0) return;
+    const el = e.target instanceof Element ? e.target : null;
+    if (el?.closest(".annotationLayer a")) return; // reachable: pointerover handles it
+    const page = el?.closest<HTMLElement>(".page");
+    if (!page) return;
+    let found: HTMLAnchorElement | null = null;
+    for (const a of page.querySelectorAll<HTMLAnchorElement>(".annotationLayer [data-internal-link] a[href]")) {
+      const r = a.getBoundingClientRect();
+      if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
+        found = a;
+        break;
+      }
+    }
+    if (found) {
+      this.#onOver({ pointerType: e.pointerType, target: found } as unknown as PointerEvent);
+    } else if (this.#link && !(e.target instanceof Node && this.#el?.contains(e.target))) {
+      this.#scheduleClose();
+    }
   }
 
   #onOut(e: PointerEvent): void {

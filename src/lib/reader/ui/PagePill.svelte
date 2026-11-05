@@ -3,6 +3,9 @@
   import { t } from "../../i18n";
   import { session } from "../session.svelte";
   import Icon from "../../ui/Icon.svelte";
+  import { platform } from "../../platform/window";
+
+  const backShortcut = platform === "macos" ? "⌘[" : "Alt+←";
 
   let editing = $state<string | null>(null);
   const view = $derived(session.view);
@@ -17,6 +20,12 @@
 </script>
 
 {#if view && view.pages > 0}
+  {#if view.backPage}
+    <button class="back" title={t("nav.backTitle", { shortcut: backShortcut })} onclick={() => session.controller?.goBack()}>
+      <Icon name="back" size={14} stroke={2} />
+      {t("nav.backTo", { page: view.backPage })}
+    </button>
+  {/if}
   <div class="pill" role="toolbar" aria-label="{t('nav.page')} · {t('zoom.fitWidth')}">
     <button aria-label={t("nav.previous")} title={t("nav.previous")} disabled={view.page <= 1} onclick={() => session.controller?.goToPage(view.page - 1)}>
       <Icon name="back" size={15} stroke={2} />
@@ -59,6 +68,27 @@
 {/if}
 
 <style>
+  .back {
+    position: absolute;
+    bottom: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px 0 8px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+    backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow: var(--pop-shadow);
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .back:hover {
+    background: var(--surface-raised);
+  }
   .pill {
     position: absolute;
     bottom: 20px;

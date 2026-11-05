@@ -83,6 +83,16 @@ class LibraryStore {
     return this.#byPath.get(path);
   }
 
+  /** The reader moved to another page: shown at once in "Continue reading" (saved separately). */
+  notePage(path: string, page: number): void {
+    const docs = this.view?.documents;
+    const i = docs?.findIndex((d) => d.path === path) ?? -1;
+    if (!this.view || !docs || i < 0 || docs[i]!.page === page) return;
+    const next = [...docs];
+    next[i] = { ...next[i]!, page };
+    this.view = { ...this.view, documents: next };
+  }
+
   async refresh(): Promise<void> {
     this.loading = true;
     try {

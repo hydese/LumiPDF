@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GAP, MARGIN, PAPER, layoutSheet, newSheet, parseSheet, snapBox, toFlow, toFree, type SheetItem } from "../../src/lib/sheets/model";
+import { GAP, MARGIN, PAPER, layoutSheet, newSheet, parseSheet, snapBox, textWidth, toFlow, toFree, wrapText, type SheetItem } from "../../src/lib/sheets/model";
 
 const snip = (id: string, w: number, h: number, scale = 1): SheetItem => ({
   id,
@@ -79,5 +79,35 @@ describe("smart guides", () => {
   it("leaves far boxes alone", () => {
     const s = snapBox({ x: 123, y: 456, w: 50, h: 20 }, [], paper, 4);
     expect([s.x, s.y, s.vertical.length, s.horizontal.length]).toEqual([123, 456, 0, 0]);
+  });
+});
+
+describe("text boxes", () => {
+  it("wraps by Helvetica widths and keeps line breaks", () => {
+    expect(textWidth("AAAA", 10)).toBeCloseTo(26.68, 2);
+    const lines = wrapText("one two three four five six seven", 10, 60);
+    expect(lines.length).toBeGreaterThan(2);
+    for (const l of lines) expect(textWidth(l, 10)).toBeLessThanOrEqual(60);
+    expect(lines.join(" ")).toBe("one two three four five six seven");
+    expect(wrapText("a\n\nb", 10, 100)).toEqual(["a", "", "b"]);
+  });
+
+  it("splits a word longer than the box", () => {
+    const lines = wrapText("x".repeat(80), 10, 50);
+    expect(lines.length).toBeGreaterThan(1);
+    for (const l of lines) expect(textWidth(l, 10)).toBeLessThanOrEqual(50);
+    expect(lines.join("")).toBe("x".repeat(80));
+  });
+
+  it("grows with its text in the layout and survives a reload", () => {
+    const sheet = newSheet("S", "a4");
+    const short: SheetItem = { id: "t1", type: "text", text: "hi", size: 10 };
+    const long: SheetItem = { id: "t2", type: "text", text: "word ".repeat(200), size: 10 };
+    sheet.items = [short, long];
+    const placed = layoutSheet(sheet).placed;
+    expect(placed[0]!.h).toBeCloseTo(13, 5);
+    expect(placed[1]!.h).toBeGreaterThan(placed[0]!.h * 5);
+    const back = parseSheet(JSON.parse(JSON.stringify(sheet)), sheet.id)!;
+    expect(back.items[1]).toMatchObject({ type: "text", size: 10 });
   });
 });

@@ -6,8 +6,7 @@
 
   const TOOLS: Array<{ id: Tool; icon: IconName; key: string }> = [
     { id: "hand", icon: "hand", key: "G" },
-    { id: "select", icon: "cursor", key: "V" },
-    { id: "highlight", icon: "textmark", key: "H" },
+    { id: "select", icon: "textmark", key: "V" },
     { id: "pen", icon: "pen", key: "P" },
     { id: "marker", icon: "highlighter", key: "M" },
     { id: "eraser", icon: "eraser", key: "E" },

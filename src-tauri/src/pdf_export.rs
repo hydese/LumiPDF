@@ -735,6 +735,8 @@ struct ImageJob {
     jpeg: bool,
     data: Vec<u8>,
     original_len: usize,
+    /// Set when the picture was a palette image expanded to plain colour: its new colour space.
+    new_color_space: Option<&'static str>,
 }
 
 fn name<'a>(dict: &'a Dictionary, key: &[u8]) -> Option<&'a [u8]> {
@@ -757,6 +759,38 @@ fn channels(doc: &Document, dict: &Dictionary) -> Option<u8> {
         }
         _ => None,
     }
+}
+
+/// A palette ("Indexed") colour space over gray or RGB: (base channels, palette bytes).
+fn indexed_palette(doc: &Document, dict: &Dictionary) -> Option<(u8, Vec<u8>)> {
+    let cs = doc.dereference(dict.get(b"ColorSpace").ok()?).ok()?.1;
+    let Object::Array(a) = cs else { return None };
+    if a.first().and_then(|o| o.as_name().ok()) != Some(b"Indexed") || a.len() != 4 {
+        return None;
+    }
+    let base = doc.dereference(&a[1]).ok()?.1;
+    let base_channels = match base {
+        Object::Name(n) if n == b"DeviceRGB" => 3,
+        Object::Name(n) if n == b"DeviceGray" => 1,
+        Object::Array(b) if b.first().and_then(|o| o.as_name().ok()) == Some(b"ICCBased") => {
+            let stream = doc.dereference(b.get(1)?).ok()?.1.as_stream().ok()?;
+            match stream.dict.get(b"N").ok()?.as_i64().ok()? {
+                1 => 1,
+                3 => 3,
+                _ => return None,
+            }
+        }
+        _ => return None,
+    };
+    let hival = usize::try_from(doc.dereference(&a[2]).ok()?.1.as_i64().ok()?).ok()?;
+    let lookup = match doc.dereference(&a[3]).ok()?.1 {
+        Object::String(bytes, _) => bytes.clone(),
+        Object::Stream(st) => st
+            .decompressed_content()
+            .unwrap_or_else(|_| st.content.clone()),
+        _ => return None,
+    };
+    (lookup.len() >= (hival + 1) * base_channels as usize).then_some((base_channels, lookup))
 }
 
 /// No /Decode, or the identity one ([0 1 0 1 …]) some writers add anyway.
@@ -791,20 +825,49 @@ fn image_job(doc: &Document, id: ObjectId, stream: &Stream) -> Option<ImageJob> 
     if width < 16 || height < 16 || u64::from(width) * u64::from(height) > 120_000_000 {
         return None;
     }
-    let channels = channels(doc, d)?;
+    let palette = indexed_palette(doc, d);
+    let channels = match &palette {
+        Some((base, _)) => *base,
+        None => channels(doc, d)?,
+    };
     let filters: Vec<&[u8]> = match d.get(b"Filter").ok()? {
         Object::Name(n) => vec![n.as_slice()],
         Object::Array(a) => a.iter().filter_map(|o| o.as_name().ok()).collect(),
         _ => return None,
     };
     let (jpeg, data) = match filters.as_slice() {
-        [b"DCTDecode"] => (true, stream.content.clone()),
+        [b"DCTDecode"] if palette.is_none() => (true, stream.content.clone()),
+        // Some scanners wrap the JPEG in a second, deflate layer.
+        [b"FlateDecode", b"DCTDecode"] if palette.is_none() => {
+            let mut inner = Stream::new(Dictionary::new(), stream.content.clone());
+            inner.dict.set("Filter", "FlateDecode");
+            (true, inner.decompressed_content().ok()?)
+        }
         [b"FlateDecode"] => {
             let raw = stream.decompressed_content().ok()?;
-            if raw.len() != (width as usize) * (height as usize) * channels as usize {
-                return None;
+            let pixels = (width as usize) * (height as usize);
+            match &palette {
+                // Palette images (common in scans: 256 greys or colours) become plain samples.
+                Some((base, lookup)) => {
+                    if raw.len() != pixels {
+                        return None;
+                    }
+                    let b = *base as usize;
+                    let max = lookup.len() / b - 1;
+                    let mut out = Vec::with_capacity(pixels * b);
+                    for &i in &raw {
+                        let i = (i as usize).min(max) * b;
+                        out.extend_from_slice(&lookup[i..i + b]);
+                    }
+                    (false, out)
+                }
+                None => {
+                    if raw.len() != pixels * channels as usize {
+                        return None;
+                    }
+                    (false, raw)
+                }
             }
-            (false, raw)
         }
         _ => return None,
     };
@@ -816,6 +879,8 @@ fn image_job(doc: &Document, id: ObjectId, stream: &Stream) -> Option<ImageJob> 
         jpeg,
         data,
         original_len: stream.content.len(),
+        new_color_space: palette
+            .map(|(base, _)| if base == 3 { "DeviceRGB" } else { "DeviceGray" }),
     })
 }
 
@@ -907,16 +972,22 @@ pub fn compress_images(doc: &mut Document, target: ImageTarget) -> usize {
         .iter()
         .filter_map(|(id, obj)| obj.as_stream().ok().and_then(|s| image_job(doc, *id, s)))
         .collect();
-    let results: Vec<(ObjectId, Vec<u8>, u32, u32, bool)> = jobs
+    type Done = (ObjectId, Vec<u8>, u32, u32, bool, Option<&'static str>);
+    let results: Vec<Done> = jobs
         .par_iter()
         .filter_map(|job| {
             recompress(job, max_side, target.quality, target.heavy_jpeg)
-                .map(|(b, w, h, jpeg)| (job.id, b, w, h, jpeg))
+                .map(|(b, w, h, jpeg)| (job.id, b, w, h, jpeg, job.new_color_space))
         })
         .collect();
     let count = results.len();
-    for (id, bytes, w, h, jpeg) in results {
+    for (id, bytes, w, h, jpeg, color_space) in results {
         if let Ok(Object::Stream(stream)) = doc.get_object_mut(id) {
+            if let Some(cs) = color_space {
+                stream
+                    .dict
+                    .set("ColorSpace", Object::Name(cs.as_bytes().to_vec()));
+            }
             stream.dict.set("Width", i64::from(w));
             stream.dict.set("Height", i64::from(h));
             stream
@@ -1097,6 +1168,52 @@ mod tests {
     }
 
     #[test]
+    fn compresses_palette_scans() {
+        // A 256-grey palette "scan" (shading with scanner grain), 2400×3200: too big for Recommended.
+        let (w, h) = (2400u32, 3200u32);
+        let mut seed = 1u32;
+        let samples: Vec<u8> = (0..w * h)
+            .map(|i| {
+                seed = seed.wrapping_mul(1_103_515_245).wrapping_add(12345);
+                let shade = 120 + (i % w) * 100 / w;
+                (shade + (seed >> 28)) as u8
+            })
+            .collect();
+        let palette: Vec<u8> = (0..=255u8).collect();
+        let mut doc = Document::with_version("1.5");
+        let mut image = Stream::new(
+            dictionary! {
+                "Type" => "XObject", "Subtype" => "Image", "Width" => i64::from(w), "Height" => i64::from(h),
+                "BitsPerComponent" => 8,
+                "ColorSpace" => vec![Object::Name(b"Indexed".to_vec()), Object::Name(b"DeviceGray".to_vec()), 255.into(), Object::String(palette, StringFormat::Hexadecimal)],
+            },
+            samples,
+        );
+        image.compress().unwrap();
+        let id = doc.add_object(image);
+        let before = doc
+            .get_object(id)
+            .unwrap()
+            .as_stream()
+            .unwrap()
+            .content
+            .len();
+        let target = Compression::Recommended.image_target().unwrap();
+        assert_eq!(compress_images(&mut doc, target), 1);
+        let after = doc.get_object(id).unwrap().as_stream().unwrap();
+        assert!(
+            after.content.len() < before / 2,
+            "{} -> {}",
+            before,
+            after.content.len()
+        );
+        assert_eq!(
+            after.dict.get(b"ColorSpace").unwrap().as_name().unwrap(),
+            b"DeviceGray"
+        );
+    }
+
+    #[test]
     fn opens_every_fixture() {
         let dir = tempfile::tempdir().unwrap();
         for entry in fs::read_dir(fixture("")).unwrap().flatten() {
@@ -1254,7 +1371,7 @@ mod private_tests {
             std::env::var("LUMIPDF_EXPORT_OUT")
                 .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().into_owned()),
         );
-        for name in ["automatica.pdf", "fis1.pdf"] {
+        for name in ["automatica.pdf", "fis1.pdf", "Villa_Sole.pdf"] {
             let src = dir.join(name);
             if !src.exists() {
                 continue;

@@ -10,7 +10,7 @@ export interface SheetSummary {
 
 export type ExportPlaced =
   | { kind: "image"; page: number; x: number; y: number; w: number; h: number; image: string }
-  | { kind: "text"; page: number; x: number; y: number; size: number; text: string };
+  | { kind: "text"; page: number; x: number; y: number; size: number; text: string; bold?: boolean };
 
 export const sheetsList = () => invoke<SheetSummary[]>("sheets_list");
 export const sheetLoad = (id: string) => invoke<unknown>("sheet_load", { id });
