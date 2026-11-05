@@ -449,57 +449,47 @@ function maskOf(source: CanvasImageSource, width: number, height: number): Photo
 }
 
 /**
- * Recolours the picture and keeps the original pixels in photo areas. The tile mask is scaled
- * up smoothly, so photo edges blend instead of showing steps; in that blend band, pixels that
- * look like plain paper (light, no colour) are always recoloured, so no white halo shows around
- * photos or along dark bands.
+ * Recolours the picture except its photo rectangles, which keep their original pixels (dimmed
+ * if asked). Only the pixels outside the photos are mapped, row by row, so photo-heavy pages
+ * cost little.
  */
 function recolorMixed(source: CanvasImageSource, width: number, height: number, mapper: ColorMapper, mask: PhotoMask, dimPhotos: boolean, scan: boolean): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-
-  // The mask at full size (alpha 255 = keep the original).
-  const small = document.createElement("canvas");
-  small.width = mask.cols;
-  small.height = mask.rows;
-  const sctx = small.getContext("2d")!;
-  const img = sctx.createImageData(mask.cols, mask.rows);
-  for (let t = 0; t < mask.tiles.length; t++) img.data[t * 4 + 3] = mask.tiles[t] ? 255 : 0;
-  sctx.putImageData(img, 0, 0);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(small, 0, 0, mask.cols, mask.rows, 0, 0, mask.coverX * width, mask.coverY * height);
-  ctx.fillStyle = "#000";
-  for (const [l, t, r, b] of mask.rects) ctx.fillRect(Math.round(l * width), Math.round(t * height), Math.round((r - l) * width), Math.round((b - t) * height));
-  const keep = ctx.getImageData(0, 0, width, height).data;
-
-  ctx.clearRect(0, 0, width, height);
   ctx.drawImage(source, 0, 0);
   const pixels = ctx.getImageData(0, 0, width, height);
-  const original = new Uint8ClampedArray(pixels.data);
-  if (scan) cleanScan(pixels.data);
-  mapper.mapPixels(pixels.data);
-  const out = pixels.data;
-  const shade = dimPhotos ? 1 - PHOTO_DIM : 1;
-  for (let i = 0; i < out.length; i += 4) {
-    let a = keep[i + 3]!;
-    if (a === 0) continue;
-    const r = original[i]!, g = original[i + 1]!, b = original[i + 2]!;
-    if (a < 255 && Math.min(r, g, b) > PAPER_EDGE_MIN && Math.max(r, g, b) - Math.min(r, g, b) < PAPER_EDGE_SPREAD) continue;
-    if (a > 200) a = 255;
-    const k = a / 255;
-    out[i] = out[i]! + (r * shade - out[i]!) * k;
-    out[i + 1] = out[i + 1]! + (g * shade - out[i + 1]!) * k;
-    out[i + 2] = out[i + 2]! + (b * shade - out[i + 2]!) * k;
+  const data = pixels.data;
+  const rects = mask.rects.map(([l, t, r, b]) => [Math.round(l * width), Math.round(t * height), Math.round(r * width), Math.round(b * height)] as const);
+  const shade = 1 - PHOTO_DIM;
+  const spans: Array<[number, number]> = [];
+  for (let y = 0; y < height; y++) {
+    // The kept (photo) spans of this row, merged and sorted.
+    spans.length = 0;
+    for (const [x0, y0, x1, y1] of rects) if (y >= y0 && y < y1 && x1 > x0) spans.push([Math.max(0, x0), Math.min(width, x1)]);
+    spans.sort((a, b) => a[0] - b[0]);
+    const row = y * width * 4;
+    let x = 0;
+    for (const [a, b] of spans) {
+      if (a > x) mapRun(data, row + x * 4, row + a * 4, mapper, scan);
+      if (dimPhotos) for (let i = row + Math.max(x, a) * 4; i < row + b * 4; i += 4) {
+        data[i] = data[i]! * shade;
+        data[i + 1] = data[i + 1]! * shade;
+        data[i + 2] = data[i + 2]! * shade;
+      }
+      x = Math.max(x, b);
+    }
+    if (x < width) mapRun(data, row + x * 4, row + width * 4, mapper, scan);
   }
   ctx.putImageData(pixels, 0, 0);
   return canvas;
 }
-/** "Plain paper" at photo edges: every channel above this, and nearly grey. */
-const PAPER_EDGE_MIN = 196;
-const PAPER_EDGE_SPREAD = 28;
+
+function mapRun(data: Uint8ClampedArray, from: number, to: number, mapper: ColorMapper, scan: boolean): void {
+  if (scan) cleanScan(data.subarray(from, to));
+  mapper.mapPixels(data, from, to);
+}
 
 function recolor(source: CanvasImageSource, width: number, height: number, mapper: ColorMapper, scan: boolean): HTMLCanvasElement {
   const canvas = document.createElement("canvas");

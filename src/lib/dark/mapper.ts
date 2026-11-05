@@ -43,7 +43,7 @@ export interface ColorMapper {
    * Maps an RGBA buffer of image pixels in place (alpha untouched), using a 3D lookup table.
    * Image pixels get a stronger mid-tone lift than vector colours (thin scanned ink).
    */
-  mapPixels(data: Uint8ClampedArray): void;
+  mapPixels(data: Uint8ClampedArray, from?: number, to?: number): void;
 }
 
 export function createColorMapper(theme: ReadingTheme, tuning: DarkTuning): ColorMapper {
@@ -116,16 +116,31 @@ export function createColorMapper(theme: ReadingTheme, tuning: DarkTuning): Colo
     return table;
   }
 
-  function mapPixels(data: Uint8ClampedArray): void {
+  /**
+   * Trilinear lookup per pixel, with a one-colour memory: pages are mostly long runs of the
+   * same paper or ink colour, and those reuse the previous result (several times faster).
+   * `from`/`to` map only that pixel range (byte offsets, multiples of 4).
+   */
+  function mapPixels(data: Uint8ClampedArray, from = 0, to = data.length): void {
     lut ??= buildLut();
     const t = lut;
     const S = LUT_STEPS - 1;
     const strideG = LUT_STEPS * 3;
     const strideR = LUT_STEPS * LUT_STEPS * 3;
-    for (let p = 0; p < data.length; p += 4) {
-      const fr = (data[p]! * S) / 255;
-      const fg2 = (data[p + 1]! * S) / 255;
-      const fb = (data[p + 2]! * S) / 255;
+    let lastIn = -1;
+    let o0 = 0, o1 = 0, o2 = 0;
+    for (let p = from; p < to; p += 4) {
+      const R = data[p]!, G = data[p + 1]!, B = data[p + 2]!;
+      const packed = (R << 16) | (G << 8) | B;
+      if (packed === lastIn) {
+        data[p] = o0;
+        data[p + 1] = o1;
+        data[p + 2] = o2;
+        continue;
+      }
+      const fr = (R * S) / 255;
+      const fg2 = (G * S) / 255;
+      const fb = (B * S) / 255;
       const r0 = Math.min(S - 1, fr | 0);
       const g0 = Math.min(S - 1, fg2 | 0);
       const b0 = Math.min(S - 1, fb | 0);
@@ -142,6 +157,10 @@ export function createColorMapper(theme: ReadingTheme, tuning: DarkTuning): Colo
         const c0 = c00 + (c01 - c00) * dg, c1 = c10 + (c11 - c10) * dg;
         data[p + ch] = c0 + (c1 - c0) * dr;
       }
+      lastIn = packed;
+      o0 = data[p]!;
+      o1 = data[p + 1]!;
+      o2 = data[p + 2]!;
     }
   }
 
