@@ -77,6 +77,11 @@ function analyze(source: CanvasImageSource, width: number, height: number): Anal
  * shifted every hue. Scans and charts have almost none (a coloured line here and there).
  */
 const COLORFUL_SPREAD = 48;
+const TINT_MIN_CHANNEL = 160;
+const TINT_MAX_SPREAD = 80;
+const CHART_COLORFUL_SHARE = 0.4;
+const CHART_LIGHT_SHARE = 0.2;
+const CHART_TOP_COLORS = 0.7;
 const PICTURE_COLORFUL_SHARE = 0.1;
 /** Paper is light background and dark ink; a page full of mid-tones is an engraving or a photo. */
 const MID_MIN = 70;
@@ -91,6 +96,7 @@ export function classifyPixels(data: Uint8ClampedArray): Analysis {
   let opaque = true;
   let counted = 0;
   const bins = new Map<number, number>(); // colours quantised to 4 bits per channel
+  const colorBins = new Map<number, number>(); // the same, for colourful pixels only
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i]!, g = data[i + 1]!, b = data[i + 2]!, a = data[i + 3]!;
     if (a < 255) opaque = false;
@@ -101,12 +107,19 @@ export function classifyPixels(data: Uint8ClampedArray): Analysis {
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
     const spread = max - min;
-    if (spread >= COLORFUL_SPREAD) colorful++;
-    else if (min > LIGHT_MIN_CHANNEL && spread < LIGHT_MAX_SPREAD) light++;
+    // Pale tints (a light cyan slide header, cream paper) are paper, not colour.
+    if (min > TINT_MIN_CHANNEL && spread < TINT_MAX_SPREAD) light++;
+    else if (spread >= COLORFUL_SPREAD) {
+      colorful++;
+      colorBins.set(bin, (colorBins.get(bin) ?? 0) + 1);
+    } else if (min > LIGHT_MIN_CHANNEL && spread < LIGHT_MAX_SPREAD) light++;
     const lum = (r * 3 + g * 6 + b) / 10;
     if (lum >= MID_MIN && lum <= MID_MAX) mid++;
   }
   if (counted === 0) return { kind: "paper", opaque };
+  // A chart: big areas of a few flat colours on a light background (photos have many shades).
+  const topColors = [...colorBins.values()].sort((x, y) => y - x).slice(0, 4).reduce((sum, n) => sum + n, 0);
+  if (colorful / counted >= CHART_COLORFUL_SHARE && light / counted >= CHART_LIGHT_SHARE && topColors / Math.max(1, colorful) >= CHART_TOP_COLORS) return { kind: "graphic", opaque };
   if (colorful / counted >= PICTURE_COLORFUL_SHARE) return { kind: "photo", opaque };
   if (light / counted >= PAPER_RATIO && mid / counted <= PAPER_MAX_MIDTONES) return { kind: "paper", opaque };
   const top = [...bins.values()].sort((x, y) => y - x).slice(0, GRAPHIC_TOP_COLORS);

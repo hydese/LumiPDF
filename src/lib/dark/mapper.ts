@@ -14,6 +14,13 @@ import type { DarkTuning, ReadingTheme } from "./themes";
 const NEUTRAL_CHROMA = 0.03;
 /** Coloured colours darker than this are treated as ink (text, lines) rather than fills. */
 const INK_MAX_LIGHTNESS = 0.75;
+/** Coloured ink is recognised gradually over ± this much lightness around INK_MAX_LIGHTNESS. */
+const INK_FADE = 0.06;
+
+function smoothstep(lo: number, hi: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - lo) / (hi - lo)));
+  return t * t * (3 - 2 * t);
+}
 /** Minimum lightness for coloured ink on the dark page. */
 const INK_MIN_LIGHTNESS = 0.7;
 /** Grid resolution of the lookup table used for image pixels (per channel). */
@@ -60,11 +67,21 @@ export function createColorMapper(theme: ReadingTheme, tuning: DarkTuning): Colo
     // Neutral colours slide between the theme's background and text tints.
     let a = bg.a + t * (fg.a - bg.a);
     let b = bg.b + t * (fg.b - bg.b);
+    // Both rules fade in over a small range instead of switching at a threshold: slide
+    // backgrounds made of many bands of nearly the same beige would otherwise land on both
+    // sides of the switch and show as visible steps in dark mode.
     const C = chroma(c);
-    if (C > NEUTRAL_CHROMA) {
-      if (c.L < INK_MAX_LIGHTNESS) L = Math.max(L, INK_MIN_LIGHTNESS * (fg.L / 0.93));
-      a += c.a;
-      b += c.b;
+    const colour = smoothstep(NEUTRAL_CHROMA * 0.5, NEUTRAL_CHROMA * 1.5, C);
+    if (colour > 0) {
+      const ink = colour * (1 - smoothstep(INK_MAX_LIGHTNESS - INK_FADE, INK_MAX_LIGHTNESS + INK_FADE, c.L));
+      const lifted = Math.max(L, INK_MIN_LIGHTNESS * (fg.L / 0.93));
+      L += (lifted - L) * ink;
+      // A pale tinted fill turned dark keeps only as much colour as it kept lightness: a beige
+      // slide becomes a dark page with a hint of warmth, not a saturated ochre (which also
+      // made small differences between its bands look like steps). Coloured text keeps it all.
+      const keep = Math.min(1, L / Math.max(0.05, c.L));
+      a += c.a * colour * keep;
+      b += c.b * colour * keep;
     }
     return { L, a, b };
   }

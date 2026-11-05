@@ -102,3 +102,14 @@ describe("photoMask", () => {
     expect(photoMask(d, w, h).share).toBeGreaterThan(0.9);
   });
 });
+
+describe("dark mode: charts and pale headers", () => {
+  it("recolours a bar chart made of big flat colour areas", () => {
+    const chart = sample([[[225, 225, 225], 0.34], [[31, 119, 180], 0.18], [[255, 127, 14], 0.17], [[44, 160, 44], 0.15], [[214, 39, 40], 0.16]]);
+    expect(classifyPixels(chart).kind).toBe("graphic");
+  });
+  it("treats a pale tinted header as paper", () => {
+    const header = sample([[[230, 225, 205], 0.5], [[180, 235, 235], 0.44], [[40, 40, 120], 0.06]]);
+    expect(classifyPixels(header).kind).toBe("paper");
+  });
+});

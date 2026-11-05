@@ -8,6 +8,7 @@ import { PDFJS_ASSETS } from "./pdfjs";
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { darkBackground, onDarkModeChange } from "../dark/engine";
+import { PagePreviews } from "./pagePreviews";
 
 export type ScalePreset = "page-width" | "page-fit" | "page-actual";
 
@@ -107,6 +108,7 @@ export class ViewerController {
     this.eventBus.on("pagesinit", () => {
       this.pagesReady = true;
       this.restorePlace(this.pendingPlace);
+      this.previews.start(this.doc);
     });
     this.eventBus.on("pagerendered", () => {
       this.scheduleRenderAhead();
@@ -122,10 +124,28 @@ export class ViewerController {
 
     this.listen(options.container, "click", (e) => this.interceptExternalLink(e as MouseEvent), true);
     this.listen(options.container, "wheel", (e) => this.zoomWithWheel(e as WheelEvent), { passive: false });
-    // WebKit also sends its own pinch gestures; the wheel events above already handle the zoom.
-    for (const type of ["gesturestart", "gesturechange", "gestureend"]) {
-      this.listen(options.container, type, (e) => e.preventDefault(), { passive: false });
-    }
+    // Safari/WebKit (the Mac app) reports trackpad pinches as gesture events with a scale, not
+    // as Ctrl+wheel like Chromium (Windows). Both feed the same stretch-then-redraw zoom.
+    let gestureScale = 1;
+    type Gesture = Event & { scale: number; clientX: number; clientY: number };
+    this.listen(options.container, "gesturestart", (e) => {
+      e.preventDefault();
+      gestureScale = 1;
+      this.gesturing = true;
+    }, { passive: false });
+    this.listen(options.container, "gesturechange", (e) => {
+      e.preventDefault();
+      const g = e as Gesture;
+      if (!(g.scale > 0)) return;
+      const step = g.scale / gestureScale;
+      gestureScale = g.scale;
+      const box = options.container.getBoundingClientRect();
+      this.stretchZoom(step, g.clientX || box.left + box.width / 2, g.clientY || box.top + box.height / 2);
+    }, { passive: false });
+    this.listen(options.container, "gestureend", (e) => {
+      e.preventDefault();
+      this.gesturing = false;
+    }, { passive: false });
     this.cleanups.push(() => clearTimeout(this.pinch?.timer));
     // Fit-to-window zoom follows resizes once they settle: re-zooming (and so redrawing every
     // page) on each frame of a window drag or of the macOS full-screen animation made them laggy.
@@ -151,6 +171,7 @@ export class ViewerController {
     if (doc === this.doc) return;
     this.doc = doc;
     this.pagesReady = false;
+    this.previews.start(null);
     this.awaitingFirstRender = doc !== null;
     this.pendingPlace = typeof place === "number" ? { page: place, zoom: "page-width", offset: 0 } : place;
     this.findQuery = "";
@@ -454,8 +475,23 @@ export class ViewerController {
     const bg = darkBackground();
     this.options.container.style.setProperty("--page-bg", bg ?? "#ffffff");
     this.options.container.classList.toggle("reading-dark", bg !== null);
-    if (rerender && this.doc) this.viewer.refresh();
+    if (rerender && this.doc) {
+      this.viewer.refresh();
+      this.previews.refresh();
+    }
   }
+
+  /** Small pictures of every page, shown until each page is drawn (pagePreviews.ts). */
+  private readonly previews = new PagePreviews({
+    doc: () => this.doc,
+    pageDiv: (page) => (this.viewer.getPageView(page - 1)?.div as HTMLElement | undefined) ?? null,
+    currentPage: () => this.viewer.currentPageNumber || 1,
+    busy: () => {
+      if (performance.now() - this.lastScroll < 250 || this.pinch) return true;
+      const views = (this.viewer as unknown as { _pages?: Array<{ renderingState: number }> })._pages ?? [];
+      return views.some((v) => v.renderingState === 1);
+    },
+  });
 
   private update(patch: Partial<ViewerState>): void {
     this.state = { ...this.state, ...patch };
@@ -485,9 +521,13 @@ export class ViewerController {
    * CSS transform (free, no redraw); the real zoom, and one sharp redraw, happens when it pauses.
    * Pinch deltas are small and many, so they scale smoothly; a mouse wheel notch is one 10% step.
    */
+  /** A WebKit pinch is running (its own events drive the zoom; ignore any Ctrl+wheel copies). */
+  private gesturing = false;
+
   private zoomWithWheel(event: WheelEvent): void {
     if (!event.ctrlKey && !event.metaKey) return;
     event.preventDefault();
+    if (this.gesturing) return;
     const notch = event.deltaMode !== 0 || Math.abs(event.deltaY) >= 40;
     const step = notch ? (event.deltaY < 0 ? 1.1 : 1 / 1.1) : Math.exp(-event.deltaY * ViewerController.PINCH_SPEED);
     this.stretchZoom(step, event.clientX, event.clientY);

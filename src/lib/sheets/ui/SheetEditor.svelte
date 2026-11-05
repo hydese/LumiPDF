@@ -526,7 +526,26 @@
     const el = scroller;
     if (!el) return;
     el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
+    // Mac trackpad pinch (WebKit gesture events).
+    let last = 1;
+    const start = (e: Event) => {
+      e.preventDefault();
+      last = 1;
+    };
+    const change = (e: Event) => {
+      e.preventDefault();
+      const scale = (e as Event & { scale: number }).scale;
+      if (!(scale > 0)) return;
+      zoomPick = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom * (scale / last)));
+      last = scale;
+    };
+    el.addEventListener("gesturestart", start, { passive: false });
+    el.addEventListener("gesturechange", change, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("gesturestart", start);
+      el.removeEventListener("gesturechange", change);
+    };
   });
 
   onMount(() => {

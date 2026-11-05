@@ -73,17 +73,11 @@ export async function setFullscreen(on: boolean): Promise<boolean> {
     else if (document.fullscreenElement) await document.exitFullscreen().catch(() => {});
     return on;
   }
-  if (platform === "macos") {
-    // "Simple" full screen: the window covers the screen in its own space-less mode, with no
-    // title bar sliding down over the toolbar (macOS's native full screen reveals its white
-    // title bar over our tools whenever the pointer nears the top). The menu bar still appears
-    // when the pointer touches the top edge.
-    try {
-      await w.setSimpleFullscreen(on);
-      return on;
-    } catch {
-      /* fall back to native full screen */
-    }
+  try {
+    // Native command: on the Mac a full screen without the sliding title bar (attention.rs).
+    return await invoke<boolean>("app_fullscreen", { on });
+  } catch {
+    /* older backend: the webview API below */
   }
   await w.setFullscreen(on).catch(() => {});
   const state: unknown = await w.isFullscreen().catch(() => on);

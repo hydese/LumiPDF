@@ -25,3 +25,23 @@ pub fn bring_to_front<R: Runtime>(app: AppHandle<R>) {
         let _ = window.set_always_on_top(false);
     });
 }
+
+/// Full screen without the native macOS mode (which slides a title bar over the app's own top
+/// bar whenever the pointer nears the top): the window covers the screen, the menu bar and Dock
+/// hide until the pointer reaches the edge. Other systems use normal full screen.
+#[tauri::command]
+pub async fn app_fullscreen<R: Runtime>(window: tauri::WebviewWindow<R>, on: bool) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        // Leaving native full screen first (entered with the green button), then the simple one.
+        if on && window.is_fullscreen().unwrap_or(false) {
+            let _ = window.set_fullscreen(false);
+            std::thread::sleep(std::time::Duration::from_millis(700));
+        }
+        if window.set_simple_fullscreen(on).is_ok() {
+            return on;
+        }
+    }
+    let _ = window.set_fullscreen(on);
+    window.is_fullscreen().unwrap_or(on)
+}

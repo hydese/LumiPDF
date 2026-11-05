@@ -2,6 +2,148 @@
   "$comment": "What's new after an update. Add an entry for every version you release, newest first. The app shows the entry for its own version once, on the first launch after updating; the GitHub release notes are generated from it. A test fails if the version in package.json has no entry. Tags: new, better, fixed. Optional \"welcome\": [\"language\" | \"usage\" | \"appearance\" | \"reading\" | \"library\" | \"updates\"] shows those welcome steps again after updating, when a change needs the user to choose something.",
   "releases": [
     {
+      "version": "2.1.0-beta.4",
+      "date": "2026-11-05",
+      "title": "LumiPDF 2.1.0 Beta 4 – macOS",
+      "items": [
+        {
+          "tag": "fixed",
+          "title": "Mac: full screen without the white bar",
+          "text": "Full screen no longer shows the macOS title bar over the tools, also when you use the green window button. Move the pointer to the top to bring back LumiPDF's bar.",
+          "tr": {
+            "it": {
+              "title": "Mac: schermo intero senza la barra bianca",
+              "text": "Lo schermo intero non mostra più la barra del titolo di macOS sopra gli strumenti, anche usando il pulsante verde della finestra. Porta il puntatore in alto per far tornare la barra di LumiPDF."
+            },
+            "pt-BR": {
+              "title": "Mac: tela cheia sem a barra branca",
+              "text": "A tela cheia não mostra mais a barra de título do macOS sobre as ferramentas, também ao usar o botão verde da janela. Leve o ponteiro ao topo para trazer a barra do LumiPDF."
+            },
+            "fr": {
+              "title": "Mac : plein écran sans la barre blanche",
+              "text": "Le plein écran n’affiche plus la barre de titre de macOS sur les outils, même avec le bouton vert de la fenêtre. Placez le pointeur en haut pour faire revenir la barre de LumiPDF."
+            },
+            "de": {
+              "title": "Mac: Vollbild ohne weiße Leiste",
+              "text": "Im Vollbild erscheint die macOS-Titelleiste nicht mehr über den Werkzeugen, auch mit der grünen Fenstertaste. Bewege den Zeiger nach oben, um die Leiste von LumiPDF zurückzuholen."
+            },
+            "es": {
+              "title": "Mac: pantalla completa sin la barra blanca",
+              "text": "La pantalla completa ya no muestra la barra de título de macOS sobre las herramientas, también con el botón verde de la ventana. Lleva el puntero arriba para que vuelva la barra de LumiPDF."
+            }
+          }
+        },
+        {
+          "tag": "fixed",
+          "title": "Mac: trackpad pinch zooms again",
+          "text": "Pinching on the trackpad zooms the page (and formula sheets) smoothly again.",
+          "tr": {
+            "it": {
+              "title": "Mac: il pizzico sul trackpad torna a zoomare",
+              "text": "Il pizzico sul trackpad ingrandisce di nuovo la pagina (e i formulari) in modo fluido."
+            },
+            "pt-BR": {
+              "title": "Mac: a pinça no trackpad volta a dar zoom",
+              "text": "A pinça no trackpad volta a dar zoom na página (e nas folhas de fórmulas) com suavidade."
+            },
+            "fr": {
+              "title": "Mac : le pincement sur le trackpad zoome à nouveau",
+              "text": "Pincer sur le trackpad zoome de nouveau la page (et les fiches de formules) en douceur."
+            },
+            "de": {
+              "title": "Mac: Zwei-Finger-Zoom auf dem Trackpad geht wieder",
+              "text": "Das Zoomen mit zwei Fingern auf dem Trackpad vergrößert die Seite (und Formelblätter) wieder flüssig."
+            },
+            "es": {
+              "title": "Mac: el pellizco en el trackpad vuelve a hacer zoom",
+              "text": "Pellizcar en el trackpad vuelve a ampliar la página (y las hojas de fórmulas) con suavidad."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "Every page appears at once",
+          "text": "LumiPDF keeps a small picture of every page, made in the background, so far-away pages show instantly and sharpen a moment later.",
+          "tr": {
+            "it": {
+              "title": "Ogni pagina appare subito",
+              "text": "LumiPDF tiene una piccola immagine di ogni pagina, preparata in background, così anche le pagine lontane appaiono subito e diventano nitide un attimo dopo."
+            },
+            "pt-BR": {
+              "title": "Toda página aparece na hora",
+              "text": "O LumiPDF guarda uma pequena imagem de cada página, feita em segundo plano, então até páginas distantes aparecem na hora e ficam nítidas logo depois."
+            },
+            "fr": {
+              "title": "Chaque page s’affiche tout de suite",
+              "text": "LumiPDF garde une petite image de chaque page, préparée en arrière-plan : même les pages lointaines s’affichent aussitôt et deviennent nettes un instant après."
+            },
+            "de": {
+              "title": "Jede Seite erscheint sofort",
+              "text": "LumiPDF hält ein kleines Bild jeder Seite bereit, im Hintergrund erstellt, damit auch weit entfernte Seiten sofort erscheinen und einen Moment später scharf werden."
+            },
+            "es": {
+              "title": "Cada página aparece al instante",
+              "text": "LumiPDF guarda una pequeña imagen de cada página, hecha en segundo plano, así incluso las páginas lejanas aparecen al instante y se vuelven nítidas un momento después."
+            }
+          }
+        },
+        {
+          "tag": "fixed",
+          "title": "Dark mode: charts and slides",
+          "text": "Raster charts get a dark background, pale slide headers no longer stay bright, and tinted slide backgrounds turn into an even dark page without steps.",
+          "tr": {
+            "it": {
+              "title": "Modalità scura: grafici e slide",
+              "text": "I grafici raster hanno uno sfondo scuro, le intestazioni chiare delle slide non restano più accese e gli sfondi colorati delle slide diventano una pagina scura uniforme, senza gradini."
+            },
+            "pt-BR": {
+              "title": "Modo escuro: gráficos e slides",
+              "text": "Gráficos em imagem ganham fundo escuro, cabeçalhos claros de slides não ficam mais acesos e fundos coloridos de slides viram uma página escura uniforme, sem degraus."
+            },
+            "fr": {
+              "title": "Mode sombre : graphiques et diapositives",
+              "text": "Les graphiques en image ont un fond sombre, les en-têtes clairs des diapositives ne restent plus lumineux et les fonds teintés deviennent une page sombre uniforme, sans marches."
+            },
+            "de": {
+              "title": "Dunkelmodus: Diagramme und Folien",
+              "text": "Gerasterte Diagramme bekommen einen dunklen Hintergrund, helle Folienköpfe bleiben nicht mehr hell, und getönte Folienhintergründe werden zu einer gleichmäßig dunklen Seite ohne Stufen."
+            },
+            "es": {
+              "title": "Modo oscuro: gráficos y diapositivas",
+              "text": "Los gráficos en imagen tienen fondo oscuro, las cabeceras claras de las diapositivas ya no quedan brillantes y los fondos tintados se vuelven una página oscura uniforme, sin escalones."
+            }
+          }
+        },
+        {
+          "tag": "fixed",
+          "title": "Library covers",
+          "text": "Covers that failed to load once are tried again, also reading the whole file when needed.",
+          "tr": {
+            "it": {
+              "title": "Copertine della Libreria",
+              "text": "Le copertine che non si erano caricate vengono riprovate, leggendo anche l’intero file se serve."
+            },
+            "pt-BR": {
+              "title": "Capas da Biblioteca",
+              "text": "Capas que não carregaram são tentadas de novo, lendo o arquivo inteiro se for preciso."
+            },
+            "fr": {
+              "title": "Couvertures de la Bibliothèque",
+              "text": "Les couvertures qui n’avaient pas chargé sont réessayées, en lisant tout le fichier si besoin."
+            },
+            "de": {
+              "title": "Cover in der Bibliothek",
+              "text": "Cover, die nicht geladen wurden, werden erneut versucht, wenn nötig mit der ganzen Datei."
+            },
+            "es": {
+              "title": "Portadas de la Biblioteca",
+              "text": "Las portadas que no cargaron se vuelven a intentar, leyendo el archivo entero si hace falta."
+            }
+          }
+        }
+      ]
+    },
+    {
       "version": "2.1.0-beta.3",
       "date": "2026-11-05",
       "title": "LumiPDF 2.1.0 Beta 3 – macOS",

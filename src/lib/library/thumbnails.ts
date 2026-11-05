@@ -53,8 +53,14 @@ async function store(key: string, blob: Blob): Promise<void> {
   d.transaction(STORE, "readwrite").objectStore(STORE).put(blob, key);
 }
 
+/** First try reads only what page 1 needs; if that fails (some files and servers), read it all. */
 async function render(file: FileEntry): Promise<Blob | null> {
-  const task = pdfjs.getDocument({ ...documentOptions(convertFileSrc(file.path)), disableAutoFetch: true });
+  return (await renderOnce(file, true)) ?? (await renderOnce(file, false));
+}
+
+async function renderOnce(file: FileEntry, partial: boolean): Promise<Blob | null> {
+  const options = documentOptions(convertFileSrc(file.path));
+  const task = pdfjs.getDocument(partial ? { ...options, disableAutoFetch: true } : { ...options, disableRange: true, disableStream: true });
   task.onPassword = () => void task.destroy(); // protected: no thumbnail
   try {
     const doc = await task.promise;
@@ -65,8 +71,12 @@ async function render(file: FileEntry): Promise<Blob | null> {
     canvas.width = Math.ceil(viewport.width);
     canvas.height = Math.ceil(viewport.height);
     await page.render({ canvas, viewport, background: "#ffffff" }).promise;
-    return await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.85));
-  } catch {
+    // WebKit can't encode WebP (it would fall back to a large PNG): JPEG there.
+    const webp = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.85));
+    if (webp?.type === "image/webp") return webp;
+    return await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+  } catch (err) {
+    console.warn(`LumiPDF: no thumbnail for ${file.name} (${partial ? "partial" : "full"} read):`, err);
     return null;
   } finally {
     void task.destroy();
@@ -95,6 +105,8 @@ export function thumbnail(file: FileEntry): Promise<string | null> {
         const hit = await cached(key);
         const blob = hit ?? (await render(file));
         if (blob && !hit) void store(key, blob);
+        // A failure isn't remembered: the next time the card is shown it tries again.
+        if (!blob) urls.delete(key);
         resolve(blob ? URL.createObjectURL(blob) : null);
       });
       pump();

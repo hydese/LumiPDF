@@ -123,6 +123,7 @@
     },
     pdf_size_estimate: () => new Promise((r) => setTimeout(() => r({ originalBytes: 52_400_000, light: 31_200_000, recommended: 9_400_000, strong: 5_100_000 }), 300)),
     perf_log: () => Promise.resolve("/Users/you/Desktop/LumiPDF-performance.log"),
+    app_fullscreen: ({ on }) => on,
     bring_to_front: () => Promise.resolve(),
     pdf_password_get: () => Promise.resolve(null),
     pdf_password_set: () => Promise.resolve(),

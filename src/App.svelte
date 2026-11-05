@@ -293,6 +293,8 @@
       void unlisten.then((stop) => stop());
     };
   });
+  // Mac: the green button's native full screen becomes LumiPDF's own.
+  $effect(() => fullscreen.watchNative());
   // Timers ring on time even while the window is hidden or minimised.
   $effect(() => keepTimersAwake(timers.busy));
   // Beta only: bring the performance panel back if it was on last time.

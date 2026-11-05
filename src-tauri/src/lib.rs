@@ -68,6 +68,7 @@ pub fn run() {
             export::print_prepare,
             export::print_window,
             attention::bring_to_front,
+            attention::app_fullscreen,
             passwords::pdf_password_get,
             passwords::pdf_password_set,
             passwords::pdf_password_forget,
