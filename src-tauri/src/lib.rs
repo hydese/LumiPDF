@@ -20,6 +20,7 @@ mod settings;
 mod sheets;
 mod store;
 mod updater;
+mod windows;
 
 pub use error::AppError;
 
@@ -32,7 +33,7 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             let docs = documents::grant_all(app, &documents::paths_from_args(args));
             documents::emit_opened(app, docs);
-            if let Some(window) = app.get_webview_window("main") {
+            if let Some(window) = app.get_webview_window(&windows::active_label(app)) {
                 let _ = window.unminimize();
                 let _ = window.set_focus();
             }
@@ -45,8 +46,11 @@ pub fn run() {
         // macOS: LumiPDF's own menu (menu.rs) instead of Tauri's default one.
         .enable_macos_default_menu(false)
         .on_menu_event(|app, event| {
-            let _ = app.emit(menu::MENU_EVENT, event.id().0.clone());
+            // Only the window being used acts on a menu command (⌘W closes its tab, not all).
+            let label = windows::active_label(app);
+            let _ = app.emit_to(label.as_str(), menu::MENU_EVENT, event.id().0.clone());
         })
+        .manage(windows::Windows::default())
         .setup(|app| {
             menu::install(app.handle(), &menu::MenuLabels::default())?;
             library::init(app.handle());
@@ -55,19 +59,28 @@ pub fn run() {
             documents::queue_pending(app.handle(), docs);
             Ok(())
         })
-        .on_window_event(|window, event| {
-            if let WindowEvent::DragDrop(DragDropEvent::Drop { paths, .. }) = event {
+        .on_window_event(|window, event| match event {
+            WindowEvent::DragDrop(DragDropEvent::Drop { paths, .. }) => {
                 let app = window.app_handle();
-                documents::emit_opened(app, documents::grant_all(app, paths));
+                documents::emit_opened_to(app, window.label(), documents::grant_all(app, paths));
             }
+            WindowEvent::Destroyed => windows::forget(window.app_handle(), window.label()),
+            _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
             menu::set_menu,
             perf::perf_log,
+            perf::save_photo_example,
             export::print_prepare,
             export::print_window,
             attention::bring_to_front,
+            windows::window_open,
+            windows::window_take_tab,
+            windows::window_claim_doc,
+            windows::window_release_doc,
+            windows::window_list,
+            windows::window_send,
             attention::app_fullscreen,
             passwords::pdf_password_get,
             passwords::pdf_password_set,

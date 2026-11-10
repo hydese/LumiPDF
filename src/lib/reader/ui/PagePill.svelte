@@ -3,6 +3,7 @@
   import { t } from "../../i18n";
   import { session } from "../session.svelte";
   import Icon from "../../ui/Icon.svelte";
+  import { readingMode } from "../../dark/readingMode.svelte";
   import { platform } from "../../platform/window";
 
   const backShortcut = platform === "macos" ? "⌘[" : "Alt+←";
@@ -64,10 +65,26 @@
     <button aria-label={t("zoom.in")} title={t("zoom.in")} onclick={() => session.controller?.zoomIn()}>
       <Icon name="plus" size={15} stroke={2} />
     </button>
+    {#if readingMode.isDark}
+      <span class="divider"></span>
+      <button
+        class:on={readingMode.original}
+        aria-pressed={readingMode.original}
+        aria-label={t("reader.original")}
+        title={t("reader.originalTitle")}
+        onclick={() => (readingMode.original = !readingMode.original)}
+      >
+        <Icon name="sun" size={15} stroke={2} />
+      </button>
+    {/if}
   </div>
 {/if}
 
 <style>
+  .pill button.on {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+  }
   .back {
     position: absolute;
     bottom: 70px;

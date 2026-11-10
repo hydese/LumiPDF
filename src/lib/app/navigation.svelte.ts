@@ -2,7 +2,7 @@
  * Which screen is showing. No URLs: the Library (home), the Reader, Study stats and Settings.
  */
 export type Screen = "library" | "reader" | "stats" | "settings";
-export type SettingsSection = "general" | "appearance" | "reading" | "library" | "shortcuts" | "about";
+export type SettingsSection = "general" | "appearance" | "reading" | "library" | "shortcuts" | "about" | "beta";
 
 class Navigation {
   screen = $state<Screen>("library");

@@ -56,6 +56,9 @@ const shotsAll = [
   { name: "annotate-dark", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], annotate: true },
   { name: "annotate-menu", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: "menu" },
   { name: "annotate-zoom", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: "zoom" },
+  { name: "settings-beta", settings: { app: { appearance: "light", ...seen } }, keys: "Control+Comma", section: "Beta" },
+  { name: "photo-train-menu", settings: { app: { appearance: "dark", ...seen } }, open: ["Automatica — Lezione 12"], rightClickImage: true },
+  { name: "photo-train-saved", settings: { app: { appearance: "dark", ...seen } }, open: ["Automatica — Lezione 12"], rightClickImage: "answer" },
   { name: "snip-menu", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], annotate: "snip" },
   { name: "export", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: true, exportFlow: true },
   { name: "export-compress", settings: { app: { appearance: "dark", ...seen } }, open: ["Analisi 2 — Trasformate"], annotate: true, exportFlow: "compress" },
@@ -516,6 +519,22 @@ for (const shot of shots) {
       console.log("preview shown:", await page.locator(".lumi-link-preview.ready").count());
     }
     if (shot.rightClick) await page.click(shot.rightClick, { button: "right" });
+    if (shot.rightClickImage) {
+      // Beta photo training: right-click across the page until the menu opens on an image.
+      const box = await page.locator(".layer:not([hidden]) .pdfViewer .page canvas >> visible=true").first().boundingBox();
+      let found = false;
+      for (let fy = 0.1; fy < 0.95 && !found; fy += 0.08) {
+        for (let fx = 0.15; fx < 0.9 && !found; fx += 0.1) {
+          await page.mouse.click(box.x + box.width * fx, box.y + Math.min(box.height, 700) * fy, { button: "right" });
+          found = (await page.locator(".photo-menu").count()) > 0;
+        }
+      }
+      console.log("photo menu:", found);
+      if (found && shot.rightClickImage === "answer") {
+        await page.click(".photo-menu button >> nth=1");
+        await page.waitForTimeout(800);
+      }
+    }
     if (shot.switchLanguage) {
       // Change the language in Settings: everything on screen must switch at once.
       await page.selectOption('select:has(option[value="pt-BR"])', shot.switchLanguage);

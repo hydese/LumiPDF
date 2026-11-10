@@ -3,7 +3,8 @@
  * language; its LumiPDF items come back as "menu" events with the item's id.
  */
 import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { UnlistenFn } from "@tauri-apps/api/event";
+import { onWindowEvent } from "./windows";
 import { t } from "../i18n";
 
 export type MenuAction =
@@ -31,5 +32,6 @@ export function setMenuLanguage(): Promise<void> {
 }
 
 export function onMenu(handler: (action: MenuAction) => void): Promise<UnlistenFn> {
-  return listen<string>("menu", (event) => handler(event.payload as MenuAction));
+  // Menu commands go to the window in use only.
+  return onWindowEvent<string>("menu", (action) => handler(action as MenuAction));
 }

@@ -17,6 +17,7 @@ import { annotations } from "../annotations/store.svelte";
 import { loadDocument, PasswordCancelledError, type LoadedPdf } from "../viewer/pdfjs";
 import { passwordForget, passwordRecall, passwordRemember } from "../ipc/passwords";
 import type { ReadingPlace, ViewerController, ViewerState } from "../viewer/ViewerController";
+import { claimDoc, isMainWindow, openWindow, releaseDoc, sendTab, showDocIn, type MovedTab } from "../ipc/windows";
 
 const SAVE_PAGE_DELAY_MS = 1500;
 /** Tabs kept loaded: the active one plus this many recently used ones. */
@@ -101,13 +102,16 @@ class DocumentSession {
   // Opening
 
   /** Opens a document in a new tab, or switches to it if it is already open. */
-  async open(ref: DocumentRef): Promise<void> {
+  async open(ref: DocumentRef, moved?: MovedTab): Promise<void> {
     const existing = this.tabs.find((t) => t.path === ref.path);
     if (existing) return this.activate(existing.id);
+    // Already open in another LumiPDF window: go there instead of opening it twice.
+    const owner = await claimDoc(ref.path);
+    if (owner) return void showDocIn(owner, ref.path).catch(() => {});
     this.error = null;
     this.loadingName = ref.name;
     try {
-      const { pdf, password } = await this.#load(ref.path, ref.name, null);
+      const { pdf, password } = await this.#load(ref.path, ref.name, moved?.password ?? null);
       const known = library.doc(ref.path);
       const tab: Tab = {
         id: nextId++,
@@ -116,7 +120,7 @@ class DocumentSession {
         name: ref.name,
         title: titleOf(ref.name),
         pdf,
-        place: { page: known?.page || 1, zoom: "page-width", offset: 0 },
+        place: { page: moved?.page || known?.page || 1, zoom: "page-width", offset: moved?.offset ?? 0 },
         snapshot: null,
         password,
         bookmarks: known?.bookmarks ?? [],
@@ -131,10 +135,49 @@ class DocumentSession {
       void library.refresh();
       this.#sleepExtras();
     } catch (err) {
+      void releaseDoc(ref.path);
       if (!(err instanceof PasswordCancelledError)) this.error = this.#openError(ref.name, err);
     } finally {
       this.loadingName = null;
     }
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // Windows
+
+  /** A PDF tab of this window, as it is now (page and position), to continue in another window. */
+  #moving(id: number): MovedTab | null {
+    const tab = this.tabs.find((t) => t.id === id);
+    if (!tab || tab.kind !== "pdf") return null;
+    const place = tab.id === this.activeId && this.controller ? this.controller.place() : tab.place;
+    return { path: tab.path, name: tab.name, page: place.page, offset: place.offset, password: tab.password };
+  }
+
+  /** Moves a tab to a new window (↗ on the tab, or right-click). */
+  async moveToNewWindow(id: number): Promise<void> {
+    const moving = this.#moving(id);
+    if (!moving) return;
+    await this.close(id);
+    await openWindow(moving).catch((err) => (this.error = message(err)));
+  }
+
+  /** Moves a tab to another open window. */
+  async moveToWindow(id: number, label: string): Promise<void> {
+    const moving = this.#moving(id);
+    if (!moving) return;
+    await this.close(id);
+    await sendTab(label, moving).catch((err) => (this.error = message(err)));
+  }
+
+  /** A tab arriving from another window. */
+  async openMoved(moved: MovedTab): Promise<void> {
+    await this.open({ path: moved.path, name: moved.name, size: 0 } as DocumentRef, moved);
+  }
+
+  /** Another window asked to show a PDF this window has open. */
+  showDoc(path: string): void {
+    const tab = this.tabs.find((t) => t.path === path);
+    if (tab) void this.activate(tab.id);
   }
 
   async openFromLibrary(path: string): Promise<void> {
@@ -188,6 +231,7 @@ class DocumentSession {
       }
       const known = library.doc(path);
       if (!known?.file) continue;
+      if (await claimDoc(path)) continue; // open in another window
       tabs.push({
         id: nextId++,
         kind: "pdf",
@@ -244,6 +288,7 @@ class DocumentSession {
     if (tab.snapshot) URL.revokeObjectURL(tab.snapshot);
     if (tab.pdf) await annotations.release(tab.pdf.doc);
     await tab.pdf?.close();
+    if (tab.kind === "pdf") void releaseDoc(tab.path);
     if (tab.id === this.activeId) {
       this.activeId = null;
       this.view = null;
@@ -415,6 +460,7 @@ class DocumentSession {
 
   /** Remembers open tabs so "On start: tabs from last time" can reopen them. */
   #persist(): void {
+    if (!isMainWindow) return; // extra windows aren't reopened at the next start
     const paths = this.tabs.map((t) => t.path);
     const active = this.active?.path ?? "";
     const r = settings.value.reader;

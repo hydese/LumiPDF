@@ -14,8 +14,9 @@ import { getStroke } from "perfect-freehand";
 import type { PDFPageProxy } from "pdfjs-dist";
 import { isDarkActive, mapColor, onDarkModeChange } from "../dark/engine";
 import type { PageViewLike, ViewerController } from "../viewer/ViewerController";
-import { PALETTE, hits, mergeLineRects, newId, thinPoints, type Annotation, type Ink, type Marker, type MarkKind, type TextMark } from "./model";
+import { PALETTE, cutStroke, hits, mergeLineRects, newId, thinPoints, type Annotation, type Ink, type Marker, type MarkKind, type TextMark } from "./model";
 import { annotations, type Tool } from "./store.svelte";
+import { settings } from "../settings/store.svelte";
 
 export interface LayerCallbacks {
   /** A sticky note pin was clicked (or a note was just placed). */
@@ -70,6 +71,8 @@ export class AnnotationLayer {
   #pages = new Map<number, PageLayers>();
   #live: LiveStroke | null = null;
   #erasing = new Set<string>();
+  /** Partial eraser: what is left of each stroke it went over (original id → pieces). */
+  #partial = new Map<string, Array<Ink | Marker>>();
   #erasePage = 0;
   #frame = 0;
   #frameFull = false;
@@ -333,6 +336,8 @@ export class AnnotationLayer {
   #draw(layers: PageLayers, full = true): void {
     const { view } = layers;
     const list = annotations.onPage(view.id).filter((a) => !this.#erasing.has(a.id));
+    // Pieces left by the partial eraser while it's still moving.
+    for (const pieces of this.#partial.values()) for (const p of pieces) if (p.page === view.id) list.push(p);
     const hasMarks = list.some((a) => a.type === "marker" || a.type === "highlight");
     const hasInk = list.some((a) => a.type === "ink" || a.type === "underline" || a.type === "strike");
     const region = this.#region(view);
@@ -618,6 +623,17 @@ export class AnnotationLayer {
     if (!this.#snipBox.isConnected) document.body.append(this.#snipBox);
   }
 
+  /** Snips the whole page (the one being read, by default). */
+  snipWholePage(page = this.controller.place().page): void {
+    const view = this.controller.pageView(page);
+    if (!view?.div.isConnected) return;
+    this.cb.onSnipClear?.();
+    this.#snip = { page, x0: 0, y0: 0, x1: view.div.clientWidth, y1: view.div.clientHeight, done: true };
+    this.#placeSnip();
+    const at = this.snipScreenRect();
+    if (at) this.cb.onSnip?.(at);
+  }
+
   /** Where the finished snip is on screen now (it moves with scrolling). */
   snipScreenRect(): DOMRect | null {
     return this.#snipBox?.isConnected ? this.#snipBox.getBoundingClientRect() : null;
@@ -868,13 +884,41 @@ export class AnnotationLayer {
   #finishErase(): void {
     if (!this.#erasePage && !this.#erasing.size) return;
     this.#erasePage = 0;
-    if (this.#erasing.size) annotations.remove(new Set(this.#erasing));
+    if (this.#erasing.size) annotations.replace(new Set(this.#erasing), [...this.#partial.values()].flat());
     this.#erasing.clear();
+    this.#partial.clear();
   }
 
   #eraseAt(view: PageViewLike, x: number, y: number): void {
     const tolerance = ERASER_PX / view.viewport.scale;
     let changed = false;
+    if (settings.value.annotate.eraserMode === "partial") {
+      // Cut pen and highlighter strokes where the eraser passes; other marks go whole.
+      const r = settings.value.annotate.eraserSize / view.viewport.scale;
+      for (const a of annotations.onPage(view.id)) {
+        if ((a.type !== "ink" && a.type !== "marker") || this.#erasing.has(a.id)) continue;
+        if (!hits(a, x, y, r)) continue;
+        this.#erasing.add(a.id);
+        this.#partial.set(a.id, [a]);
+      }
+      for (const [id, pieces] of this.#partial) {
+        if (pieces[0] && pieces[0].page !== view.id) continue;
+        const next = pieces.flatMap((p) => (hits(p, x, y, r) ? cutStroke(p, x, y, r) : [p]));
+        if (next.length !== pieces.length || next.some((p, i) => p !== pieces[i])) {
+          this.#partial.set(id, next);
+          changed = true;
+        }
+      }
+      for (const a of annotations.onPage(view.id)) {
+        if (a.type === "ink" || a.type === "marker" || a.type === "note" || this.#erasing.has(a.id)) continue;
+        if (hits(a, x, y, tolerance)) {
+          this.#erasing.add(a.id);
+          changed = true;
+        }
+      }
+      if (changed) this.#schedule(view.id);
+      return;
+    }
     for (const a of annotations.onPage(view.id)) {
       // Sticky notes are never erased by accident: they're deleted from their own editor.
       if (a.type !== "note" && !this.#erasing.has(a.id) && hits(a, x, y, tolerance)) {

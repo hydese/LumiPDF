@@ -6,6 +6,8 @@
  * colours, optionally a little dimmed.
  */
 import type { ColorMapper } from "./mapper";
+import { photoFeatures, photoProbability } from "./photoFeatures";
+import { PHOTO_MODEL } from "./photoModelWeights";
 
 export type ImageKind = "paper" | "graphic" | "photo";
 
@@ -47,7 +49,7 @@ interface CacheEntry {
   bytes: number;
 }
 
-const cache = new WeakMap<object, CacheEntry>();
+let cache = new WeakMap<object, CacheEntry>();
 const cacheOrder: Array<{ source: WeakRef<object>; entry: CacheEntry }> = [];
 let cacheBytes = 0;
 
@@ -59,7 +61,14 @@ export function imageSize(source: CanvasImageSource): { width: number; height: n
   };
 }
 
-function analyze(source: CanvasImageSource, width: number, height: number): Analysis {
+/** What the image looks like in small (at most 64×64), used to decide what kind it is. */
+export interface Sample {
+  data: Uint8ClampedArray;
+  w: number;
+  h: number;
+}
+
+function sampleOf(source: CanvasImageSource, width: number, height: number): Sample {
   const w = Math.min(SAMPLE_SIZE, width);
   const h = Math.min(SAMPLE_SIZE, height);
   const sample = document.createElement("canvas");
@@ -67,7 +76,78 @@ function analyze(source: CanvasImageSource, width: number, height: number): Anal
   sample.height = h;
   const ctx = sample.getContext("2d", { willReadFrequently: true })!;
   ctx.drawImage(source, 0, 0, width, height, 0, 0, w, h);
-  return classifyPixels(ctx.getImageData(0, 0, w, h).data);
+  return { data: ctx.getImageData(0, 0, w, h).data, w, h };
+}
+
+/**
+ * The photo model (photoFeatures.ts, trained on tests/photo-model) decides whether an image is a
+ * photo or painting to keep as it is; the rules above then tell paper from graphics. The rules
+ * alone missed black-and-white photos (no colour, few shades of each channel) and kept flat
+ * diagrams with a pale colour area.
+ */
+export function isPhoto(sample: Sample): boolean {
+  return photoProbability(PHOTO_MODEL, photoFeatures(sample.data, sample.w, sample.h)) >= 0.5;
+}
+
+function judge(sample: Sample, override: boolean | null): Analysis {
+  const rules = classifyPixels(sample.data);
+  if (override ?? isPhoto(sample)) return { kind: "photo", opaque: rules.opaque };
+  if (rules.kind !== "photo") return rules;
+  // Not a photo after all. Already-dark pictures stay as the rules said (recolouring them
+  // would turn them light); others are paper or graphics.
+  const f = photoFeatures(sample.data, sample.w, sample.h);
+  if (f[7]! * 255 < MASK_DARK && override === null) return rules;
+  return { kind: f[0]! >= PAPER_RATIO ? "paper" : "graphic", opaque: rules.opaque };
+}
+
+/**
+ * Images a beta tester marked as photo or not (right-click on the image): remembered by their
+ * sample, so the same picture is judged the same way everywhere it appears.
+ */
+const overrides = new Map<string, boolean>();
+const sourceKeys = new WeakMap<object, string>();
+
+export function sampleKey(sample: Sample): string {
+  const d = sample.data;
+  let h1 = 0x811c9dc5, h2 = 0;
+  for (let i = 0; i < d.length; i++) {
+    h1 = Math.imul(h1 ^ d[i]!, 16777619);
+    h2 = (h2 + d[i]! * (i + 1)) >>> 0;
+  }
+  return `${sample.w}x${sample.h}:${(h1 >>> 0).toString(16)}${h2.toString(16)}`;
+}
+
+export function setPhotoOverrides(entries: Iterable<[string, boolean]>): void {
+  overrides.clear();
+  for (const [k, v] of entries) overrides.set(k, v);
+  cacheOrder.length = 0;
+  cacheBytes = 0;
+  cache = new WeakMap();
+}
+
+/** BETA (photo training): what the app sees in an image and how it judges it. */
+export function describeImage(source: CanvasImageSource): { key: string; width: number; height: number; features: number[]; probability: number; rules: ImageKind; override: boolean | null } | null {
+  const { width, height } = imageSize(source);
+  if (width < 2 || height < 2) return null;
+  const sample = sampleOf(source, width, height);
+  const features = photoFeatures(sample.data, sample.w, sample.h);
+  const key = sampleKey(sample);
+  return { key, width, height, features, probability: photoProbability(PHOTO_MODEL, features), rules: classifyPixels(sample.data).kind, override: overrides.get(key) ?? null };
+}
+
+function overrideOf(source: CanvasImageSource): boolean | null {
+  const key = sourceKeys.get(source as object);
+  return key === undefined ? null : (overrides.get(key) ?? null);
+}
+
+/**
+ * Development only (the training probe, tests/photo-model): told about every image dark mode
+ * prepares. Never set in the app.
+ */
+export type ImageProbe = (info: { source: CanvasImageSource; width: number; height: number; sample: Sample; kind: ImageKind; maskShare: number | null }) => void;
+let probe: ImageProbe | null = null;
+export function setImageProbe(p: ImageProbe | null): void {
+  probe = p;
 }
 
 /**
@@ -170,6 +250,8 @@ const MIXED_BG_SHARE = 0.25;
 const MIXED_BG_LUM = 190;
 /** Average luminance under which an area counts as already dark. */
 const MASK_DARK = 70;
+/** A tile group with this many of 16 grey levels (and many mid-tones) is a black-and-white photo. */
+const GREY_PHOTO_LEVELS = 11;
 
 export interface PhotoMask {
   cols: number;
@@ -211,6 +293,7 @@ export function photoMask(data: Uint8ClampedArray, width: number, height: number
   const lumSum = new Float32Array(n);
   const counts = new Float32Array(n);
   const binsets: Array<Set<number>> = Array.from({ length: n }, () => new Set());
+  const greys = new Uint16Array(n); // which of 16 brightness levels appear (one bit each)
   for (let y = 0; y < rows * tile; y++) {
     const ty = Math.floor(y / tile);
     for (let x = 0; x < cols * tile; x++) {
@@ -224,12 +307,13 @@ export function photoMask(data: Uint8ClampedArray, width: number, height: number
       lumSum[t]! += lum;
       if (lum >= MID_MIN && lum <= MID_MAX) mid[t]!++;
       binsets[t]!.add(((r >> 5) << 6) | ((g >> 5) << 3) | (b >> 5));
+      greys[t]! |= 1 << Math.min(15, lum >> 4);
     }
   }
   const raw = new Uint8Array(n);
   for (let ty = 0; ty < rows; ty++) {
     for (let tx = 0; tx < cols; tx++) {
-      let c = 0, m = 0, total = 0, l = 0;
+      let c = 0, m = 0, total = 0, l = 0, levels = 0;
       const bins = new Set<number>();
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
@@ -241,6 +325,7 @@ export function photoMask(data: Uint8ClampedArray, width: number, height: number
           l += lumSum[t]!;
           total += counts[t]!;
           for (const b of binsets[t]!) bins.add(b);
+          levels |= greys[t]!;
         }
       }
       if (total === 0) continue;
@@ -250,7 +335,12 @@ export function photoMask(data: Uint8ClampedArray, width: number, height: number
       // light on average; flat graphics have few colours.
       const mean = l / total;
       // Real photos have many shades; flat coloured shapes (chart bars, logos) don't.
-      const keep = (c / total >= 0.18 && bins.size >= 16) || (m / total >= 0.25 && bins.size >= 12) || (mean < MASK_DARK && bins.size >= 3) || mean < MASK_DARK / 2;
+      // Black-and-white photos have no colour bins to speak of: count levels of grey instead.
+      let greyLevels = 0;
+      for (let v = levels; v; v &= v - 1) greyLevels++;
+      const keep =
+        (c / total >= 0.18 && bins.size >= 16) ||
+        (m / total >= 0.25 && (bins.size >= 12 || (greyLevels >= GREY_PHOTO_LEVELS && c / total < 0.05))) || (mean < MASK_DARK && bins.size >= 3) || mean < MASK_DARK / 2;
       raw[ty * cols + tx] = keep ? 1 : 0;
     }
   }
@@ -396,6 +486,7 @@ function keepRect(data: Uint8ClampedArray, width: number, x0: number, y0: number
   const step = Math.max(1, Math.floor(Math.max(w, h) / 64));
   const out: number[] = [];
   let lum = 0;
+  const sw = Math.ceil((x1 - x0) / step), sh = Math.ceil((y1 - y0) / step);
   for (let y = y0; y < y1; y += step) {
     for (let x = x0; x < x1; x += step) {
       const i = (y * width + x) * 4;
@@ -405,7 +496,7 @@ function keepRect(data: Uint8ClampedArray, width: number, x0: number, y0: number
   }
   const px = new Uint8ClampedArray(out);
   if (lum / (px.length / 4) < MASK_DARK) return true;
-  return classifyPixels(px).kind === "photo";
+  return isPhoto({ data: px, w: sw, h: sh });
 }
 
 /** The largest all-ones rectangle of `grid` inside the box (x0..x1, y0..y1 inclusive): [x0, y0, x1, y1) or null. */
@@ -541,10 +632,17 @@ export function prepareImage(source: CanvasImageSource, mapper: ColorMapper, dim
   const cached = cache.get(source as object);
   if (cached?.key === key) return cached.prepared;
 
-  const { kind, opaque } = analyze(source, width, height);
+  const sample = sampleOf(source, width, height);
+  sourceKeys.set(source as object, sampleKey(sample));
+  const override = overrideOf(source);
+  const { kind, opaque } = judge(sample, override);
   let prepared: Prepared = { source, opaque };
-  const mask = width * height <= MAX_RECOLOR_PIXELS ? maskOf(source, width, height) : null;
-  if (mask && mask.share > MIXED_MAX_SHARE) {
+  // A tester's "It's a photo / Not a photo" applies to the whole image.
+  const mask = override === null && width * height <= MAX_RECOLOR_PIXELS ? maskOf(source, width, height) : null;
+  probe?.({ source, width, height, sample, kind, maskShare: mask ? mask.share : null });
+  if (override === true) {
+    if (dimPhotos) prepared = { source: dim(source, width, height), opaque };
+  } else if (mask && mask.share > MIXED_MAX_SHARE) {
     // Almost all photo or already dark: keep it.
     if (dimPhotos) prepared = { source: dim(source, width, height), opaque };
   } else if (mask && mask.share >= MIXED_MIN_SHARE && mask.background.light && mask.background.share >= MIXED_BG_SHARE) {

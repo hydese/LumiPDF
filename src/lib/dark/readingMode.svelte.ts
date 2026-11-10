@@ -19,6 +19,8 @@ class ReadingMode {
 
   readonly autoWanted = $derived(autoDarkWanted(settings.value.reading, this.#now, this.#systemDark));
   readonly isDark = $derived(this.autoWanted === null ? settings.value.reading.darkEnabled : (this.#override ?? this.autoWanted));
+  /** "Original page": while on, pages are drawn in their own colours (button or holding O). */
+  original = $state(false);
 
   /** Starts watching the clock and the system theme. Returns a cleanup function. */
   start(): () => void {
@@ -38,7 +40,7 @@ class ReadingMode {
       });
       $effect(() => {
         const { theme, tuning } = settings.value.reading;
-        setDarkMode(this.isDark ? { theme, tuning: $state.snapshot(tuning) } : null);
+        setDarkMode(this.isDark && !this.original ? { theme, tuning: $state.snapshot(tuning) } : null, this.original);
       });
       $effect(() => setTextClarity(settings.value.reading.textClarity));
     });

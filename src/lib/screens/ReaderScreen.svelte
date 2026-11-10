@@ -17,6 +17,8 @@
   import TitleBar from "../ui/TitleBar.svelte";
   import BackButton from "../ui/BackButton.svelte";
   import IconButton from "../ui/IconButton.svelte";
+  import Icon from "../ui/Icon.svelte";
+  import { DEFAULT_TOOL } from "../annotations/store.svelte";
   import BarActions from "../ui/BarActions.svelte";
   import Sidebar from "../reader/ui/Sidebar.svelte";
   import PagePill from "../reader/ui/PagePill.svelte";
@@ -38,6 +40,9 @@
   import { fullscreen } from "../app/fullscreen.svelte";
   import { sheets } from "../sheets/sheets.svelte";
   import { documentUrl } from "../ipc/documents";
+  import PhotoMenu from "../dark/ui/PhotoMenu.svelte";
+  import { photoTargetAt, type PhotoTarget } from "../dark/photoTraining.svelte";
+  import { updates } from "../updates/updates.svelte";
   import { documentOptions, pdfjs } from "../viewer/pdfjs";
   import type { PDFDocumentProxy } from "pdfjs-dist";
 
@@ -47,6 +52,7 @@
     findInput?: HTMLInputElement | null;
     barActions?: BarActions | null;
   }
+  let photoMenu = $state<PhotoTarget | null>(null);
   let { exportOpen = $bindable(false), findOpen = $bindable(false), findInput = $bindable(null), barActions = $bindable(null) }: Props = $props();
 
   let outline = $state<OutlineItem[]>([]);
@@ -93,6 +99,14 @@
   let menu = $state<{ at: DOMRect; mark: TextMark | null } | null>(null);
   let editing = $state<{ id: string; anchor: HTMLElement } | null>(null);
   let snipAt = $state<DOMRect | null>(null);
+  // Right-click on the snip tool (or "Whole page" in the snip bar).
+  let lastWholePage = 0;
+  $effect(() => {
+    const n = annotations.wholePageSnip;
+    if (n === lastWholePage || !layer) return;
+    lastWholePage = n;
+    queueMicrotask(() => layer?.snipWholePage());
+  });
   // The snip box floats over the whole window: drop it when leaving the reader or switching tab.
   $effect(() => {
     void session.activeId;
@@ -317,7 +331,17 @@
     {#if sidebarOpen}
       <Sidebar {outline} current={currentSection} />
     {/if}
-    <main class="pages">
+    <main
+      class="pages"
+      oncontextmenu={(e) => {
+        // BETA BUILDS ONLY: photo training on images in dark mode.
+        if (!updates.isBeta || !readingMode.isDark || readingMode.original) return;
+        const target = photoTargetAt(e);
+        if (!target) return;
+        e.preventDefault();
+        photoMenu = target;
+      }}
+    >
       <PdfView
         doc={doc?.pdf.doc ?? null}
         place={session.active?.place ?? 1}
@@ -330,6 +354,15 @@
         <img class="snapshot" src={session.active.snapshot} alt="" draggable="false" />
       {/if}
       <ToolOptions />
+      {#if annotations.tool === "snip" && !snipAt}
+        <!-- Snip mode: the reading area dims, and a small bar offers the kind of screenshot. -->
+        <div class="snip-veil" aria-hidden="true"></div>
+        <div class="snip-bar" role="toolbar" aria-label={t("tools.snip")}>
+          <button class="on" aria-pressed="true"><Icon name="snip" size={14} stroke={2} />{t("snip.area")}</button>
+          <button onclick={() => annotations.wholePageSnip++}><Icon name="file" size={14} stroke={2} />{t("snip.wholePage")}</button>
+          <button onclick={() => (annotations.tool = DEFAULT_TOOL)}><Icon name="close" size={14} stroke={2} />{t("snip.cancel")}</button>
+        </div>
+      {/if}
       {#if menu}
         <MarkMenu at={menu.at} mark={menu.mark} onCreate={createMark} onComment={openComment} onClose={() => (menu = null)} />
       {/if}
@@ -353,11 +386,55 @@
         <FindBar bind:input={findInput} onClose={() => (findOpen = false)} />
       {/if}
       <PagePill />
+      {#if photoMenu}
+        <PhotoMenu target={photoMenu} document={session.active?.name ?? ""} onClose={() => (photoMenu = null)} />
+      {/if}
     </main>
   </div>
 </div>
 
 <style>
+  .snip-veil {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.14);
+  }
+  .snip-bar {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 6;
+    display: flex;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--surface-raised) 94%, transparent);
+    backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow: var(--pop-shadow);
+  }
+  .snip-bar button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    color: var(--text);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .snip-bar button:hover {
+    background: var(--hover);
+  }
+  .snip-bar button.on {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    color: var(--accent);
+  }
   .screen {
     position: relative;
     height: 100%;

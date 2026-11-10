@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hits, mergeLineRects, parseAnnotations, thinPoints, type Annotation, type TextMark } from "../../src/lib/annotations/model";
+import { cutStroke, hits, mergeLineRects, parseAnnotations, thinPoints, type Annotation, type Ink, type TextMark } from "../../src/lib/annotations/model";
 
 describe("annotations", () => {
   it("keeps valid annotations and drops broken ones", () => {
@@ -43,5 +43,28 @@ describe("annotations", () => {
   it("thins pointer jitter but keeps the ends", () => {
     const pts = [0, 0, 0.5, 0.1, 0, 0.5, 0.2, 0, 0.5, 5, 0, 0.5, 5.1, 0, 0.5];
     expect(thinPoints(pts, 1)).toEqual([0, 0, 0.5, 5, 0, 0.5, 5.1, 0, 0.5]);
+  });
+});
+
+describe("partial eraser", () => {
+  const line: Ink = { id: "a", type: "ink", page: 1, created: 0, color: "#000", width: 2, points: [0, 0, 0.5, 100, 0, 0.5] };
+
+  it("cuts a straight line in two around the eraser", () => {
+    const pieces = cutStroke(line, 50, 0, 5);
+    expect(pieces).toHaveLength(2);
+    const [left, right] = pieces;
+    expect(left!.points[0]).toBe(0);
+    expect(Math.max(...left!.points.filter((_, i) => i % 3 === 0))).toBeLessThan(45.1);
+    expect(Math.min(...right!.points.filter((_, i) => i % 3 === 0))).toBeGreaterThan(54.9);
+    expect(right!.points.at(-3)).toBe(100);
+    expect(new Set(pieces.map((p) => p.id)).size).toBe(2);
+    expect(pieces.every((p) => p.id !== "a" && p.color === "#000")).toBe(true);
+  });
+
+  it("removes a stroke completely covered, and keeps one end when erasing the other", () => {
+    expect(cutStroke(line, 50, 0, 80)).toHaveLength(0);
+    const end = cutStroke(line, 100, 0, 10);
+    expect(end).toHaveLength(1);
+    expect(Math.max(...end[0]!.points.filter((_, i) => i % 3 === 0))).toBeLessThan(90.1);
   });
 });

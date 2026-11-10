@@ -3,7 +3,8 @@
  * ask Rust to show the dialog or hand over files opened by drag-and-drop or "Open with".
  */
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { UnlistenFn } from "@tauri-apps/api/event";
+import { onWindowEvent } from "./windows";
 
 export interface DocumentRef {
   path: string;
@@ -22,7 +23,8 @@ export function takePendingDocuments(): Promise<DocumentRef[]> {
 
 /** Documents dropped on the window or opened with "Open with" while the app runs. */
 export function onDocumentsOpened(handler: (docs: DocumentRef[]) => void): Promise<UnlistenFn> {
-  return listen<DocumentRef[]>("documents-opened", (event) => handler(event.payload));
+  // Addressed to one window (the one in use, or the one files were dropped on).
+  return onWindowEvent<DocumentRef[]>("documents-opened", handler);
 }
 
 /** URL through which pdf.js reads the file in chunks (asset protocol, range requests). */

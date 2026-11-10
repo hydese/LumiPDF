@@ -46,8 +46,28 @@ class LibraryStore {
   /** Where the folder browser is: a library folder and a subfolder inside it. */
   location = $state<{ root: string; dir: string } | null>(null);
 
+  /** Folders visited before the current one, for the ← button. */
+  #history = $state<Array<{ root: string; dir: string } | null>>([]);
+  readonly canGoBack = $derived(this.#history.length > 0);
+
+  #remember(): void {
+    const here = this.location ? { ...this.location } : null;
+    const last = this.#history.at(-1);
+    if (last === undefined || JSON.stringify(last) !== JSON.stringify(here)) this.#history = [...this.#history.slice(-49), here];
+  }
+
+  /** ← in the folder browser: the folder you were in before. */
+  goBack(): void {
+    const previous = this.#history.at(-1);
+    if (previous === undefined) return;
+    this.#history = this.#history.slice(0, -1);
+    this.query = "";
+    this.location = previous;
+  }
+
   /** Back to the Library's home: out of any folder and search. */
   goHome(): void {
+    if (this.location) this.#remember();
     this.location = null;
     this.query = "";
     document.querySelector(".content")?.scrollTo({ top: 0 });
@@ -57,6 +77,8 @@ class LibraryStore {
 
   browse(root: string, dir = ""): void {
     this.query = "";
+    if (this.location?.root === root && this.location.dir === dir) return;
+    this.#remember();
     this.location = { root, dir };
   }
 

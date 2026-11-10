@@ -33,6 +33,8 @@ export const DEFAULT_TOOL: Tool = "hand";
 
 class AnnotationStore {
   tool = $state<Tool>(DEFAULT_TOOL);
+  /** Bumped to ask the reader for a whole-page screenshot (right-click on the snip tool). */
+  wholePageSnip = $state(0);
   /** Annotations of the active document. Raw: replaced as a whole on every change. */
   list = $state.raw<Annotation[]>([]);
   canUndo = $state(false);
@@ -79,6 +81,12 @@ class AnnotationStore {
   remove(ids: Set<string>): void {
     if (!ids.size) return;
     this.#change((list) => list.filter((a) => !ids.has(a.id)));
+  }
+
+  /** Removes some annotations and adds others as one undo step (the partial eraser). */
+  replace(ids: Set<string>, added: Annotation[]): void {
+    if (!ids.size && !added.length) return;
+    this.#change((list) => [...list.filter((a) => !ids.has(a.id)), ...added]);
   }
 
   update(id: string, patch: Partial<Annotation>): void {

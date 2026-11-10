@@ -42,6 +42,10 @@ pub async fn app_fullscreen<R: Runtime>(window: tauri::WebviewWindow<R>, on: boo
             return on;
         }
     }
-    let _ = window.set_fullscreen(on);
-    window.is_fullscreen().unwrap_or(on)
+    // On Windows the change is applied asynchronously: asking right away still answers "not full
+    // screen", which left the top bar showing. A successful request is the answer.
+    match window.set_fullscreen(on) {
+        Ok(()) => on,
+        Err(_) => window.is_fullscreen().unwrap_or(false),
+    }
 }

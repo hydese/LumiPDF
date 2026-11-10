@@ -1,5 +1,5 @@
 /**
- * BETA BUILDS ONLY: the performance panel and its log (Settings → General, shown when
+ * BETA BUILDS ONLY: the performance panel and its log (Settings → Beta, shown when
  * updates.isBeta). It measures frame times while LumiPDF runs, what the viewer is drawing, and
  * writes a line every two seconds, plus every slow frame, to LumiPDF-performance.log on the
  * Desktop, so a tester can send it. Remove or keep hidden before a stable release (see

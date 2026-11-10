@@ -195,3 +195,38 @@ export function thinPoints(points: number[], minStep: number): number[] {
   out.push(...points.slice(-3));
   return out;
 }
+
+/**
+ * What is left of a pen or highlighter stroke after erasing a circle (x, y, radius r): the
+ * stroke is sampled finely enough (straight lines have only two points), the points inside the
+ * circle are dropped, and each remaining run of two or more points becomes its own stroke.
+ */
+export function cutStroke<T extends Ink | Marker>(a: T, x: number, y: number, r: number): T[] {
+  const src = a.points;
+  const pts: number[] = [];
+  const step = Math.max(r / 2, 0.25);
+  for (let i = 0; i < src.length; i += 3) {
+    if (i > 0) {
+      const x0 = src[i - 3]!, y0 = src[i - 2]!, p0 = src[i - 1]!;
+      const x1 = src[i]!, y1 = src[i + 1]!, p1 = src[i + 2]!;
+      const n = Math.min(200, Math.floor(Math.hypot(x1 - x0, y1 - y0) / step));
+      for (let k = 1; k < n; k++) {
+        const t = k / n;
+        pts.push(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, p0 + (p1 - p0) * t);
+      }
+    }
+    pts.push(src[i]!, src[i + 1]!, src[i + 2]!);
+  }
+  const pieces: T[] = [];
+  let run: number[] = [];
+  const flush = () => {
+    if (run.length >= 6) pieces.push({ ...a, id: newId(), points: run });
+    run = [];
+  };
+  for (let i = 0; i < pts.length; i += 3) {
+    if (Math.hypot(pts[i]! - x, pts[i + 1]! - y) <= r) flush();
+    else run.push(pts[i]!, pts[i + 1]!, pts[i + 2]!);
+  }
+  flush();
+  return pieces;
+}

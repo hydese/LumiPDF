@@ -18,6 +18,7 @@ import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import { pdfjs } from "../viewer/pdfjs";
 import { createColorMapper, type ColorMapper } from "./mapper";
 import { invalidateImage, prepareImage } from "./images";
+import { recordSpot } from "./imageSpots";
 import { getTheme, type DarkTuning, type ThemeId } from "./themes";
 
 interface ActiveDark {
@@ -29,14 +30,36 @@ let active: ActiveDark | null = null;
 const listeners = new Set<() => void>();
 
 /** Turns dark mode on with a theme, or off with `null`. Listeners re-render the pages. */
-export function setDarkMode(config: { theme: ThemeId; tuning: DarkTuning } | null): void {
+/** True while dark mode is off only to peek at the original page (keep the dark page previews). */
+let peeking = false;
+export function isPeekingOriginal(): boolean {
+  return peeking;
+}
+
+export function setDarkMode(config: { theme: ThemeId; tuning: DarkTuning } | null, peek = false): void {
+  const wasPeeking = peeking;
+  peeking = peek;
   const next = config ? { mapper: createColorMapper(getTheme(config.theme), config.tuning), tuning: config.tuning } : null;
   const unchanged =
     (next === null && active === null) ||
     (next && active && next.mapper.key === active.mapper.key && JSON.stringify(next.tuning) === JSON.stringify(active.tuning));
   if (unchanged) return;
   active = next;
+  // Coming back from a peek restores the same theme: the dark previews are still right.
+  if (wasPeeking && !peek) peeking = true;
   for (const listener of listeners) listener();
+  peeking = peek;
+}
+
+/** Draws the pages again (an image's photo / not-photo decision changed). */
+export function refreshDarkImages(): void {
+  if (!active) return;
+  for (const listener of listeners) listener();
+}
+
+/** BETA (photo training): the image as dark mode draws it now, or null when dark mode is off. */
+export function darkVersionOf(source: CanvasImageSource): CanvasImageSource | null {
+  return active ? prepareImage(source, active.mapper, active.tuning.dimPhotos).source : null;
 }
 
 /**
@@ -272,7 +295,10 @@ export function patchContext(ctx: CanvasRenderingContext2D): CanvasRenderingCont
   ctx.drawImage = function (this: CanvasRenderingContext2D, image: CanvasImageSource, ...rest: number[]) {
     const m = mapping(ctx);
     let source = image;
-    if (m && isRawImage(image)) source = prepareImage(image, m.mapper, m.tuning.dimPhotos).source;
+    if (m && isRawImage(image)) {
+      source = prepareImage(image, m.mapper, m.tuning.dimPhotos).source;
+      recordSpot(ctx, image as object, rest);
+    }
     (drawImage as (...a: unknown[]) => void).call(ctx, source, ...rest);
   } as typeof ctx.drawImage;
 

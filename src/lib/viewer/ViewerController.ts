@@ -7,7 +7,7 @@
 import { PDFJS_ASSETS } from "./pdfjs";
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { darkBackground, onDarkModeChange } from "../dark/engine";
+import { darkBackground, isPeekingOriginal, onDarkModeChange } from "../dark/engine";
 import { PagePreviews } from "./pagePreviews";
 
 export type ScalePreset = "page-width" | "page-fit" | "page-actual";
@@ -477,7 +477,7 @@ export class ViewerController {
     this.options.container.classList.toggle("reading-dark", bg !== null);
     if (rerender && this.doc) {
       this.viewer.refresh();
-      this.previews.refresh();
+      if (!isPeekingOriginal()) this.previews.refresh();
     }
   }
 

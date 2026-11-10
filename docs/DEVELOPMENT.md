@@ -33,12 +33,24 @@ rebuilds `docs/images/` (needs Pillow).
 
 ## Releasing
 
-> **Before a stable release:** the beta-only "Welcome, from the start" button (Settings → General)
-> hides itself when the version has no `-beta`, but check it's gone, and decide whether to remove
-> it from `SettingsScreen.svelte` (`updates.isBeta` block) and `whatsNew.replayFirstLaunch`.
-> The same goes for the beta-only performance panel: `src/lib/perf/`, its switch in the same
-> block, `<PerfPanel />` and `perf.restore()` in `App.svelte`, `perf.attach` in `ReaderScreen.svelte`
-> and the `perf_log` command (`src-tauri/src/perf.rs`). Keep `ViewerController.stats()` (harmless).
+> **Before a stable release — remove everything beta-only.** It all lives behind the
+> **Settings → Beta** section (`updates.isBeta`), and each piece is marked `BETA BUILDS ONLY`
+> in the code (`grep -rn "BETA BUILDS ONLY" src src-tauri`):
+>
+> - the **Beta** section and its entry in `SECTIONS` (`SettingsScreen.svelte`);
+> - "Welcome, from the start": `whatsNew.replayFirstLaunch`;
+> - the performance panel: `src/lib/perf/`, `<PerfPanel />` and `perf.restore()` in `App.svelte`,
+>   `perf.attach` in `ReaderScreen.svelte`, the `perf_log` command (`src-tauri/src/perf.rs`);
+>   keep `ViewerController.stats()` (harmless);
+> - photo training: `src/lib/dark/photoTraining.svelte.ts`, `src/lib/dark/ui/PhotoMenu.svelte`,
+>   `src/lib/dark/imageSpots.ts` (and `recordSpot` in `engine.ts`), the right-click on `.pages`
+>   in `ReaderScreen.svelte`, `setSpotTracking`/`restorePhotoOverrides` in `App.svelte`, the
+>   `save_photo_example` command (`perf.rs`). **Keep the photo model** (`photoFeatures.ts`,
+>   `photoModelWeights.ts`, `tests/photo-model/`): it is what the app uses.
+>
+> Testers' examples (`LumiPDF-esempi` on their Desktop) go into the model like this: copy the
+> `dataset` line of each `info.json` into `tests/photo-model/dataset.json`, run
+> `npm run train-photo-model`, then `npm test` (reported examples must all come out right).
 
 1. Update `version` in `package.json` and `src-tauri/Cargo.toml`, and add its entry to
    `src/lib/whatsnew/releases.json` (shown in the app after updating, and used as the release

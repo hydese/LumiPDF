@@ -70,10 +70,13 @@
 
 <div class="toolbar">
 <nav class="path" aria-label={t("folders.root")}>
+  {#if library.canGoBack}
+    <button class="home" title={t("library.back")} aria-label={t("library.back")} onclick={() => library.goBack()}><Icon name="back" size={15} /></button>
+  {/if}
   {#if loc}
     <button class="home" title={t("library.home")} aria-label={t("library.home")} onclick={() => library.goHome()}><Icon name="home" size={15} /></button>
   {/if}
-  <button class="crumb" class:current={!loc} onclick={() => (library.location = null)}>{t("folders.root")}</button>
+  <button class="crumb" class:current={!loc} onclick={() => library.goHome()}>{t("folders.root")}</button>
   {#if root && loc}
     <Icon name="forward" size={12} />
     <button class="crumb" class:current={!loc.dir} onclick={() => library.browse(root.path)}>{rootName(root)}</button>

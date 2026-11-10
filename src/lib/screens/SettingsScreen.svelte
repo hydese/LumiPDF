@@ -1,5 +1,6 @@
 <script lang="ts">
   import { perf } from "../perf/perf.svelte";
+  import { photoTraining } from "../dark/photoTraining.svelte";
   import { formatWhen, t, tn, type MessageKey } from "../i18n";
   import { CLOUD_KINDS } from "../ipc/library";
   import { AVAILABLE_LOCALES, languageName } from "../i18n";
@@ -34,6 +35,8 @@
     { id: "library", icon: "cloud", color: "#2f9be8" },
     { id: "shortcuts", icon: "keyboard", color: "#8e8e93" },
     { id: "about", icon: "info", color: "#8e8e93" },
+    // BETA BUILDS ONLY: everything for testers lives in this one section (removed for a release).
+    ...(updates.isBeta ? [{ id: "beta" as const, icon: "sliders" as const, color: "#f0a020" }] : []),
   ];
 
   const section = $derived(navigation.settingsSection);
@@ -242,18 +245,6 @@
               <input type="checkbox" class="switch" checked={s.app.betaUpdates} onchange={(e) => setBeta(e.currentTarget.checked)} />
             </label>
           {/if}
-          <!-- BETA BUILDS ONLY: replays the first-launch welcome for testers. It disappears by itself
-               in stable versions (updates.isBeta); see docs/DEVELOPMENT.md → Releasing. -->
-          {#if updates.isBeta}
-            <div class="row">
-              <span class="label"><span>{t("settings.beta.welcome")}</span><span class="hint">{t("settings.beta.welcomeHint")}</span></span>
-              <button class="btn small" onclick={() => whatsNew.replayFirstLaunch()}>{t("settings.beta.welcomeButton")}</button>
-            </div>
-            <label class="row">
-              <span class="label"><span>{t("settings.beta.perf")}</span><span class="hint">{t("settings.beta.perfHint")}</span></span>
-              <input type="checkbox" class="switch" checked={perf.on} onchange={(e) => perf.setOn(e.currentTarget.checked)} />
-            </label>
-          {/if}
         </section>
 
         <section class="card list study-tools">
@@ -429,6 +420,28 @@
           <div class="row">
             <span>{t("settings.shortcuts.tools")}</span>
             <kbd>G · V · H · P · M · E · N · S</kbd>
+          </div>
+        </section>
+      {:else if section === "beta" && updates.isBeta}
+        <!-- BETA BUILDS ONLY: the tools for testers, all in one place. Remove this section and
+             the "beta" entry above before a stable release (docs/DEVELOPMENT.md → Beta-only). -->
+        <p class="intro">{t("settings.beta.intro")}</p>
+        <section class="card list">
+          <label class="row">
+            <span class="label"><span>{t("settings.beta.photo")}</span><span class="hint">{t("settings.beta.photoHint")}</span></span>
+            <input type="checkbox" class="switch" checked={photoTraining.on} onchange={(e) => photoTraining.setOn(e.currentTarget.checked)} />
+          </label>
+          <div class="row">
+            <span class="label"><span>{t("settings.beta.photoReset")}</span><span class="hint">{t("settings.beta.photoResetHint", { count: photoTraining.count })}</span></span>
+            <button class="btn small" disabled={!photoTraining.count} onclick={() => photoTraining.forget()}>{t("settings.beta.photoResetButton")}</button>
+          </div>
+          <label class="row">
+            <span class="label"><span>{t("settings.beta.perf")}</span><span class="hint">{t("settings.beta.perfHint")}</span></span>
+            <input type="checkbox" class="switch" checked={perf.on} onchange={(e) => perf.setOn(e.currentTarget.checked)} />
+          </label>
+          <div class="row">
+            <span class="label"><span>{t("settings.beta.welcome")}</span><span class="hint">{t("settings.beta.welcomeHint")}</span></span>
+            <button class="btn small" onclick={() => whatsNew.replayFirstLaunch()}>{t("settings.beta.welcomeButton")}</button>
           </div>
         </section>
       {:else if section === "about"}

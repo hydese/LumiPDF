@@ -39,7 +39,7 @@ class WhatsNew {
   }
 
   /**
-   * BETA BUILDS ONLY (Settings → General, shown when updates.isBeta): the whole welcome as on a
+   * BETA BUILDS ONLY (Settings → Beta, shown when updates.isBeta): the whole welcome as on a
    * fresh install, so testers get the full first-launch experience. Settings stay as they are.
    */
   replayFirstLaunch(): void {

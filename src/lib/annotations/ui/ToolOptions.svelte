@@ -84,6 +84,32 @@
         </label>
       </div>
     {/if}
+    {#if tool === "eraser"}
+      <div class="group" role="radiogroup" aria-label={t("tools.eraser")}>
+        {#each ["stroke", "partial"] as const as m (m)}
+          <button class="mode" role="radio" aria-checked={a.eraserMode === m} onclick={() => settings.update((s) => (s.annotate.eraserMode = m))}>
+            {t(m === "stroke" ? "tools.eraserStroke" : "tools.eraserPartial")}
+          </button>
+        {/each}
+      </div>
+      {#if a.eraserMode === "partial"}
+        <span class="sep"></span>
+        <label class="px" title={t("tools.eraserSize")}>
+          <input
+            type="range"
+            min="3"
+            max="40"
+            value={a.eraserSize}
+            aria-label={t("tools.eraserSize")}
+            oninput={(e) => {
+              const v = Number(e.currentTarget.value);
+              settings.update((s) => (s.annotate.eraserSize = v));
+            }}
+          />
+          <span class="dot" style:width="{Math.min(22, a.eraserSize)}px" style:height="{Math.min(22, a.eraserSize)}px"></span>
+        </label>
+      {/if}
+    {/if}
     {#if tool === "highlight"}
       <span class="sep"></span>
       <div class="group" role="radiogroup" aria-label={t("tools.highlight")}>
@@ -118,6 +144,26 @@
     box-shadow: var(--pop-shadow);
     animation: drop var(--medium) var(--ease);
     white-space: nowrap;
+  }
+  .mode {
+    height: 26px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-soft);
+  }
+  .mode[aria-checked="true"] {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--text);
+  }
+  .px input[type="range"] {
+    width: 90px;
+  }
+  .dot {
+    display: inline-block;
+    border-radius: 50%;
+    border: 1.5px solid var(--text-soft);
   }
   .group {
     display: flex;

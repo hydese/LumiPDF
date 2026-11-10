@@ -21,7 +21,12 @@
   import { guardClose, minimizeWindow, platform, quitApp, watchFileDrag } from "./lib/platform/window";
   import Icon from "./lib/ui/Icon.svelte";
   import PerfPanel from "./lib/perf/PerfPanel.svelte";
+  import { setSpotTracking } from "./lib/dark/imageSpots";
+  import { restorePhotoOverrides } from "./lib/dark/photoTraining.svelte";
   import { keepTimersAwake } from "./lib/timer/keepAwake";
+  import { isMainWindow, onSettingsSavedElsewhere, onWindowEvent, openWindow, takeMovedTab, type MovedTab } from "./lib/ipc/windows";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { emit, listen } from "@tauri-apps/api/event";
   import { perf } from "./lib/perf/perf.svelte";
   import RingingDialog from "./lib/timer/ui/RingingDialog.svelte";
   import Dialog from "./lib/ui/Dialog.svelte";
@@ -93,7 +98,8 @@
       case "settings":
         return navigation.openSettings();
       case "quit":
-        return requestQuit();
+        // ⌘Q quits LumiPDF, every window (each saves first).
+        return void emitQuitAll();
       case "open":
         return void session.openWithDialog();
       case "close-tab":
@@ -124,6 +130,12 @@
   }
 
   /** Saves annotations and study time, then closes for real. */
+  /** Quit from the menu: every window saves and closes. */
+  async function emitQuitAll() {
+    if (settings.value.timer.askOnClose && timers.busy) return void (askClose = true);
+    await emit("app-quit").catch(() => {});
+  }
+
   async function quitSaved() {
     await Promise.allSettled([annotations.flush(), studyClock.flush(), sheets.flush()]);
     // Automatic updates: a downloaded update installs as LumiPDF closes.
@@ -158,6 +170,33 @@
       return;
     }
     if (reading && !typing && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      // Hold O: the page in its original colours, while the key is down.
+      if (event.key.toLowerCase() === "o") {
+        event.preventDefault();
+        if (!event.repeat) readingMode.original = true;
+        return;
+      }
+      // Page by page: ← → (when the page fits the width), PgUp/PgDn, Space, Home/End.
+      const c = session.controller;
+      if (c) {
+        const page = session.view?.page ?? 1;
+        const fits = c.container.scrollWidth <= c.container.clientWidth + 2;
+        const turn: Record<string, number | undefined> = {
+          ArrowRight: fits ? page + 1 : undefined,
+          ArrowLeft: fits ? page - 1 : undefined,
+          PageDown: page + 1,
+          PageUp: page - 1,
+          " ": event.shiftKey ? page - 1 : page + 1,
+          Home: 1,
+          End: Number.MAX_SAFE_INTEGER,
+        };
+        const target = turn[event.key];
+        if (target !== undefined) {
+          event.preventDefault();
+          c.goToPage(target);
+          return;
+        }
+      }
       const tools: Record<string, Tool> = { g: "hand", v: "select", h: "select", p: "pen", m: "marker", e: "eraser", n: "note", s: "snip" };
       const tool = tools[event.key.toLowerCase()];
       if (tool) {
@@ -236,6 +275,10 @@
         return run(() => c?.setScale("page-width"));
       case "[":
         return run(() => c?.goBack());
+      case "n":
+        // Ctrl/⌘+Shift+N: a new window.
+        if (event.shiftKey) return run(() => void openWindow().catch(() => {}));
+        return;
       case "w":
         return run(() => void session.close());
     }
@@ -252,7 +295,8 @@
       if (!settings.value.app.locale) settings.update((s) => (s.app.locale = detectLocale()));
       setLocale(settings.value.app.locale);
       stops.push(appearance.start(), readingMode.start(), studyClock.start());
-      timers.syncWithSettings();
+      // Timers, updates and "What's new" belong to the main window; extra windows only read.
+      if (isMainWindow) timers.syncWithSettings();
       // Every close goes through here: save what's pending, or ask first if a timer is running.
       stops.push(
         guardClose(
@@ -263,9 +307,17 @@
       ready = true;
       updates.beforeInstall = () => Promise.allSettled([annotations.flush(), studyClock.flush(), sheets.flush()]);
       updates.syncBeta(settings.value.app.lastSeenVersion);
-      whatsNew.onLaunch();
-      if (settings.value.app.checkForUpdates) stops.push(updates.checkSoon());
+      if (isMainWindow) {
+        whatsNew.onLaunch();
+        if (settings.value.app.checkForUpdates) stops.push(updates.checkSoon());
+      }
       await Promise.all([library.refresh(), sheets.refresh()]);
+      if (!isMainWindow) {
+        // An extra window: the tab it was opened for, or the Library.
+        const moved = await takeMovedTab();
+        if (moved) await session.openMoved(moved);
+        return;
+      }
       const [pending] = await takePendingDocuments().catch(() => []);
       if (pending) {
         await session.open(pending);
@@ -285,13 +337,36 @@
     };
     window.addEventListener("focus", onFocus);
     const unlistenMenu = platform === "macos" ? onMenu(onMenuAction) : null;
+    // Other windows: a tab moved here, a PDF this window has, settings changed elsewhere.
+    const unlistenWindows = [
+      onWindowEvent<string>("window-tab", (json) => void session.openMoved(JSON.parse(json) as MovedTab)),
+      onWindowEvent<string>("window-show-doc", (path) => session.showDoc(path)),
+      listen("app-quit", () => void quitSaved()).catch(() => () => {}),
+      onSettingsSavedElsewhere(() =>
+        void settings.load((loaded, current) => {
+          // Each window keeps its own open tabs.
+          loaded.reader.openTabs = current.reader.openTabs;
+          loaded.reader.activeTab = current.reader.activeTab;
+        }),
+      ),
+    ];
 
     return () => {
       void unlistenMenu?.then((stop) => stop());
+      for (const u of unlistenWindows) void u.then((stop) => stop());
       for (const stop of stops) stop();
       window.removeEventListener("focus", onFocus);
       void unlisten.then((stop) => stop());
     };
+  });
+  // The window is named after the PDF being read (taskbar, Alt+Tab, the Window menu).
+  $effect(() => {
+    const title = navigation.screen === "reader" && session.active ? `${session.active.title} – LumiPDF` : "LumiPDF";
+    try {
+      void getCurrentWindow().setTitle(title).catch(() => {});
+    } catch {
+      document.title = title;
+    }
   });
   // Mac: the green button's native full screen becomes LumiPDF's own.
   $effect(() => fullscreen.watchNative());
@@ -299,11 +374,21 @@
   $effect(() => keepTimersAwake(timers.busy));
   // Beta only: bring the performance panel back if it was on last time.
   $effect(() => {
-    if (updates.isBeta) perf.restore();
+    if (updates.isBeta) {
+      perf.restore();
+      setSpotTracking(true);
+    }
+    restorePhotoOverrides();
   });
 </script>
 
-<svelte:window onkeydown={onKeydown} />
+<svelte:window
+  onkeydown={onKeydown}
+  onkeyup={(e) => {
+    if (e.key.toLowerCase() === "o") readingMode.original = false;
+  }}
+  onblur={() => (readingMode.original = false)}
+/>
 
 {#if perf.on && updates.isBeta}<PerfPanel />{/if}
 

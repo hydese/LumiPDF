@@ -88,10 +88,15 @@ pub fn grant_all<R: Runtime>(app: &AppHandle<R>, paths: &[PathBuf]) -> Vec<Docum
     paths.iter().filter_map(|p| grant(app, p).ok()).collect()
 }
 
-/// Sends newly opened documents to the frontend.
+/// Sends newly opened documents ("Open with", a second launch) to the window in use.
 pub fn emit_opened<R: Runtime>(app: &AppHandle<R>, docs: Vec<DocumentRef>) {
+    emit_opened_to(app, &crate::windows::active_label(app), docs);
+}
+
+/// Sends newly opened documents to one window (files dropped on it).
+pub fn emit_opened_to<R: Runtime>(app: &AppHandle<R>, label: &str, docs: Vec<DocumentRef>) {
     if !docs.is_empty() {
-        let _ = app.emit(DOCUMENTS_OPENED_EVENT, docs);
+        let _ = app.emit_to(label, DOCUMENTS_OPENED_EVENT, docs);
     }
 }
 

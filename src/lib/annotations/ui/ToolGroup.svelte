@@ -23,6 +23,13 @@
       title={t("tools.withKey", { name, key: tool.key })}
       aria-pressed={annotations.tool === tool.id}
       onclick={() => (annotations.tool = annotations.tool === tool.id ? DEFAULT_TOOL : tool.id)}
+      oncontextmenu={(e) => {
+        // Right-click on the snip tool: a screenshot of the whole page at once.
+        if (tool.id !== "snip") return;
+        e.preventDefault();
+        annotations.tool = "snip";
+        annotations.wholePageSnip++;
+      }}
     >
       <Icon name={tool.icon} size={15} />
     </button>

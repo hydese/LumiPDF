@@ -2,6 +2,283 @@
   "$comment": "What's new after an update. Add an entry for every version you release, newest first. The app shows the entry for its own version once, on the first launch after updating; the GitHub release notes are generated from it. A test fails if the version in package.json has no entry. Tags: new, better, fixed. Optional \"welcome\": [\"language\" | \"usage\" | \"appearance\" | \"reading\" | \"library\" | \"updates\"] shows those welcome steps again after updating, when a change needs the user to choose something.",
   "releases": [
     {
+      "version": "2.1.0-beta.5",
+      "date": "2026-11-10",
+      "title": "LumiPDF 2.1.0 Beta 5",
+      "items": [
+        {
+          "tag": "new",
+          "title": "More windows",
+          "text": "Open a PDF in its own window with the ↗ arrow on its tab, or right-click a tab to move it to a new window or another one. Ctrl+Shift+N (⌘⇧N on Mac) opens a new window. A PDF that is already open in another window is brought to the front instead of opening twice.",
+          "tr": {
+            "it": {
+              "title": "Più finestre",
+              "text": "Apri un PDF in una finestra tutta sua con la freccia ↗ sulla scheda, oppure clic destro su una scheda per spostarla in una nuova finestra o in un'altra. Ctrl+Maiusc+N (⌘⇧N su Mac) apre una nuova finestra. Un PDF già aperto in un'altra finestra viene portato in primo piano invece di aprirsi due volte."
+            },
+            "pt-BR": {
+              "title": "Mais janelas",
+              "text": "Abra um PDF em uma janela só dele com a seta ↗ na aba, ou clique com o botão direito numa aba para movê-la para uma nova janela ou outra. Ctrl+Shift+N (⌘⇧N no Mac) abre uma nova janela. Um PDF já aberto em outra janela vem para a frente em vez de abrir duas vezes."
+            },
+            "fr": {
+              "title": "Plusieurs fenêtres",
+              "text": "Ouvrez un PDF dans sa propre fenêtre avec la flèche ↗ de son onglet, ou faites un clic droit sur un onglet pour le déplacer dans une nouvelle fenêtre ou une autre. Ctrl+Maj+N (⌘⇧N sur Mac) ouvre une nouvelle fenêtre. Un PDF déjà ouvert dans une autre fenêtre passe au premier plan au lieu de s'ouvrir deux fois."
+            },
+            "de": {
+              "title": "Mehrere Fenster",
+              "text": "Öffne ein PDF mit dem Pfeil ↗ auf seinem Tab in einem eigenen Fenster, oder verschiebe einen Tab per Rechtsklick in ein neues oder ein anderes Fenster. Strg+Umschalt+N (⌘⇧N auf dem Mac) öffnet ein neues Fenster. Ein PDF, das schon in einem anderen Fenster offen ist, kommt nach vorne, statt doppelt aufzugehen."
+            },
+            "es": {
+              "title": "Más ventanas",
+              "text": "Abre un PDF en su propia ventana con la flecha ↗ de su pestaña, o haz clic derecho en una pestaña para moverla a una ventana nueva u otra. Ctrl+Mayús+N (⌘⇧N en Mac) abre una ventana nueva. Un PDF que ya está abierto en otra ventana pasa al frente en lugar de abrirse dos veces."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "The PDF's name in the window title",
+          "text": "The window, the taskbar and Alt+Tab show the name of the PDF you are reading.",
+          "tr": {
+            "it": {
+              "title": "Il nome del PDF nel titolo della finestra",
+              "text": "La finestra, la barra delle applicazioni e Alt+Tab mostrano il nome del PDF che stai leggendo."
+            },
+            "pt-BR": {
+              "title": "O nome do PDF no título da janela",
+              "text": "A janela, a barra de tarefas e o Alt+Tab mostram o nome do PDF que você está lendo."
+            },
+            "fr": {
+              "title": "Le nom du PDF dans le titre de la fenêtre",
+              "text": "La fenêtre, la barre des tâches et Alt+Tab affichent le nom du PDF que vous lisez."
+            },
+            "de": {
+              "title": "Der Name des PDFs im Fenstertitel",
+              "text": "Das Fenster, die Taskleiste und Alt+Tab zeigen den Namen des PDFs, das du liest."
+            },
+            "es": {
+              "title": "El nombre del PDF en el título de la ventana",
+              "text": "La ventana, la barra de tareas y Alt+Tab muestran el nombre del PDF que estás leyendo."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "Screenshot of the whole page",
+          "text": "With the screenshot tool, a bar at the top offers Area or Whole page, and the page dims while you choose. Right-click the tool to capture the whole page at once.",
+          "tr": {
+            "it": {
+              "title": "Screenshot della pagina intera",
+              "text": "Con lo strumento screenshot, una barra in alto offre Ritaglio o Pagina intera, e la pagina si scurisce mentre scegli. Clic destro sullo strumento per catturare subito la pagina intera."
+            },
+            "pt-BR": {
+              "title": "Captura da página inteira",
+              "text": "Com a ferramenta de captura, uma barra no topo oferece Área ou Página inteira, e a página escurece enquanto você escolhe. Clique com o botão direito na ferramenta para capturar a página inteira de uma vez."
+            },
+            "fr": {
+              "title": "Capture de la page entière",
+              "text": "Avec l'outil de capture, une barre en haut propose Zone ou Page entière, et la page s'assombrit pendant que vous choisissez. Clic droit sur l'outil pour capturer toute la page d'un coup."
+            },
+            "de": {
+              "title": "Screenshot der ganzen Seite",
+              "text": "Beim Screenshot-Werkzeug bietet eine Leiste oben Bereich oder Ganze Seite an, und die Seite wird abgedunkelt, während du wählst. Rechtsklick auf das Werkzeug nimmt sofort die ganze Seite auf."
+            },
+            "es": {
+              "title": "Captura de la página entera",
+              "text": "Con la herramienta de captura, una barra arriba ofrece Área o Página entera, y la página se oscurece mientras eliges. Clic derecho en la herramienta para capturar la página entera de una vez."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "Partial eraser",
+          "text": "The eraser can remove whole strokes or only the part you pass over, with an adjustable size. Text highlights are still erased whole.",
+          "tr": {
+            "it": {
+              "title": "Gomma parziale",
+              "text": "La gomma può cancellare tratti interi o solo la parte su cui passi, con la dimensione regolabile. Le evidenziazioni del testo si cancellano sempre per intero."
+            },
+            "pt-BR": {
+              "title": "Borracha parcial",
+              "text": "A borracha pode apagar traços inteiros ou só a parte por onde você passa, com tamanho ajustável. Os destaques de texto continuam sendo apagados inteiros."
+            },
+            "fr": {
+              "title": "Gomme partielle",
+              "text": "La gomme peut effacer des traits entiers ou seulement la partie sur laquelle vous passez, avec une taille réglable. Les surlignages de texte s'effacent toujours en entier."
+            },
+            "de": {
+              "title": "Teilweiser Radierer",
+              "text": "Der Radierer entfernt ganze Striche oder nur den Teil, über den du fährst, in einstellbarer Größe. Textmarkierungen werden weiterhin ganz gelöscht."
+            },
+            "es": {
+              "title": "Borrador parcial",
+              "text": "El borrador puede quitar trazos enteros o solo la parte por la que pasas, con un tamaño ajustable. Los resaltados de texto se siguen borrando enteros."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "See the original page",
+          "text": "In dark mode, the sun button in the page bar (or holding O) shows the page in its original colours.",
+          "tr": {
+            "it": {
+              "title": "Vedi la pagina originale",
+              "text": "In modalità scura, il pulsante col sole nella barra della pagina (o tenendo premuto O) mostra la pagina con i colori originali."
+            },
+            "pt-BR": {
+              "title": "Ver a página original",
+              "text": "No modo escuro, o botão de sol na barra da página (ou segurar O) mostra a página com as cores originais."
+            },
+            "fr": {
+              "title": "Voir la page originale",
+              "text": "En mode sombre, le bouton soleil de la barre de page (ou la touche O maintenue) affiche la page dans ses couleurs d'origine."
+            },
+            "de": {
+              "title": "Originalseite ansehen",
+              "text": "Im Dunkelmodus zeigt die Sonnen-Taste in der Seitenleiste (oder gedrücktes O) die Seite in ihren Originalfarben."
+            },
+            "es": {
+              "title": "Ver la página original",
+              "text": "En modo oscuro, el botón del sol en la barra de página (o mantener pulsada la O) muestra la página con sus colores originales."
+            }
+          }
+        },
+        {
+          "tag": "better",
+          "title": "Photos in dark mode",
+          "text": "Black-and-white photos and portraits are recognised and kept as they are, instead of being turned into negatives. Pages with large pictures also turn dark about three times faster.",
+          "tr": {
+            "it": {
+              "title": "Foto in modalità scura",
+              "text": "Le foto e i ritratti in bianco e nero vengono riconosciuti e lasciati come sono, invece di diventare negativi. Le pagine con immagini grandi diventano scure circa tre volte più in fretta."
+            },
+            "pt-BR": {
+              "title": "Fotos no modo escuro",
+              "text": "Fotos e retratos em preto e branco são reconhecidos e mantidos como são, em vez de virarem negativos. Páginas com imagens grandes também escurecem cerca de três vezes mais rápido."
+            },
+            "fr": {
+              "title": "Photos en mode sombre",
+              "text": "Les photos et portraits en noir et blanc sont reconnus et gardés tels quels, au lieu de devenir des négatifs. Les pages avec de grandes images passent aussi en sombre environ trois fois plus vite."
+            },
+            "de": {
+              "title": "Fotos im Dunkelmodus",
+              "text": "Schwarzweißfotos und Porträts werden erkannt und bleiben, wie sie sind, statt zum Negativ zu werden. Seiten mit großen Bildern werden außerdem etwa dreimal schneller dunkel."
+            },
+            "es": {
+              "title": "Fotos en modo oscuro",
+              "text": "Las fotos y retratos en blanco y negro se reconocen y se quedan como están, en lugar de volverse negativos. Las páginas con imágenes grandes también se oscurecen unas tres veces más rápido."
+            }
+          }
+        },
+        {
+          "tag": "better",
+          "title": "Turn pages with the keyboard",
+          "text": "← and → change page when the page fits the width; Page Up/Page Down, Space and Shift+Space, Home and End work too.",
+          "tr": {
+            "it": {
+              "title": "Cambia pagina con la tastiera",
+              "text": "← e → cambiano pagina quando la pagina è adattata alla larghezza; funzionano anche Pag↑/Pag↓, Spazio e Maiusc+Spazio, Inizio e Fine."
+            },
+            "pt-BR": {
+              "title": "Mude de página com o teclado",
+              "text": "← e → mudam de página quando a página se ajusta à largura; Page Up/Page Down, Espaço e Shift+Espaço, Home e End também funcionam."
+            },
+            "fr": {
+              "title": "Tournez les pages au clavier",
+              "text": "← et → changent de page quand la page tient en largeur ; Page préc./Page suiv., Espace et Maj+Espace, Début et Fin fonctionnent aussi."
+            },
+            "de": {
+              "title": "Mit der Tastatur blättern",
+              "text": "← und → blättern, wenn die Seite in die Breite passt; Bild↑/Bild↓, Leertaste und Umschalt+Leertaste, Pos1 und Ende gehen auch."
+            },
+            "es": {
+              "title": "Pasa páginas con el teclado",
+              "text": "← y → cambian de página cuando la página se ajusta al ancho; también funcionan Re Pág/Av Pág, Espacio y Mayús+Espacio, Inicio y Fin."
+            }
+          }
+        },
+        {
+          "tag": "better",
+          "title": "Back in the library",
+          "text": "An arrow takes you back to the folder you were in before.",
+          "tr": {
+            "it": {
+              "title": "Indietro nella libreria",
+              "text": "Una freccia ti riporta alla cartella in cui eri prima."
+            },
+            "pt-BR": {
+              "title": "Voltar na biblioteca",
+              "text": "Uma seta leva você de volta à pasta em que estava antes."
+            },
+            "fr": {
+              "title": "Retour dans la bibliothèque",
+              "text": "Une flèche vous ramène au dossier où vous étiez avant."
+            },
+            "de": {
+              "title": "Zurück in der Bibliothek",
+              "text": "Ein Pfeil bringt dich zurück in den Ordner, in dem du vorher warst."
+            },
+            "es": {
+              "title": "Atrás en la biblioteca",
+              "text": "Una flecha te lleva de vuelta a la carpeta en la que estabas antes."
+            }
+          }
+        },
+        {
+          "tag": "fixed",
+          "title": "Windows: full screen hides the top bar",
+          "text": "In full screen the top bar now hides and comes back when the pointer reaches the top of the screen.",
+          "tr": {
+            "it": {
+              "title": "Windows: lo schermo intero nasconde la barra in alto",
+              "text": "Nello schermo intero la barra in alto ora si nasconde e torna quando il puntatore arriva in cima allo schermo."
+            },
+            "pt-BR": {
+              "title": "Windows: a tela cheia esconde a barra superior",
+              "text": "Na tela cheia a barra superior agora se esconde e volta quando o ponteiro chega ao topo da tela."
+            },
+            "fr": {
+              "title": "Windows : le plein écran masque la barre du haut",
+              "text": "En plein écran, la barre du haut se masque désormais et revient quand le pointeur atteint le haut de l'écran."
+            },
+            "de": {
+              "title": "Windows: Vollbild blendet die obere Leiste aus",
+              "text": "Im Vollbild verschwindet die obere Leiste jetzt und kommt zurück, wenn der Zeiger den oberen Bildschirmrand erreicht."
+            },
+            "es": {
+              "title": "Windows: la pantalla completa oculta la barra superior",
+              "text": "En pantalla completa la barra superior ahora se oculta y vuelve cuando el puntero llega arriba de la pantalla."
+            }
+          }
+        },
+        {
+          "tag": "new",
+          "title": "For testers: Settings → Beta",
+          "text": "The beta tools are now together in Settings → Beta. New: photo training (beta) — in dark mode, right-click an image and say whether it is a photo; the example is saved in LumiPDF-esempi on the Desktop, to send to the developer.",
+          "tr": {
+            "it": {
+              "title": "Per chi prova le beta: Impostazioni → Beta",
+              "text": "Gli strumenti della beta ora sono tutti in Impostazioni → Beta. Nuovo: allenamento foto (beta) — in modalità scura, clic destro su un'immagine per dire se è una foto; l'esempio viene salvato in LumiPDF-esempi sulla Scrivania, da mandare allo sviluppatore."
+            },
+            "pt-BR": {
+              "title": "Para quem testa: Configurações → Beta",
+              "text": "As ferramentas da beta agora ficam juntas em Configurações → Beta. Novo: treino de fotos (beta) — no modo escuro, clique com o botão direito numa imagem e diga se é uma foto; o exemplo é salvo em LumiPDF-esempi na Área de Trabalho, para enviar ao desenvolvedor."
+            },
+            "fr": {
+              "title": "Pour les testeurs : Réglages → Bêta",
+              "text": "Les outils de la bêta sont maintenant réunis dans Réglages → Bêta. Nouveau : entraînement photo (bêta) — en mode sombre, clic droit sur une image pour dire si c'est une photo ; l'exemple est enregistré dans LumiPDF-esempi sur le Bureau, à envoyer au développeur."
+            },
+            "de": {
+              "title": "Für Tester: Einstellungen → Beta",
+              "text": "Die Beta-Werkzeuge sind jetzt zusammen unter Einstellungen → Beta. Neu: Foto-Training (Beta) — im Dunkelmodus ein Bild rechtsklicken und sagen, ob es ein Foto ist; das Beispiel wird in LumiPDF-esempi auf dem Schreibtisch gespeichert, zum Senden an den Entwickler."
+            },
+            "es": {
+              "title": "Para quienes prueban: Ajustes → Beta",
+              "text": "Las herramientas de la beta están ahora juntas en Ajustes → Beta. Nuevo: entrenamiento de fotos (beta) — en modo oscuro, clic derecho en una imagen para decir si es una foto; el ejemplo se guarda en LumiPDF-esempi en el Escritorio, para enviarlo al desarrollador."
+            }
+          }
+        }
+      ]
+    },
+    {
       "version": "2.1.0-beta.4",
       "date": "2026-11-05",
       "title": "LumiPDF 2.1.0 Beta 4 – macOS",

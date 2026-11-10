@@ -129,6 +129,10 @@ export interface AnnotateSettings {
   markerWidth: number;
   markColor: string;
   markKind: "highlight" | "underline" | "strike";
+  /** Eraser: whole strokes, or only where it passes (pen and highlighter strokes). */
+  eraserMode: "stroke" | "partial";
+  /** Partial eraser radius in screen pixels. */
+  eraserSize: number;
   noteColor: string;
   /** Custom colours picked recently (hex), newest first. */
   recentColors: string[];
@@ -177,7 +181,7 @@ export const DEFAULT_SETTINGS: Settings = {
   reader: { sidebarOpen: true, sidebarTab: "outline", openTabs: [], activeTab: "", linkPreviews: true },
   study: { goal: 120, tools: true, timer: true, stats: true, sheets: true, hintDismissed: false },
   sheets: { last: "", paper: systemPaper(), tipDismissed: false },
-  annotate: { inkColor: "#2f5bd8", inkWidth: 1.8, markerColor: "#ffe14d", markerWidth: 13, markColor: "#ffe14d", markKind: "highlight", noteColor: "#ffd84d", recentColors: [] },
+  annotate: { inkColor: "#2f5bd8", inkWidth: 1.8, markerColor: "#ffe14d", markerWidth: 13, markColor: "#ffe14d", markKind: "highlight", eraserMode: "stroke", eraserSize: 10, noteColor: "#ffd84d", recentColors: [] },
   library: { sort: "name", goodnotes: false, notebooks: { title: "", sort: "recent", count: 5, view: "list", hidden: [] } },
   reading: {
     darkEnabled: true,
@@ -277,6 +281,8 @@ export function parseSettings(raw: unknown): Settings {
       markerWidth: width(an.markerWidth, 4, 40, dan.markerWidth),
       markColor: hex(an.markColor, dan.markColor),
       markKind: oneOf(an.markKind, ["highlight", "underline", "strike"], dan.markKind),
+      eraserMode: oneOf(an.eraserMode, ["stroke", "partial"], dan.eraserMode),
+      eraserSize: width(an.eraserSize, 3, 40, dan.eraserSize),
       noteColor: hex(an.noteColor, dan.noteColor),
       recentColors: Array.isArray(an.recentColors) ? an.recentColors.filter((c): c is string => typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c)).slice(0, 8) : [],
     },

@@ -1,9 +1,10 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions for the main LumiPDF window. Keep this list minimal.",
+  "description": "Permissions for LumiPDF's windows (main and extra reader windows). Keep this list minimal.",
   "windows": [
-    "main"
+    "main",
+    "reader-*"
   ],
   "permissions": [
     "core:default",
@@ -24,6 +25,7 @@
     "opener:allow-reveal-item-in-dir",
     "core:window:allow-set-fullscreen",
     "core:window:allow-is-fullscreen",
-    "core:window:allow-set-simple-fullscreen"
+    "core:window:allow-set-simple-fullscreen",
+    "core:window:allow-set-title"
   ]
 }
