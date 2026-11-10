@@ -56,6 +56,7 @@ const shotsAll = [
   { name: "annotate-dark", settings: { app: { appearance: "light", ...seen } }, open: ["Analisi 2 — Trasformate"], annotate: true },
   { name: "annotate-menu", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: "menu" },
   { name: "annotate-zoom", settings: { app: { appearance: "light", ...seen }, reading: { darkEnabled: false } }, open: ["Analisi 2 — Trasformate"], annotate: "zoom" },
+  { name: "fullscreen-bar", settings: { app: { appearance: "dark", ...seen } }, open: ["Analisi 2 — Trasformate"], fullscreenClick: true },
   { name: "settings-beta", settings: { app: { appearance: "light", ...seen } }, keys: "Control+Comma", section: "Beta" },
   { name: "photo-train-menu", settings: { app: { appearance: "dark", ...seen } }, open: ["Automatica — Lezione 12"], rightClickImage: true },
   { name: "photo-train-saved", settings: { app: { appearance: "dark", ...seen } }, open: ["Automatica — Lezione 12"], rightClickImage: "answer" },
@@ -519,6 +520,13 @@ for (const shot of shots) {
       console.log("preview shown:", await page.locator(".lumi-link-preview.ready").count());
     }
     if (shot.rightClick) await page.click(shot.rightClick, { button: "right" });
+    if (shot.fullscreenClick) {
+      // Full screen entered with the bar's own button: the bar must hide once the pointer leaves.
+      await page.click('.layer:not([hidden]) [aria-label="Full screen"]');
+      await page.mouse.move(640, 500);
+      await page.waitForTimeout(700);
+      console.log("bar opacity:", await page.$eval(".layer:not([hidden]) .screen > .bar", (e) => getComputedStyle(e).opacity));
+    }
     if (shot.rightClickImage) {
       // Beta photo training: right-click across the page until the menu opens on an image.
       const box = await page.locator(".layer:not([hidden]) .pdfViewer .page canvas >> visible=true").first().boundingBox();

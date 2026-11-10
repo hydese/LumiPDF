@@ -524,8 +524,10 @@
       opacity 0.18s ease;
     box-shadow: var(--pop-shadow);
   }
+  /* Keyboard focus keeps it out (Tab into the bar); a clicked button keeping focus doesn't:
+     entering full screen with the bar's own button left the bar showing on Windows. */
   .app.fullscreen :global(.screen > .bar:hover),
-  .app.fullscreen :global(.screen > .bar:focus-within) {
+  .app.fullscreen :global(.screen > .bar:has(:focus-visible)) {
     transform: none;
     opacity: 1;
   }
