@@ -17,7 +17,8 @@ import { annotations } from "../annotations/store.svelte";
 import { loadDocument, PasswordCancelledError, type LoadedPdf } from "../viewer/pdfjs";
 import { passwordForget, passwordRecall, passwordRemember } from "../ipc/passwords";
 import type { ReadingPlace, ViewerController, ViewerState } from "../viewer/ViewerController";
-import { claimDoc, isMainWindow, openWindow, releaseDoc, sendTab, showDocIn, type MovedTab } from "../ipc/windows";
+import { claimDoc, openWindow, releaseDoc, sendTab, showDocIn, type MovedTab } from "../ipc/windows";
+import { windowRole } from "../app/windowRole.svelte";
 
 const SAVE_PAGE_DELAY_MS = 1500;
 /** Tabs kept loaded: the active one plus this many recently used ones. */
@@ -288,7 +289,8 @@ class DocumentSession {
     if (tab.snapshot) URL.revokeObjectURL(tab.snapshot);
     if (tab.pdf) await annotations.release(tab.pdf.doc);
     await tab.pdf?.close();
-    if (tab.kind === "pdf") void releaseDoc(tab.path);
+    // Awaited: a tab moving to another window must be free before that window claims it.
+    if (tab.kind === "pdf") await releaseDoc(tab.path);
     if (tab.id === this.activeId) {
       this.activeId = null;
       this.view = null;
@@ -459,8 +461,13 @@ class DocumentSession {
   }
 
   /** Remembers open tabs so "On start: tabs from last time" can reopen them. */
+  /** This window became the primary one: its tabs are the ones to reopen next time. */
+  persistNow(): void {
+    this.#persist();
+  }
+
   #persist(): void {
-    if (!isMainWindow) return; // extra windows aren't reopened at the next start
+    if (!windowRole.primary) return; // only the primary window's tabs reopen at the next start
     const paths = this.tabs.map((t) => t.path);
     const active = this.active?.path ?? "";
     const r = settings.value.reader;

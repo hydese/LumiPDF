@@ -135,11 +135,11 @@ Each release lists the installer's SHA-256 checksum, so you can check your downl
 
 Works on Windows 10 and 11.
 
-**Mac (beta):** a test version for Apple Silicon Macs (macOS 13 or later) is on the
-[Releases page](https://github.com/hydese/LumiPDF/releases) as **LumiPDF 2.1.0 Beta 1 – macOS**.
-Download the `.dmg`, open it and drag LumiPDF into Applications. LumiPDF isn't signed by Apple, so
-the first time macOS says it can't verify it: click **Done**, then go to **System Settings → Privacy
-& Security**, scroll down and click **Open Anyway**. The official Mac release is 2.1.0.
+**Mac:** LumiPDF for Apple Silicon Macs (macOS 13 or later) arrives with version 2.1.0, as a
+`.dmg` on the [Releases page](https://github.com/hydese/LumiPDF/releases): open it and drag LumiPDF
+into Applications. LumiPDF isn't signed by Apple, so the first time macOS says it can't verify it:
+click **Done**, then go to **System Settings → Privacy & Security**, scroll down and click
+**Open Anyway**.
 
 ## Questions
 

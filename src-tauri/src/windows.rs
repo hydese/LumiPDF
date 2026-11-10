@@ -1,6 +1,13 @@
-//! More than one LumiPDF window. The main window ("main") keeps the session, the updater and
-//! the timers; extra windows ("reader-N") are readers opened from a tab (↗, or right-click →
-//! "Move to a new window") or with Ctrl/⌘+Shift+N.
+//! More than one LumiPDF window. Every window is independent: closing one (even the first) leaves
+//! the others open, and LumiPDF quits with the last one. Extra windows ("reader-N") are opened
+//! from a tab (↗, or right-click → "Move to a new window") or with Ctrl/⌘+Shift+N.
+//!
+//! One window at a time is the **primary** one (at start, "main"): it remembers the open tabs
+//! for the next start, checks for updates and rings the timers. When it closes, the role passes
+//! to another open window ("window-primary" event).
+//!
+//! The timers are shared: the latest timer state (JSON, from the frontend) is kept here and sent
+//! to every other window, so each window shows and controls the same timer.
 //!
 //! The registry knows which window has which PDF open, so opening a PDF that another window
 //! already shows brings that window forward instead of opening it twice (two windows editing
@@ -22,18 +29,46 @@ pub struct Windows {
     /// What a new window should open first (a moved tab), by window label.
     handoff: Mutex<HashMap<String, String>>,
     next: AtomicU32,
+    /// The primary window's label (empty = "main", the first window).
+    primary: Mutex<String>,
+    /// The shared timer state (JSON from the frontend), for windows that open later.
+    timers: Mutex<Option<String>>,
 }
 
-/// The window the user is working in: the focused one, else the main window.
+fn primary_label(state: &Windows) -> String {
+    match state.primary.lock() {
+        Ok(p) if !p.is_empty() => p.clone(),
+        _ => "main".into(),
+    }
+}
+
+/// The key a PDF is registered under: on Windows and macOS paths ignore letter case, so
+/// `C:\Libri\a.pdf` and `c:/libri/A.pdf` are the same document.
+fn doc_key(path: &str) -> String {
+    if cfg!(any(target_os = "windows", target_os = "macos")) {
+        path.replace('\\', "/").to_lowercase()
+    } else {
+        path.to_string()
+    }
+}
+
+/// The window the user is working in: the focused one, else the primary one.
 pub fn active_label<R: Runtime>(app: &AppHandle<R>) -> String {
-    app.webview_windows()
-        .into_iter()
+    let windows = app.webview_windows();
+    if let Some((label, _)) = windows
+        .iter()
         .find(|(_, w)| w.is_focused().unwrap_or(false))
-        .map(|(label, _)| label)
-        .unwrap_or_else(|| "main".into())
+    {
+        return label.clone();
+    }
+    let primary = primary_label(&app.state::<Windows>());
+    if windows.contains_key(&primary) {
+        return primary;
+    }
+    windows.into_keys().min().unwrap_or_else(|| "main".into())
 }
 
-/// A window was closed: forget its documents.
+/// A window was closed: forget its documents, and pass the primary role on if it had it.
 pub fn forget<R: Runtime>(app: &AppHandle<R>, label: &str) {
     let state = app.state::<Windows>();
     if let Ok(mut docs) = state.docs.lock() {
@@ -42,6 +77,28 @@ pub fn forget<R: Runtime>(app: &AppHandle<R>, label: &str) {
     if let Ok(mut handoff) = state.handoff.lock() {
         handoff.remove(label);
     };
+    if primary_label(&state) != label {
+        return;
+    }
+    let windows = app.webview_windows();
+    let next = windows
+        .iter()
+        .filter(|(l, _)| l.as_str() != label)
+        .find(|(_, w)| w.is_focused().unwrap_or(false))
+        .map(|(l, _)| l.clone())
+        .or_else(|| {
+            windows
+                .keys()
+                .filter(|l| l.as_str() != label)
+                .min()
+                .cloned()
+        });
+    if let Some(next) = next {
+        if let Ok(mut primary) = state.primary.lock() {
+            *primary = next.clone();
+        }
+        let _ = app.emit_to(next.as_str(), "window-primary", ());
+    }
 }
 
 /// Opens a new reader window, optionally with a tab to show (JSON from the frontend).
@@ -100,12 +157,13 @@ pub fn window_claim_doc<R: Runtime>(window: WebviewWindow<R>, path: String) -> O
     let app = window.app_handle();
     let state = app.state::<Windows>();
     let mut docs = state.docs.lock().ok()?;
-    if let Some(owner) = docs.get(&path) {
+    let key = doc_key(&path);
+    if let Some(owner) = docs.get(&key) {
         if owner != window.label() && app.get_webview_window(owner).is_some() {
             return Some(owner.clone());
         }
     }
-    docs.insert(path, window.label().to_string());
+    docs.insert(key, window.label().to_string());
     None
 }
 
@@ -114,8 +172,9 @@ pub fn window_claim_doc<R: Runtime>(window: WebviewWindow<R>, path: String) -> O
 pub fn window_release_doc<R: Runtime>(window: WebviewWindow<R>, path: String) {
     let state = window.state::<Windows>();
     if let Ok(mut docs) = state.docs.lock() {
-        if docs.get(&path).map(String::as_str) == Some(window.label()) {
-            docs.remove(&path);
+        let key = doc_key(&path);
+        if docs.get(&key).map(String::as_str) == Some(window.label()) {
+            docs.remove(&key);
         }
     };
 }
@@ -162,4 +221,69 @@ pub fn window_send<R: Runtime>(
     target
         .emit_to(label.as_str(), event.as_str(), payload)
         .map_err(|e| AppError::InvalidInput(e.to_string()))
+}
+
+/// Whether this window is the primary one (see the module notes).
+#[tauri::command]
+pub fn window_is_primary<R: Runtime>(window: WebviewWindow<R>) -> bool {
+    primary_label(&window.state::<Windows>()) == window.label()
+}
+
+/// How many LumiPDF windows are open (closing the last one quits LumiPDF).
+#[tauri::command]
+pub fn window_count<R: Runtime>(app: AppHandle<R>) -> usize {
+    app.webview_windows().len()
+}
+
+/// Whether any LumiPDF window is in front (study time without reading counts only once).
+#[tauri::command]
+pub fn window_any_focused<R: Runtime>(app: AppHandle<R>) -> bool {
+    app.webview_windows()
+        .values()
+        .any(|w| w.is_focused().unwrap_or(false))
+}
+
+/// A window changed the timers: keep the state for later windows and send it to the others.
+#[tauri::command]
+pub fn timers_publish<R: Runtime>(window: WebviewWindow<R>, state: String) -> Result<(), AppError> {
+    if state.len() > 16 * 1024 {
+        return Err(AppError::InvalidInput("timers".into()));
+    }
+    if let Ok(mut timers) = window.state::<Windows>().timers.lock() {
+        *timers = Some(state.clone());
+    }
+    let from = window.label().to_string();
+    window
+        .app_handle()
+        .emit_filter("timers-state", state, |target| match target {
+            tauri::EventTarget::WebviewWindow { label } => *label != from,
+            _ => false,
+        })
+        .map_err(|e| AppError::InvalidInput(e.to_string()))
+}
+
+/// The current shared timer state, for a window that just opened.
+#[tauri::command]
+pub fn timers_get<R: Runtime>(app: AppHandle<R>) -> Option<String> {
+    app.state::<Windows>().timers.lock().ok()?.clone()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::doc_key;
+
+    #[test]
+    fn same_pdf_whatever_the_spelling() {
+        if cfg!(any(target_os = "windows", target_os = "macos")) {
+            assert_eq!(
+                doc_key("C:\\Libri\\Analisi.pdf"),
+                doc_key("c:/libri/analisi.PDF")
+            );
+        } else {
+            assert_ne!(
+                doc_key("/home/a/Analisi.pdf"),
+                doc_key("/home/a/analisi.pdf")
+            );
+        }
+    }
 }

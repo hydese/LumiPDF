@@ -77,10 +77,6 @@ export function setTextClarity(on: boolean): void {
   for (const listener of listeners) listener();
 }
 
-export function isTextClarity(): boolean {
-  return clarity;
-}
-
 export function onDarkModeChange(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
@@ -397,9 +393,6 @@ function hasGraphicsChip(): boolean {
   }
 }
 
-export function useGpuPageCanvases(on: boolean): void {
-  gpuPages = on;
-}
 export function gpuPageCanvases(): boolean {
   gpuPages ??= hasGraphicsChip();
   return gpuPages;

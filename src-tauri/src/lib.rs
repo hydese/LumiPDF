@@ -7,7 +7,6 @@
 mod annotations;
 mod attention;
 mod cloud;
-mod commands;
 mod documents;
 mod error;
 mod export;
@@ -68,7 +67,6 @@ pub fn run() {
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![
-            commands::app_info,
             menu::set_menu,
             perf::perf_log,
             perf::save_photo_example,
@@ -78,6 +76,11 @@ pub fn run() {
             windows::window_open,
             windows::window_take_tab,
             windows::window_claim_doc,
+            windows::window_is_primary,
+            windows::window_count,
+            windows::window_any_focused,
+            windows::timers_publish,
+            windows::timers_get,
             windows::window_release_doc,
             windows::window_list,
             windows::window_send,

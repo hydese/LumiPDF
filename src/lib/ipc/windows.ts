@@ -1,7 +1,7 @@
 /**
- * Several LumiPDF windows (windows.rs). The main window ("main") keeps the session, updates and
- * timers; extra reader windows show tabs moved out of it. Events between windows are always
- * addressed to one window, so each window listens only to its own.
+ * Several LumiPDF windows (windows.rs), all independent; the primary one is in
+ * app/windowRole.svelte.ts. Events between windows are addressed to one window, so each window
+ * listens only to its own.
  */
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -16,7 +16,8 @@ function currentLabel(): string {
 }
 
 export const windowLabel = currentLabel();
-export const isMainWindow = windowLabel === "main";
+/** The first window of a start ("main"): the one that reopens last time's tabs. */
+export const isFirstWindow = windowLabel === "main";
 
 /** A tab moved to another window. */
 export interface MovedTab {

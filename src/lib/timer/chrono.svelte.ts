@@ -1,5 +1,15 @@
 /** Chrono: a stopwatch with laps. */
+import { timerChanged } from "./bus";
+
 const TICK_MS = 100;
+
+export interface ChronoState {
+  running: boolean;
+  elapsedMs: number;
+  laps: number[];
+  startedAt: number;
+  base: number;
+}
 
 class Chrono {
   running = $state(false);
@@ -16,8 +26,29 @@ class Chrono {
     if (this.running) return;
     this.#base = this.elapsedMs;
     this.#startedAt = Date.now();
+    this.#run();
+    timerChanged();
+  }
+
+  #run(): void {
     this.running = true;
     this.#interval = setInterval(() => (this.elapsedMs = this.#base + Date.now() - this.#startedAt), TICK_MS);
+  }
+
+  snapshot(): ChronoState {
+    return { running: this.running, elapsedMs: this.elapsedMs, laps: [...this.laps], startedAt: this.#startedAt, base: this.#base };
+  }
+
+  /** Another window's state (shared timers). */
+  apply(s: ChronoState): void {
+    if (this.#interval) clearInterval(this.#interval);
+    this.#interval = null;
+    this.running = false;
+    this.#base = s.base;
+    this.#startedAt = s.startedAt;
+    this.laps = s.laps;
+    this.elapsedMs = s.running ? s.base + Date.now() - s.startedAt : s.elapsedMs;
+    if (s.running) this.#run();
   }
 
   pause(): void {
@@ -26,6 +57,7 @@ class Chrono {
     if (this.#interval) clearInterval(this.#interval);
     this.#interval = null;
     this.running = false;
+    timerChanged();
   }
 
   toggle(): void {
@@ -34,13 +66,16 @@ class Chrono {
   }
 
   lap(): void {
-    if (this.running) this.laps = [...this.laps, this.#base + Date.now() - this.#startedAt];
+    if (!this.running) return;
+    this.laps = [...this.laps, this.#base + Date.now() - this.#startedAt];
+    timerChanged();
   }
 
   reset(): void {
     this.pause();
     this.elapsedMs = 0;
     this.laps = [];
+    timerChanged();
   }
 }
 

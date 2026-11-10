@@ -474,6 +474,7 @@ for (const shot of shots) {
   if (shot.perfFlow) {
     // Beta-only performance panel: turn it on in Settings, go back to the PDF, scroll and draw.
     await page.keyboard.press("Control+Comma");
+    await page.click('nav button:has-text("Beta")');
     await page.click('label:has-text("Performance panel") .switch');
     await page.keyboard.press("Escape");
     await page.waitForTimeout(400);

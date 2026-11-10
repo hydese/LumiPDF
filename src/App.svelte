@@ -24,7 +24,8 @@
   import { setSpotTracking } from "./lib/dark/imageSpots";
   import { restorePhotoOverrides } from "./lib/dark/photoTraining.svelte";
   import { keepTimersAwake } from "./lib/timer/keepAwake";
-  import { isMainWindow, onSettingsSavedElsewhere, onWindowEvent, openWindow, takeMovedTab, type MovedTab } from "./lib/ipc/windows";
+  import { isFirstWindow, onSettingsSavedElsewhere, onWindowEvent, openWindow, takeMovedTab, type MovedTab } from "./lib/ipc/windows";
+  import { windowCount, windowRole } from "./lib/app/windowRole.svelte";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { emit, listen } from "@tauri-apps/api/event";
   import { perf } from "./lib/perf/perf.svelte";
@@ -67,7 +68,8 @@
   });
   $effect(() => {
     void settings.value.timer;
-    timers.syncWithSettings();
+    // The timers are shared: the primary window applies new lengths and tells the others.
+    if (windowRole.primary) timers.syncWithSettings();
   });
   let askClose = $state(false);
   /** A PDF is being dragged over the window. */
@@ -84,10 +86,27 @@
     }
   });
 
-  /** Closing the window or ⌘Q: ask first if a timer would be lost, else save and quit. */
-  function requestQuit() {
+  /**
+   * Closing this window. With other windows open it just saves and closes (the timers live on
+   * there); the last window asks first if a timer would be lost, then quits LumiPDF.
+   */
+  async function requestQuit() {
+    if ((await windowCount()) > 1) return void closeThisWindow();
     if (settings.value.timer.askOnClose && timers.busy) askClose = true;
     else void quitSaved();
+  }
+
+  /** Saves this window's work and closes it, leaving the other windows open. */
+  async function closeThisWindow() {
+    await Promise.allSettled([annotations.flush(), studyClock.flush(), sheets.flush()]);
+    quitApp();
+  }
+
+  /** ⌘Q / Quit: the other windows close first; the primary one closes last (and installs). */
+  async function onAppQuit() {
+    if (!windowRole.primary) return void closeThisWindow();
+    for (let i = 0; i < 30 && (await windowCount()) > 1; i++) await new Promise((r) => setTimeout(r, 100));
+    await quitSaved();
   }
 
   /** macOS menu bar items (the same actions as the keyboard shortcuts). */
@@ -138,8 +157,8 @@
 
   async function quitSaved() {
     await Promise.allSettled([annotations.flush(), studyClock.flush(), sheets.flush()]);
-    // Automatic updates: a downloaded update installs as LumiPDF closes.
-    if (updates.installOnQuit) await updates.installNow();
+    // Automatic updates: a downloaded update installs as LumiPDF closes (its last window).
+    if (updates.installOnQuit && (await windowCount()) <= 1) await updates.installNow();
     quitApp();
   }
 
@@ -294,9 +313,13 @@
       // First start: the Windows language, if LumiPDF speaks it (changeable in the welcome).
       if (!settings.value.app.locale) settings.update((s) => (s.app.locale = detectLocale()));
       setLocale(settings.value.app.locale);
-      stops.push(appearance.start(), readingMode.start(), studyClock.start());
-      // Timers, updates and "What's new" belong to the main window; extra windows only read.
-      if (isMainWindow) timers.syncWithSettings();
+      stops.push(appearance.start(), readingMode.start(), studyClock.start(), windowRole.start(), timers.share());
+      // A window that takes over as primary (the first one was closed) also remembers its tabs
+      // for the next start and checks for updates.
+      windowRole.onTakeOver(() => {
+        session.persistNow();
+        if (settings.value.app.checkForUpdates) stops.push(updates.checkSoon());
+      });
       // Every close goes through here: save what's pending, or ask first if a timer is running.
       stops.push(
         guardClose(
@@ -307,12 +330,12 @@
       ready = true;
       updates.beforeInstall = () => Promise.allSettled([annotations.flush(), studyClock.flush(), sheets.flush()]);
       updates.syncBeta(settings.value.app.lastSeenVersion);
-      if (isMainWindow) {
+      if (isFirstWindow) {
         whatsNew.onLaunch();
         if (settings.value.app.checkForUpdates) stops.push(updates.checkSoon());
       }
       await Promise.all([library.refresh(), sheets.refresh()]);
-      if (!isMainWindow) {
+      if (!isFirstWindow) {
         // An extra window: the tab it was opened for, or the Library.
         const moved = await takeMovedTab();
         if (moved) await session.openMoved(moved);
@@ -341,10 +364,12 @@
     const unlistenWindows = [
       onWindowEvent<string>("window-tab", (json) => void session.openMoved(JSON.parse(json) as MovedTab)),
       onWindowEvent<string>("window-show-doc", (path) => session.showDoc(path)),
-      listen("app-quit", () => void quitSaved()).catch(() => () => {}),
+      listen("app-quit", () => void onAppQuit()).catch(() => () => {}),
       onSettingsSavedElsewhere(() =>
         void settings.load((loaded, current) => {
-          // Each window keeps its own open tabs.
+          // The tabs to reopen are the primary window's: it keeps its own, the others take them
+          // from the file (so their saves never write back an old list).
+          if (!windowRole.primary) return;
           loaded.reader.openTabs = current.reader.openTabs;
           loaded.reader.activeTab = current.reader.activeTab;
         }),

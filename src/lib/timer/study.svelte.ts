@@ -16,6 +16,7 @@ import { library } from "../library/library.svelte";
 import { session } from "../reader/session.svelte";
 import { timers } from "./timers.svelte";
 import { studyTools } from "../app/studyTools.svelte";
+import { anyWindowFocused, windowRole } from "../app/windowRole.svelte";
 
 const TICK_S = 15;
 const FLUSH_EVERY_TICKS = 4;
@@ -59,7 +60,7 @@ class StudyClock {
     const onInput = () => (this.#lastInput = Date.now());
     const events = ["pointerdown", "keydown", "wheel", "pointermove"] as const;
     for (const e of events) window.addEventListener(e, onInput, { passive: true });
-    const interval = setInterval(() => this.#tick(), TICK_S * 1000);
+    const interval = setInterval(() => void this.#tick(), TICK_S * 1000);
     const onHide = () => void this.flush();
     window.addEventListener("pagehide", onHide);
     return () => {
@@ -70,12 +71,17 @@ class StudyClock {
     };
   }
 
-  #tick(): void {
+  async #tick(): Promise<void> {
     if (!studyTools.stats) {
       this.#run = this.#pending = 0;
       return;
     }
-    const present = document.visibilityState === "visible" && document.hasFocus() && Date.now() - this.#lastInput < IDLE_AFTER_MS;
+    const focused = document.visibilityState === "visible" && document.hasFocus();
+    const present = focused && Date.now() - this.#lastInput < IDLE_AFTER_MS;
+    // The timers are shared by every window: their time counts once, in the window in front,
+    // or in the primary window when no LumiPDF window is in front.
+    let timing = timers.studying;
+    if (timing && !focused) timing = windowRole.primary && !(await anyWindowFocused());
     const doc = navigation.screen === "reader" ? (session.current?.ref.path ?? null) : null;
     const reading = present && doc !== null;
     if (doc !== this.#pendingDoc) {
@@ -83,7 +89,7 @@ class StudyClock {
       this.#run = this.#pending = 0;
       this.#pendingDoc = doc;
     }
-    const step = studyStep(this.#run, this.#pending, { timing: timers.studying, reading }, TICK_S);
+    const step = studyStep(this.#run, this.#pending, { timing, reading }, TICK_S);
     this.#run = step.run;
     this.#pending = step.pending;
     if (step.count) {

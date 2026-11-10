@@ -1,6 +1,13 @@
 /** Timer: one countdown of any length; rings until stopped. */
 import { settings } from "../settings/store.svelte";
 import { ringer } from "./ringer.svelte";
+import { isTimerOwner, timerChanged } from "./bus";
+
+export interface CountdownState {
+  running: boolean;
+  remainingMs: number;
+  endsAt: number;
+}
 
 const TICK_MS = 250;
 
@@ -24,12 +31,14 @@ class Countdown {
     this.#endsAt = Date.now() + this.remainingMs;
     this.running = true;
     this.#interval = setInterval(() => this.#tick(), TICK_MS);
+    timerChanged();
   }
 
   pause(): void {
     if (!this.running) return;
     this.remainingMs = Math.max(0, this.#endsAt - Date.now());
     this.#stop();
+    timerChanged();
   }
 
   toggle(): void {
@@ -40,17 +49,35 @@ class Countdown {
   reset(): void {
     this.#stop();
     this.remainingMs = 0;
+    timerChanged();
   }
 
   /** Adds minutes to a running or paused countdown (e.g. "+5 min" when it rings). */
   extend(minutes: number): void {
     if (this.running) this.#endsAt += minutes * 60_000;
     else this.remainingMs += minutes * 60_000;
+    timerChanged();
+  }
+
+  snapshot(): CountdownState {
+    return { running: this.running, remainingMs: this.remainingMs, endsAt: this.#endsAt };
+  }
+
+  /** Another window's state (shared timers). */
+  apply(s: CountdownState): void {
+    this.#stop();
+    this.#endsAt = s.endsAt;
+    this.remainingMs = s.running ? Math.max(0, s.endsAt - Date.now()) : s.remainingMs;
+    if (s.running) {
+      this.running = true;
+      this.#interval = setInterval(() => this.#tick(), TICK_MS);
+    }
   }
 
   #tick(): void {
     this.remainingMs = Math.max(0, this.#endsAt - Date.now());
     if (this.remainingMs === 0) {
+      if (!isTimerOwner()) return this.#halt(); // the primary window rings and says what's next
       this.#stop();
       ringer.ring("timer", () => this.reset(), () => {
         this.remainingMs = 5 * 60_000;
@@ -59,9 +86,13 @@ class Countdown {
     }
   }
 
-  #stop(): void {
+  #halt(): void {
     if (this.#interval) clearInterval(this.#interval);
     this.#interval = null;
+  }
+
+  #stop(): void {
+    this.#halt();
     this.running = false;
   }
 }

@@ -4,10 +4,20 @@
  */
 import { settings } from "../settings/store.svelte";
 import { ringer } from "./ringer.svelte";
+import { isTimerOwner, timerChanged } from "./bus";
 
 export type Phase = "focus" | "short" | "long";
 
 const TICK_MS = 250;
+
+export interface PomodoroState {
+  phase: Phase;
+  running: boolean;
+  session: number;
+  remainingMs: number;
+  endsAt: number;
+  fullAtStart: number;
+}
 
 class Pomodoro {
   phase = $state<Phase>("focus");
@@ -38,9 +48,10 @@ class Pomodoro {
 
   /** A length was changed in settings: an untouched, stopped timer takes the new length. */
   syncWithSettings(): void {
-    if (!this.running && this.remainingMs === this.#fullAtStart) {
+    if (!this.running && this.remainingMs === this.#fullAtStart && this.remainingMs !== this.durationMs(this.phase)) {
       this.remainingMs = this.durationMs(this.phase);
       this.#fullAtStart = this.remainingMs;
+      timerChanged();
     }
   }
 
@@ -50,12 +61,14 @@ class Pomodoro {
     this.#endsAt = Date.now() + this.remainingMs;
     this.running = true;
     this.#interval = setInterval(() => this.#tick(), TICK_MS);
+    timerChanged();
   }
 
   pause(): void {
     if (!this.running) return;
     this.remainingMs = Math.max(0, this.#endsAt - Date.now());
     this.#stop();
+    timerChanged();
   }
 
   toggle(): void {
@@ -68,6 +81,25 @@ class Pomodoro {
     this.#stop();
     this.remainingMs = this.durationMs(this.phase);
     this.#fullAtStart = this.remainingMs;
+    timerChanged();
+  }
+
+  snapshot(): PomodoroState {
+    return { phase: this.phase, running: this.running, session: this.session, remainingMs: this.remainingMs, endsAt: this.#endsAt, fullAtStart: this.#fullAtStart };
+  }
+
+  /** Another window's state (shared timers). */
+  apply(s: PomodoroState): void {
+    this.#stop();
+    this.phase = s.phase;
+    this.session = s.session;
+    this.#endsAt = s.endsAt;
+    this.#fullAtStart = s.fullAtStart;
+    this.remainingMs = s.running ? Math.max(0, s.endsAt - Date.now()) : s.remainingMs;
+    if (s.running) {
+      this.running = true;
+      this.#interval = setInterval(() => this.#tick(), TICK_MS);
+    }
   }
 
   /** Ends the current phase now and moves to the next one. */
@@ -77,7 +109,11 @@ class Pomodoro {
 
   #tick(): void {
     this.remainingMs = Math.max(0, this.#endsAt - Date.now());
-    if (this.remainingMs === 0) this.#advance(true);
+    if (this.remainingMs > 0) return;
+    // The primary window chimes and moves on; the others wait for its new state.
+    if (isTimerOwner()) return this.#advance(true);
+    if (this.#interval) clearInterval(this.#interval);
+    this.#interval = null;
   }
 
   #advance(finished: boolean): void {
@@ -93,6 +129,7 @@ class Pomodoro {
     this.remainingMs = this.durationMs(this.phase);
     this.#fullAtStart = this.remainingMs;
     if (finished && this.phase !== "focus") this.start();
+    timerChanged();
   }
 
   #stop(): void {

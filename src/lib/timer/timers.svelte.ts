@@ -9,6 +9,10 @@ import { chrono } from "./chrono.svelte";
 import { countdown } from "./countdown.svelte";
 import { formatAlarm, formatClock, formatStopwatch } from "./format";
 import { pomodoro } from "./pomodoro.svelte";
+import { onTimerChange, quietly, setTimerOwner } from "./bus";
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { windowRole } from "../app/windowRole.svelte";
 
 export interface PillInfo {
   mode: TimerMode;
@@ -56,6 +60,61 @@ class Timers {
     pomodoro.syncWithSettings();
     alarm.syncWithSettings();
   }
+
+  /**
+   * Shares the timers with the other windows: this window's changes go out, theirs come in,
+   * and a new window starts from the current state. Only the primary window rings.
+   */
+  share(): () => void {
+    setTimerOwner(() => windowRole.primary);
+    let queued = false;
+    onTimerChange(() => {
+      if (queued) return;
+      queued = true;
+      // One message per action, even when it changes several things (a Pomodoro phase change).
+      queueMicrotask(() => {
+        queued = false;
+        const state = JSON.stringify({ countdown: countdown.snapshot(), pomodoro: pomodoro.snapshot(), chrono: chrono.snapshot(), alarm: alarm.snapshot() });
+        void invoke("timers_publish", { state }).catch(() => {});
+      });
+    });
+    const apply = (json: string | null) => {
+      if (!json) return;
+      try {
+        const s = JSON.parse(json) as SharedTimers;
+        quietly(() => {
+          countdown.apply(s.countdown);
+          pomodoro.apply(s.pomodoro);
+          chrono.apply(s.chrono);
+          alarm.apply(s.alarm);
+        });
+      } catch {
+        // A malformed state is ignored: this window keeps its own.
+      }
+    };
+    void invoke<string | null>("timers_get").then(apply).catch(() => {});
+    let stop: (() => void) | null = null;
+    let closed = false;
+    try {
+      void getCurrentWebviewWindow()
+        .listen<string>("timers-state", (e) => apply(e.payload))
+        .then((u) => (closed ? u() : (stop = u)));
+    } catch {
+      // Browser preview: one window only.
+    }
+    return () => {
+      closed = true;
+      onTimerChange(null);
+      stop?.();
+    };
+  }
+}
+
+interface SharedTimers {
+  countdown: ReturnType<typeof countdown.snapshot>;
+  pomodoro: ReturnType<typeof pomodoro.snapshot>;
+  chrono: ReturnType<typeof chrono.snapshot>;
+  alarm: ReturnType<typeof alarm.snapshot>;
 }
 
 export const timers = new Timers();

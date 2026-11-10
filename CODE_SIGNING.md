@@ -2,8 +2,7 @@
 
 LumiPDF's Windows installers are currently **not signed with a code signing certificate**, so
 Windows may show "Windows protected your PC" on the first install: choose **More info → Run
-anyway**. We plan to sign them through the [SignPath Foundation](https://signpath.org)'s free
-programme for open-source projects once LumiPDF qualifies.
+anyway**. A code signing certificate for the installers is being looked into.
 
 Updates installed from inside the app are always verified: every installer is signed with the
 project's updater key, and LumiPDF refuses an update whose signature doesn't match.
