@@ -46,11 +46,10 @@ rebuilds `docs/images/` (needs Pillow).
 >   `src/lib/dark/imageSpots.ts` (and `recordSpot` in `engine.ts`), the right-click on `.pages`
 >   in `ReaderScreen.svelte`, `setSpotTracking`/`restorePhotoOverrides` in `App.svelte`, the
 >   `save_photo_example` command (`perf.rs`). **Keep the photo model** (`photoFeatures.ts`,
->   `photoModelWeights.ts`, `tests/photo-model/`): it is what the app uses.
+>   `photoModelWeights.ts`): it is what the app uses.
 >
-> Testers' examples (`LumiPDF-esempi` on their Desktop) go into the model like this: copy the
-> `dataset` line of each `info.json` into `tests/photo-model/dataset.json`, run
-> `npm run train-photo-model`, then `npm test` (reported examples must all come out right).
+> The photo model's dataset and training tools live in the private lab repository; only the
+> weights (`photoModelWeights.ts`) are copied here.
 
 1. Update `version` in `package.json` and `src-tauri/Cargo.toml`, and add its entry to
    `src/lib/whatsnew/releases.json` (shown in the app after updating, and used as the release

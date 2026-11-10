@@ -18,7 +18,6 @@
     "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
     "test": "vitest run",
     "bench": "node tests/bench/run.mjs",
-    "train-photo-model": "node --experimental-strip-types scripts/train-photo-model.ts",
     "tauri": "tauri"
   },
   "dependencies": {

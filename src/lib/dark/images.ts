@@ -80,7 +80,7 @@ function sampleOf(source: CanvasImageSource, width: number, height: number): Sam
 }
 
 /**
- * The photo model (photoFeatures.ts, trained on tests/photo-model) decides whether an image is a
+ * The photo model (photoFeatures.ts, trained in the private lab repository) decides whether an image is a
  * photo or painting to keep as it is; the rules above then tell paper from graphics. The rules
  * alone missed black-and-white photos (no colour, few shades of each channel) and kept flat
  * diagrams with a pale colour area.
@@ -141,7 +141,7 @@ function overrideOf(source: CanvasImageSource): boolean | null {
 }
 
 /**
- * Development only (the training probe, tests/photo-model): told about every image dark mode
+ * Development only (the training probe in the private lab repository): told about every image dark mode
  * prepares. Never set in the app.
  */
 export type ImageProbe = (info: { source: CanvasImageSource; width: number; height: number; sample: Sample; kind: ImageKind; maskShare: number | null }) => void;

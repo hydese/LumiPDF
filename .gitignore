@@ -19,3 +19,4 @@ Thumbs.db
 .idea/
 *.log
 tests/preview/out/
+tests/.lab-probe/

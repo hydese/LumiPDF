@@ -1,7 +1,7 @@
 /**
  * The numbers the photo model looks at, measured on a small sample of an image (at most 64×64
- * RGBA pixels). Shared by the app and the training script (scripts/train-photo-model.ts), so
- * both measure exactly the same way. No DOM here: Node runs it too.
+ * RGBA pixels). Shared by the app and the training tools (kept in the private lab repository),
+ * so both measure exactly the same way. No DOM here: Node runs it too.
  *
  * Each feature is a share or a level between 0 and 1. Photos (colour or black-and-white) have
  * many levels of grey, soft steps between neighbouring pixels and few flat areas; scans of text,

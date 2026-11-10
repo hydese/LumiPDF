@@ -2,8 +2,8 @@
  * BETA BUILDS ONLY — photo training. In dark mode a tester right-clicks an image and says
  * "It's a photo" or "Not a photo". The correction applies at once and is remembered on this
  * computer; the example (original, dark version as it was, features, model's answer, context)
- * goes to the "LumiPDF-esempi" folder on the Desktop, to be sent and added to
- * tests/photo-model/dataset.json so the next version gets it right for everyone.
+ * goes to the "LumiPDF-esempi" folder on the Desktop, to be sent and added to the photo
+ * model's dataset (private lab repository) so the next version gets it right for everyone.
  *
  * Remove the menu before a stable release (docs/DEVELOPMENT.md, "Beta-only").
  */
@@ -139,7 +139,7 @@ export async function teach(target: PhotoTarget, photo: boolean, context: { docu
 
   const record = {
     label: photo ? "photo" : "not-photo",
-    // The line to add to tests/photo-model/dataset.json:
+    // The line to add to the photo model's dataset:
     dataset: { from: `${context.document} p${target.page} (tester)`, photo, reported: true, f: info.features.map((v) => +v.toFixed(4)) },
     model: { probability: +info.probability.toFixed(3), saidPhoto: info.probability >= 0.5, rules: info.rules, previousOverride: info.override },
     features: Object.fromEntries(FEATURE_NAMES.map((n, i) => [n, +info.features[i]!.toFixed(4)])),
